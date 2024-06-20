@@ -19,7 +19,7 @@ class ForwardSimulationPlanePush:
         self.gripper_length = gripper_length
         self.set_params()
         self.create_shapes()
-        # set gravity
+        self.step_count = 0
         p.setGravity(0, 0, self.g)
 
     def set_params(self):
@@ -56,6 +56,7 @@ class ForwardSimulationPlanePush:
         self.set_params()
         p.resetBasePositionAndOrientation(self.objectUid, self.pos_object, self.quat_object)
         p.resetBasePositionAndOrientation(self.gripperUid, self.pos_gripper, self.quat_gripper)
+        self.step_count = 0
 
     def run_forward_sim(self, dt = 5):
         for i in range(int(dt * 240)):
