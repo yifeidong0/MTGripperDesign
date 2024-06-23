@@ -38,7 +38,7 @@ class Box2DSimulation:
 
         # Create the dynamic object
         if self.object_type == 'circle':
-            self.object_body = self.create_circle(self.world, (-10, 30))
+            self.object_body = self.create_circle(self.world, (20, 30))
         elif self.object_type == 'polygon':
             vertices = [(0, 0), (-2, 3), (5, 1), (1, 5), (-3, 1)]
             self.object_body = self.create_polygon(self.world, (-5, 30), vertices)
@@ -52,12 +52,12 @@ class Box2DSimulation:
 
     def create_circle(self, world, position):
         body = world.CreateDynamicBody(position=position)
-        body.CreateCircleFixture(radius=3, density=0.1, friction=0.3)
+        body.CreateCircleFixture(radius=3, density=0.1, friction=0.2)
         return body
 
     def create_polygon(self, world, position, vertices):
         body = world.CreateDynamicBody(position=position)
-        body.CreatePolygonFixture(vertices=vertices, density=0.1, friction=0.3)
+        body.CreatePolygonFixture(vertices=vertices, density=0.1, friction=0.2)
         return body
 
     def create_v_shape(self, world, position, length, thickness, angle):
@@ -81,14 +81,31 @@ class Box2DSimulation:
                      (-thickness * math.sin(-angle / 2), thickness * math.cos(-angle / 2))]
 
         # Attach the shapes to the body
-        v_shape_body.CreatePolygonFixture(vertices=vertices1, density=1, friction=0.3)
-        v_shape_body.CreatePolygonFixture(vertices=vertices2, density=1, friction=0.3)
+        v_shape_body.CreatePolygonFixture(vertices=vertices1, density=1, friction=0.2)
+        v_shape_body.CreatePolygonFixture(vertices=vertices2, density=1, friction=0.2)
 
         return v_shape_body
 
     def to_pygame(self, p):
         """Convert Box2D coordinates to Pygame coordinates."""
         return int(p[0] * 10 + self.width // 2), int(self.height - p[1] * 10)
+
+    def draw(self):
+        # Draw table
+        for fixture in self.table_body.fixtures:
+            self.draw_polygon(fixture.shape, self.table_body, fixture, self.colors['table'])
+
+        # Draw robot
+        for fixture in self.robot_body.fixtures:
+            self.draw_polygon(fixture.shape, self.robot_body, fixture, self.colors['robot'])
+
+        # Draw object
+        if self.object_type == 'circle':
+            for fixture in self.object_body.fixtures:
+                self.draw_circle(fixture.shape, self.object_body, fixture, self.colors['circle'])
+        elif self.object_type == 'polygon':
+            for fixture in self.object_body.fixtures:
+                self.draw_polygon(fixture.shape, self.object_body, fixture, self.colors['polygon'])
 
     def draw_polygon(self, polygon, body, fixture, color):
         vertices = [(body.transform * v) for v in polygon.vertices]
@@ -122,20 +139,7 @@ class Box2DSimulation:
             self.screen.fill(self.colors['background'])
 
             # Draw table
-            for fixture in self.table_body.fixtures:
-                self.draw_polygon(fixture.shape, self.table_body, fixture, self.colors['table'])
-
-            # Draw robot
-            for fixture in self.robot_body.fixtures:
-                self.draw_polygon(fixture.shape, self.robot_body, fixture, self.colors['robot'])
-
-            # Draw object
-            if self.object_type == 'circle':
-                for fixture in self.object_body.fixtures:
-                    self.draw_circle(fixture.shape, self.object_body, fixture, self.colors['circle'])
-            elif self.object_type == 'polygon':
-                for fixture in self.object_body.fixtures:
-                    self.draw_polygon(fixture.shape, self.object_body, fixture, self.colors['polygon'])
+            self.draw()
 
             # Flip screen
             pygame.display.flip()
@@ -145,6 +149,6 @@ class Box2DSimulation:
 
         pygame.quit()
 
-# Example usage
-simulation = Box2DSimulation(v_angle=math.pi / 3, object_type='polygon') # polygon or circle
-simulation.run()
+# # Example usage
+# simulation = Box2DSimulation(v_angle=math.pi / 3, object_type='circle') # polygon or circle
+# simulation.run()
