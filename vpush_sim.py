@@ -61,9 +61,6 @@ class Box2DSimulation:
         return body
 
     def create_v_shape(self, world, position, length, thickness, angle):
-        half_length = length / 2
-        half_thickness = thickness / 2
-
         # Create a dynamic body for the V-shape
         v_shape_body = world.CreateDynamicBody(position=position)
 
