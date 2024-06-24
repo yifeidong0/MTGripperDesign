@@ -24,7 +24,8 @@ class Box2DSimulation:
             'robot': (0, 0, 255),
             'circle': (255, 0, 0),
             'table': (128, 128, 128),
-            'polygon': (0, 255, 50)
+            'polygon': (0, 255, 50),
+            'goal': (0, 255, 0)
         }
 
         # Create the world
@@ -49,6 +50,8 @@ class Box2DSimulation:
         # Simulation parameters
         self.timeStep = 1.0 / 60
         self.vel_iters, self.pos_iters = 6, 2
+        self.goal_position = (random.uniform(-20, 20), random.uniform(20, 40))
+        self.goal_radius = 5
 
     def create_circle(self, world, position):
         body = world.CreateDynamicBody(position=position)
@@ -85,13 +88,16 @@ class Box2DSimulation:
 
     def to_pygame(self, p):
         """Convert Box2D coordinates to Pygame coordinates."""
-        return int(p[0] * 10 + self.width // 2), int(self.height - p[1] * 10)
+        return int(p[0] * 10 + self.width // 2), int(self.height - p[1] * 10) # [-40,40], [0,60]
 
     def draw(self):
         # Draw table
         for fixture in self.table_body.fixtures:
             self.draw_polygon(fixture.shape, self.table_body, fixture, self.colors['table'])
 
+        # Draw goal region
+        self.draw_goal_region()
+        
         # Draw robot
         for fixture in self.robot_body.fixtures:
             self.draw_polygon(fixture.shape, self.robot_body, fixture, self.colors['robot'])
@@ -104,6 +110,7 @@ class Box2DSimulation:
             for fixture in self.object_body.fixtures:
                 self.draw_polygon(fixture.shape, self.object_body, fixture, self.colors['polygon'])
 
+
     def draw_polygon(self, polygon, body, fixture, color):
         vertices = [(body.transform * v) for v in polygon.vertices]
         vertices = [self.to_pygame(v) for v in vertices]
@@ -112,6 +119,9 @@ class Box2DSimulation:
     def draw_circle(self, circle, body, fixture, color):
         position = self.to_pygame(body.position)
         pygame.draw.circle(self.screen, color, position, int(circle.radius * 10))
+
+    def draw_goal_region(self):
+        pygame.draw.circle(self.screen, self.colors['goal'], self.to_pygame(self.goal_position), self.goal_radius * 10)
 
     def run(self):
         running = True
@@ -146,6 +156,6 @@ class Box2DSimulation:
 
         pygame.quit()
 
-# # Example usage
-# simulation = Box2DSimulation(v_angle=math.pi / 3, object_type='circle') # polygon or circle
-# simulation.run()
+# Example usage
+simulation = Box2DSimulation(v_angle=math.pi / 3, object_type='circle') # polygon or circle
+simulation.run()
