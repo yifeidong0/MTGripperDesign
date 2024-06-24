@@ -4,6 +4,8 @@ import pygame
 from pygame.locals import QUIT
 import math
 import random
+from time import sleep
+import numpy as np
 
 class Box2DSimulation:
     def __init__(self, v_angle, object_type='circle'):
@@ -38,20 +40,30 @@ class Box2DSimulation:
         )
 
         # Create the dynamic object
+        self.object_position = np.array([random.uniform(-20, 20), random.uniform(20, 40)])
         if self.object_type == 'circle':
-            self.object_body = self.create_circle(self.world, (20, 30))
+            self.object_body = self.create_circle(self.world, self.object_position)
         elif self.object_type == 'polygon':
             vertices = [(0, 0), (-2, 3), (5, 1), (1, 5), (-3, 1)]
-            self.object_body = self.create_polygon(self.world, (-5, 30), vertices)
-        
+            self.object_body = self.create_polygon(self.world, self.object_position, vertices)
+
+        # Create the goal region
+        self.goal_position = np.array([random.uniform(-20, 20), random.uniform(20, 40)])
+        self.goal_radius = 5
+
         # Create a dynamic V-shaped robot
-        self.robot_body = self.create_v_shape(self.world, (10, 30), 10, 1, self.v_angle)
+        direction_to_goal = self.goal_position - self.object_position
+        # normalize the np vector
+        self.direction_to_goal = direction_to_goal / np.linalg.norm(direction_to_goal)
+        pre_position = self.object_position - self.direction_to_goal * 15  # Adjust distance as needed
+        self.robot_body = self.create_v_shape(self.world, pre_position, 10, 1, self.v_angle)
+        self.robot_body.position = pre_position
+        self.robot_body.angle = math.atan2(self.direction_to_goal[1], self.direction_to_goal[0]) 
 
         # Simulation parameters
         self.timeStep = 1.0 / 60
         self.vel_iters, self.pos_iters = 6, 2
-        self.goal_position = (random.uniform(-20, 20), random.uniform(20, 40))
-        self.goal_radius = 5
+
 
     def create_circle(self, world, position):
         body = world.CreateDynamicBody(position=position)
@@ -97,7 +109,7 @@ class Box2DSimulation:
 
         # Draw goal region
         self.draw_goal_region()
-        
+
         # Draw robot
         for fixture in self.robot_body.fixtures:
             self.draw_polygon(fixture.shape, self.robot_body, fixture, self.colors['robot'])
@@ -109,7 +121,6 @@ class Box2DSimulation:
         elif self.object_type == 'polygon':
             for fixture in self.object_body.fixtures:
                 self.draw_polygon(fixture.shape, self.object_body, fixture, self.colors['polygon'])
-
 
     def draw_polygon(self, polygon, body, fixture, color):
         vertices = [(body.transform * v) for v in polygon.vertices]
@@ -125,18 +136,23 @@ class Box2DSimulation:
 
     def run(self):
         running = True
+        target_reached = False
+        
         while running:
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
 
-            # Apply a force to the robot to push the circle
-            # force = (-5,-.2)
-            # self.robot_body.ApplyForce(force=force, point=self.robot_body.worldCenter, wake=True)
-                    
-            # Set the velocity of the robot to push the object
-            velocity = (random.uniform(-10, 10), random.uniform(-10, 10))
-            self.robot_body.linearVelocity = velocity
+            # Calculate the direction vector from the robot to the object
+            # robot_pos = self.robot_body.position
+            object_pos = self.object_body.position
+            distance_to_goal = (object_pos - self.goal_position).length
+            if distance_to_goal < self.goal_radius:
+                target_reached = True
+                break
+
+            # push object towards goal using velocity control
+            self.robot_body.linearVelocity = 0.1 * self.direction_to_goal * distance_to_goal
 
             # Step the world
             self.world.Step(self.timeStep, self.vel_iters, self.pos_iters)
@@ -145,8 +161,9 @@ class Box2DSimulation:
             # Clear screen
             self.screen.fill(self.colors['background'])
 
-            # Draw table
+            # Draw table and objects
             self.draw()
+            # pygame.draw.circle(self.screen, (10, 0, 0), self.to_pygame(pre_position), 5)
 
             # Flip screen
             pygame.display.flip()
@@ -155,7 +172,7 @@ class Box2DSimulation:
             pygame.time.Clock().tick(60)
 
         pygame.quit()
-
+        
 # Example usage
 simulation = Box2DSimulation(v_angle=math.pi / 3, object_type='circle') # polygon or circle
 simulation.run()
