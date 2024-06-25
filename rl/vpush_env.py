@@ -1,3 +1,7 @@
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -6,9 +10,8 @@ from stable_baselines3.common.env_checker import check_env
 import pygame
 import random
 import math
-from vpush_sim import Box2DSimulation  # Assuming Box2DSimulation is in a separate file.
+from sim.vpush_sim import Box2DSimulation  # Assuming Box2DSimulation is in a separate file.
 import time
-import os
 from stable_baselines3.common.callbacks import BaseCallback
 
 class CustomCallback(BaseCallback):

@@ -58,7 +58,7 @@ class ForwardSimulationPlanePush:
         p.resetBasePositionAndOrientation(self.gripperUid, self.pos_gripper, self.quat_gripper)
         self.step_count = 0
 
-    def run_forward_sim(self, dt = 5):
+    def run(self, dt=5):
         for i in range(int(dt * 240)):
             self.pos_object, _ = p.getBasePositionAndOrientation(self.objectUid)
             force_on_object = [self.mass_object * .0 * random.uniform(0.5, 1), 
@@ -70,7 +70,6 @@ class ForwardSimulationPlanePush:
             if self.gui:
                 time.sleep(1 / 240)
         reward = p.getBasePositionAndOrientation(self.objectUid)[0][1]
-        print("Reward: ", reward)
         self.finish_sim()
         return reward
 
@@ -81,4 +80,4 @@ class ForwardSimulationPlanePush:
 if __name__ == "__main__":
     sim = ForwardSimulationPlanePush(task_type='box', gripper_length=0.1, gui=1) # box, ball
     # sim.reset_states()
-    reward = sim.run_forward_sim()
+    reward = sim.run()

@@ -3,7 +3,7 @@ import pybullet_data
 import time
 import numpy as np
 
-"""Pybullet environment for pushing a custom object with a V-shap gripper. """
+"""Pybullet environment for pushing a custom object with a V-shape gripper. """
 class CustomObjectSimulation:
     def __init__(self, angle_theta=np.pi/4, gui=False):
         self.angle_theta = angle_theta

@@ -1,10 +1,14 @@
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pybullet as p
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
-from push_sim import ForwardSimulationPlanePush
+from sim.push_sim import ForwardSimulationPlanePush
 import time
 
 class VisuomotorPlanarPushEnv(gym.Env):

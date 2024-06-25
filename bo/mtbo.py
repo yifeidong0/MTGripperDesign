@@ -7,7 +7,11 @@ from IPython import display
 import time
 from matplotlib import pyplot as plt
 import numpy as np
-from push_sim import ForwardSimulationPlanePush
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from sim.push_sim import ForwardSimulationPlanePush
 
 x_scale = np.arange(0.1, 1.2, 0.04)
 
@@ -101,11 +105,8 @@ def mt_objective(xt):
 
     task = 'ball' if t==0 else 'box'
     sim = ForwardSimulationPlanePush(task_type=task, gripper_length=x, gui=1)
-    # func = {0: evaluate_f0, 1: evaluate_f1}[t] # use noisy evaluation
-    #func = {0: f0, 1: f1}[t] # use exact evaluation
-    # return func(x)
 
-    return sim.run_forward_sim()
+    return sim.run()
 
 # Evaluation costs
 
