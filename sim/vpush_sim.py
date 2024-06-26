@@ -39,12 +39,6 @@ class Box2DSimulation:
         # Create the world
         self.world = world(gravity=(0, 0), doSleep=True)
 
-        # Create a static table body
-        self.table_body = self.world.CreateStaticBody(
-            position=(0, 20),
-            shapes=polygonShape(box=(50, 1)),
-        )
-
         # Create the dynamic object
         self.object_position = np.array([random.uniform(-20, 20), random.uniform(20, 40)])
         if self.object_type == 'circle':
@@ -121,10 +115,6 @@ class Box2DSimulation:
         return int(p[0] * 10 + self.width // 2), int(self.height - p[1] * 10) # [-40,40], [0,60]
 
     def draw(self):
-        # Draw table
-        for fixture in self.table_body.fixtures:
-            self.draw_polygon(fixture.shape, self.table_body, fixture, self.colors['table'])
-
         # Draw goal region
         self.draw_goal_region()
 

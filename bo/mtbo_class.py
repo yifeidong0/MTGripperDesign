@@ -32,7 +32,7 @@ class BayesianOptimizationPipeline:
     def get_kernel_mt(self, input_dim=1, num_outputs=2):
         return GPy.util.multioutput.ICM(input_dim, num_outputs, self.get_kernel_basic(input_dim), W_rank=1, name='ICM')
 
-    def mt_objective(self, xt, num_episodes=30):
+    def mt_objective(self, xt, num_episodes=1):
         assert len(xt) == 1
         xt = xt[0]
         assert xt[-1] == 0.0 or xt[-1] == 1.0
@@ -111,5 +111,5 @@ class BayesianOptimizationPipeline:
             plot_bo(self.bo, self.x_scale, i)
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationPipeline(env_type="vpush", initial_iter=6, max_iter=25, gui=0) # vpush, push
+    pipeline = BayesianOptimizationPipeline(env_type="vpush", initial_iter=2, max_iter=25, gui=1) # vpush, push
     pipeline.run()
