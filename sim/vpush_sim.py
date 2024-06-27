@@ -7,10 +7,6 @@ import random
 from time import sleep
 import numpy as np
 
-# TODO: 1. Add perturbation to the robot velocity
-#       2. Multiple trials to evaluate the performance
-#       3. Add a reward function to evaluate the performance
-
 class Box2DSimulation:
     def __init__(self, object_type='circle', v_angle=np.pi/3, use_gui=True):
         self.v_angle = v_angle

@@ -55,9 +55,9 @@ def handle_pygame_events():
             exit()
 
 class Box2DSimulationEnv(gym.Env):
-    def __init__(self, v_angle, object_type='circle', gui=True, img_size=(84, 84)):
+    def __init__(self, object_type='circle', v_angle=np.pi/6, gui=True, img_size=(84, 84)):
         super(Box2DSimulationEnv, self).__init__()
-        self.simulation = Box2DSimulation(v_angle, object_type)
+        self.simulation = Box2DSimulation(object_type, v_angle)
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.action_space = spaces.Box(low=np.array([-0.03, -0.03, -0.01]), high=np.array([0.03, 0.03, 0.01]), dtype=np.float32)
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     v_angle = math.pi / 6  # Example angle in radians (30 degrees)
     object_type = 'polygon'  # Can be 'circle' or 'polygon'
     log_dir = "./logs"
-    env = Box2DSimulationEnv(v_angle, object_type, gui=True, img_size=(42, 42))  # Use smaller image size
+    env = Box2DSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42))  # Use smaller image size
     check_env(env)
 
     callback = CustomCallback(log_dir=log_dir, verbose=1)

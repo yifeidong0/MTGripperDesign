@@ -7,6 +7,10 @@ dependencies:
   - numpy
   - GPy
   - GPyOpt
+  - gymnasium
+  - stable_baselines3
+  - stable-baselines3[extra]
+  - pybullet
   - matplotlib=3.5.0
   - pygame=2.6.0
   - pip
