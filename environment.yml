@@ -1,0 +1,14 @@
+name: mtbo_py310
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - GPy
+  - GPyOpt
+  - matplotlib=3.5.0
+  - pygame=2.6.0
+  - pip
+  - pip:
+    - box2d-py
