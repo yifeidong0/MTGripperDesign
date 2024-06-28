@@ -12,41 +12,7 @@ import random
 import math
 from sim.vpush_sim import Box2DSimulation  # Assuming Box2DSimulation is in a separate file.
 import time
-from stable_baselines3.common.callbacks import BaseCallback
-
-class CustomCallback(BaseCallback):
-    def __init__(self, log_dir, verbose=0):
-        super(CustomCallback, self).__init__(verbose)
-        self.log_dir = log_dir
-        self.log_file = os.path.join(log_dir, "training_log.txt")
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-
-    def _on_step(self) -> bool:
-        if self.n_calls % self.locals['self'].n_steps == 0:  # Save after each epoch
-            # Access the logger's storage
-            log_data = self.logger.name_to_value
-            metrics = {
-                "iterations": self.num_timesteps,
-                "ep_len_mean": log_data.get("rollout/ep_len_mean", 0),
-                "ep_rew_mean": log_data.get("rollout/ep_rew_mean", 0),
-                "fps": log_data.get("time/fps", 0),
-                "time_elapsed": log_data.get("time/time_elapsed", 0),
-                "approx_kl": log_data.get("train/approx_kl", 0),
-                "clip_fraction": log_data.get("train/clip_fraction", 0),
-                "clip_range": log_data.get("train/clip_range", 0),
-                "entropy_loss": log_data.get("train/entropy_loss", 0),
-                "explained_variance": log_data.get("train/explained_variance", 0),
-                "learning_rate": log_data.get("train/learning_rate", 0),
-                "loss": log_data.get("train/loss", 0),
-                "n_updates": log_data.get("train/n_updates", 0),
-                "policy_gradient_loss": log_data.get("train/policy_gradient_loss", 0),
-                "std": log_data.get("train/std", 0),
-                "value_loss": log_data.get("train/value_loss", 0)
-            }
-            with open(self.log_file, "a") as f:
-                f.write(f"{metrics}\n")
-        return True
+from stable_baselines3.common.utils import get_linear_fn
 
 def handle_pygame_events():
     for event in pygame.event.get():
@@ -60,7 +26,7 @@ class Box2DSimulationEnv(gym.Env):
         self.simulation = Box2DSimulation(object_type, v_angle)
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
-        self.action_space = spaces.Box(low=np.array([-0.03, -0.03, -0.01]), high=np.array([0.03, 0.03, 0.01]), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]), dtype=np.float32)
         # self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32)
         
         # Observation space: smaller RGB image of the simulation
@@ -114,12 +80,15 @@ class Box2DSimulationEnv(gym.Env):
         return obs, {}
 
     def step(self, action):
-        # Add noise to action for exploration
-        noise = np.random.normal(0, 0.01, size=action.shape)
-        action = action + noise
+        # # Add noise to action for exploration
+        # noise = np.random.normal(0, 0.01, size=action.shape)
+        # action = action + noise
 
-        # Ensure action is within bounds
-        action = np.clip(action, self.action_space.low, self.action_space.high)
+        # Rescale action to desired range
+        # rescaled_action = action * np.array([0.01, 0.01, 0.002])
+        rescaled_action = action * np.array([1,1,.2])
+
+        action = np.clip(rescaled_action, self.action_space.low, self.action_space.high)
 
         # Get the current velocities
         current_linear_velocity = self.simulation.robot_body.linearVelocity
@@ -127,10 +96,12 @@ class Box2DSimulationEnv(gym.Env):
 
         # Apply the velocity offsets
         new_linear_velocity = (
-            float(current_linear_velocity[0] + action[0]),
-            float(current_linear_velocity[1] + action[1])
+            # float(current_linear_velocity[0] + action[0]),
+            # float(current_linear_velocity[1] + action[1])
+            float(action[0]),
+            float(action[1])
         )
-        new_angular_velocity = float(current_angular_velocity + action[2])
+        new_angular_velocity = float(action[2])
 
         # Set the new velocities
         self.simulation.robot_body.linearVelocity = new_linear_velocity
@@ -208,16 +179,15 @@ class Box2DSimulationEnv(gym.Env):
         pygame.quit()
 
 if __name__ == "__main__":
-    v_angle = math.pi / 6  # Example angle in radians (30 degrees)
+    v_angle = math.pi / 3  # Example angle in radians (30 degrees)
     object_type = 'polygon'  # Can be 'circle' or 'polygon'
-    log_dir = "./logs"
     env = Box2DSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42))  # Use smaller image size
     check_env(env)
 
-    callback = CustomCallback(log_dir=log_dir, verbose=1)
-    model = PPO("CnnPolicy", env, verbose=1, learning_rate=1e-5)
-
-    model.learn(total_timesteps=300000, progress_bar=True, callback=callback)
+    learning_rate_schedule = get_linear_fn(0.1, 0, 10000000)
+    clip_range_schedule = get_linear_fn(2.5e-4, 0, 10000000)
+    model = PPO("CnnPolicy", env, verbose=1, learning_rate=learning_rate_schedule, clip_range=clip_range_schedule, n_steps=8*128, batch_size=256, n_epochs=4, gamma=0.995, gae_lambda=0.95, clip_range_vf=None, ent_coef=0.001, vf_coef=0.5, max_grad_norm=0.5, tensorboard_log="./ppo_box2d_tensorboard/")
+    model.learn(total_timesteps=10000000, progress_bar=True)
 
     obs, _ = env.reset(seed=0)
     for episode in range(1):
@@ -234,58 +204,3 @@ if __name__ == "__main__":
         print(f"Episode {episode + 1} finished")
     
     env.close()
-
-# Plot the Logged Metrics Using Matplotlib
-import ast
-import matplotlib.pyplot as plt
-
-def plot_metrics(log_file):
-    metrics = {
-        "iterations": [],
-        "ep_len_mean": [],
-        "ep_rew_mean": [],
-        "fps": [],
-        "time_elapsed": [],
-        "approx_kl": [],
-        "clip_fraction": [],
-        "clip_range": [],
-        "entropy_loss": [],
-        "explained_variance": [],
-        "learning_rate": [],
-        "loss": [],
-        "n_updates": [],
-        "policy_gradient_loss": [],
-        "std": [],
-        "value_loss": []
-    }
-    
-    with open(log_file, "r") as f:
-        for line in f:
-            data = ast.literal_eval(line.strip())
-            for key in metrics.keys():
-                metrics[key].append(data[key])
-    
-    plt.figure(figsize=(12, 8))
-    
-    plt.subplot(2, 1, 1)
-    plt.plot(metrics["iterations"], metrics["ep_len_mean"], label="Episode Length Mean")
-    plt.plot(metrics["iterations"], metrics["ep_rew_mean"], label="Episode Reward Mean")
-    plt.xlabel("Iterations")
-    plt.ylabel("Mean Value")
-    plt.legend()
-    plt.grid()
-    
-    plt.subplot(2, 1, 2)
-    plt.plot(metrics["iterations"], metrics["loss"], label="Loss")
-    plt.plot(metrics["iterations"], metrics["value_loss"], label="Value Loss")
-    plt.plot(metrics["iterations"], metrics["policy_gradient_loss"], label="Policy Gradient Loss")
-    plt.xlabel("Iterations")
-    plt.ylabel("Loss Value")
-    plt.legend()
-    plt.grid()
-    
-    plt.tight_layout()
-    plt.show()
-
-log_file = "./logs/training_log.txt"
-plot_metrics(log_file)

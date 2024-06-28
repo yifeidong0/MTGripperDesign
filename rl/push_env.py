@@ -17,7 +17,7 @@ class VisuomotorPlanarPushEnv(gym.Env):
         self.simulation = ForwardSimulationPlanePush(task_type, gripper_length, gui)
         self.action_space = spaces.Box(low=-0.01, high=0.01, shape=(3,), dtype=np.float32)
         
-        # observation space: object type (0 for box, 1 for circle), object pose (x, y, theta), gripper pose (x, y, theta)
+        # observation space: object pose (x, y, theta), gripper pose (x, y, theta)
         low = np.array([-4, -4, -np.pi, -4, -4, -np.pi], dtype=np.float32)
         high = np.array([4, 4, np.pi, 4, 4, np.pi], dtype=np.float32)
         self.observation_space = spaces.Box(low=low, high=high, shape=(6,), dtype=np.float32)
