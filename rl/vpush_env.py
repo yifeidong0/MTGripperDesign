@@ -21,16 +21,20 @@ def handle_pygame_events():
             exit()
 
 class Box2DSimulationEnv(gym.Env):
-    def __init__(self, object_type='circle', v_angle=np.pi/6, gui=True, img_size=(84, 84)):
+    def __init__(self, object_type='circle', v_angle=np.pi/6, gui=True, img_size=(84, 84), obs_type='image'):
         super(Box2DSimulationEnv, self).__init__()
         self.simulation = Box2DSimulation(object_type, v_angle)
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
+        self.obs_type = obs_type  # New parameter for observation type
         self.action_space = spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]), dtype=np.float32)
-        # self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=np.float32)
         
-        # Observation space: smaller RGB image of the simulation
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.uint8)
+        if self.obs_type == 'image':
+            # Observation space: smaller RGB image of the simulation
+            self.observation_space = spaces.Box(low=0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
+        else:
+            # Observation space: low-dimensional pose (object pose, gripper pose, goal position)
+            self.observation_space = spaces.Box(low=np.array([-1.0]*8), high=np.array([1.0]*8), dtype=np.float64)
         
         # Goal parameters
         self.goal_radius = 5.0
@@ -80,13 +84,10 @@ class Box2DSimulationEnv(gym.Env):
         return obs, {}
 
     def step(self, action):
-        # # Add noise to action for exploration
-        # noise = np.random.normal(0, 0.01, size=action.shape)
-        # action = action + noise
-
+        noise = np.random.normal(0, 0.1, size=action.shape)
+        action = action + noise
         # Rescale action to desired range
-        # rescaled_action = action * np.array([0.01, 0.01, 0.002])
-        rescaled_action = action * np.array([1,1,.2])
+        rescaled_action = action * np.array([.01, .01, .001])
 
         action = np.clip(rescaled_action, self.action_space.low, self.action_space.high)
 
@@ -96,12 +97,10 @@ class Box2DSimulationEnv(gym.Env):
 
         # Apply the velocity offsets
         new_linear_velocity = (
-            # float(current_linear_velocity[0] + action[0]),
-            # float(current_linear_velocity[1] + action[1])
-            float(action[0]),
-            float(action[1])
+            float(current_linear_velocity[0] + action[0]),
+            float(current_linear_velocity[1] + action[1])
         )
-        new_angular_velocity = float(action[2])
+        new_angular_velocity = float(current_angular_velocity + action[2])
 
         # Set the new velocities
         self.simulation.robot_body.linearVelocity = new_linear_velocity
@@ -123,27 +122,44 @@ class Box2DSimulationEnv(gym.Env):
         # Render the screen and capture the image
         self.screen.fill(self.simulation.colors['background'])
         self.simulation.draw()
-        self._draw_goal()
-
         pygame.display.flip()
-        img = pygame.surfarray.array3d(pygame.display.get_surface())
-        img = np.transpose(img, (1, 0, 2))  # Convert to the shape (height, width, 3)
-        
-        # Resize the image to the desired observation size
-        img = pygame.transform.scale(pygame.surfarray.make_surface(img), self.img_size)
-        img = pygame.surfarray.array3d(img)
-        img = np.transpose(img, (1, 0, 2))  # Convert back to the shape (height, width, 3)
-        
-        return img
+        if self.obs_type == 'image':
+            img = pygame.surfarray.array3d(pygame.display.get_surface())
+            img = np.transpose(img, (1, 0, 2))  # Convert to the shape (height, width, 3)
+            
+            # Resize the image to the desired observation size
+            img = pygame.transform.scale(pygame.surfarray.make_surface(img), self.img_size)
+            img = pygame.surfarray.array3d(img)
+            img = np.transpose(img, (1, 0, 2))  # Convert back to the shape (height, width, 3)
+            
+            # Normalize image observation
+            img = img / 255.0
+            return img
+        else:
+            # Low-dimensional observation: object pose, gripper pose, goal position
+            object_pose = np.array(list(self.simulation.object_body.position) + [self.simulation.object_body.angle])
+            gripper_pose = np.array(list(self.simulation.robot_body.position) + [self.simulation.robot_body.angle])
+            goal_position = self.goal_position
+
+            obs = np.concatenate([object_pose, gripper_pose, goal_position])
+            
+            # Normalize low-dimensional observation
+            max_vals = np.array([self.simulation.width / 20, self.simulation.height / 10, np.pi] * 2 + 
+                                [self.simulation.width / 20, self.simulation.height / 10,])
+            obs_normalized = obs / max_vals
+            
+            return obs_normalized
 
     def _draw_goal(self):
         pygame.draw.circle(self.screen, (255, 255, 0), self.simulation.to_pygame(self.goal_position), int(self.goal_radius * 10))
 
     def _compute_reward(self):
         object_pos = np.array(self.simulation.object_body.position)
+        gripper_pos = np.array(self.simulation.robot_body.position)
         distance_to_goal = np.linalg.norm(object_pos - self.goal_position)
+        distance_to_object = np.linalg.norm(object_pos - gripper_pos)
         if distance_to_goal > self.goal_radius:
-            reward = -distance_to_goal*0.1  # Negative reward proportional to distance
+            reward = -distance_to_object*0.1 + min(1000, -np.log(distance_to_goal*0.3))  # Negative reward proportional to distance
         else:
             reward = 1000  # High positive reward for reaching the goal
         return reward
@@ -159,14 +175,14 @@ class Box2DSimulationEnv(gym.Env):
         object_pos = np.array(self.simulation.object_body.position)
         
         # Define canvas boundaries
-        canvas_min_x, canvas_max_x = -self.simulation.width / 20, self.simulation.width / 20 # -40,40
-        canvas_min_y, canvas_max_y = 0, self.simulation.height / 10 # 0,60
+        canvas_min_x, canvas_max_x = -self.simulation.width / 20, self.simulation.width / 20  # -40,40
+        canvas_min_y, canvas_max_y = 0, self.simulation.height / 10  # 0,60
         
         # Check if the gripper/object is out of the canvas
         gripper_out_of_canvas = not (canvas_min_x <= gripper_pos[0] <= canvas_max_x and canvas_min_y <= gripper_pos[1] <= canvas_max_y)
         object_out_of_canvas = not (canvas_min_x <= object_pos[0] <= canvas_max_x and canvas_min_y <= object_pos[1] <= canvas_max_y)
     
-        time_ended = self.simulation.step_count >= 1000
+        time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
 
@@ -181,12 +197,27 @@ class Box2DSimulationEnv(gym.Env):
 if __name__ == "__main__":
     v_angle = math.pi / 3  # Example angle in radians (30 degrees)
     object_type = 'polygon'  # Can be 'circle' or 'polygon'
-    env = Box2DSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42))  # Use smaller image size
+    obs_type = 'pose'  # Can be 'image' or 'pose'
+    env = Box2DSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42), obs_type=obs_type)  # Use smaller image size or low-dim pose
     check_env(env)
 
-    learning_rate_schedule = get_linear_fn(0.1, 0, 10000000)
+    learning_rate_schedule = get_linear_fn(1e-3, 0, 10000000)
     clip_range_schedule = get_linear_fn(2.5e-4, 0, 10000000)
-    model = PPO("CnnPolicy", env, verbose=1, learning_rate=learning_rate_schedule, clip_range=clip_range_schedule, n_steps=8*128, batch_size=256, n_epochs=4, gamma=0.995, gae_lambda=0.95, clip_range_vf=None, ent_coef=0.001, vf_coef=0.5, max_grad_norm=0.5, tensorboard_log="./ppo_box2d_tensorboard/")
+    # model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", env, verbose=1, learning_rate=learning_rate_schedule, clip_range=clip_range_schedule, n_steps=8*128, batch_size=256, n_epochs=4, gamma=0.995, gae_lambda=0.95, clip_range_vf=None, ent_coef=0.001, vf_coef=0.5, max_grad_norm=0.5, tensorboard_log="./ppo_box2d_tensorboard/")
+    model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
+                env, 
+                verbose=1, 
+                learning_rate=1e-4, 
+                n_steps=2048, 
+                batch_size=64, 
+                n_epochs=10, 
+                gamma=0.99, 
+                gae_lambda=0.95, 
+                clip_range=0.2, 
+                ent_coef=0.0, 
+                vf_coef=0.5, 
+                max_grad_norm=0.5, 
+                tensorboard_log="./ppo_box2d_tensorboard/")
     model.learn(total_timesteps=10000000, progress_bar=True)
 
     obs, _ = env.reset(seed=0)
