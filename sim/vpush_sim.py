@@ -97,7 +97,7 @@ class Box2DSimulation:
         vertices2 = [(0, 0),
                         (length * math.cos(angle / 2), -length * math.sin(angle / 2)), # TODO: V-shape not symmetric
                         (length * math.cos(angle / 2) - thickness * math.sin(angle / 2),
-                        -length * math.sin(angle / 2) + thickness * math.cos(angle / 2)),
+                        -length * math.sin(angle / 2) - thickness * math.cos(angle / 2)),
                         (-thickness * math.sin(angle / 2), -thickness * math.cos(angle / 2))]
 
         # Attach the shapes to the body
@@ -221,6 +221,6 @@ class Box2DSimulation:
 
         return final_score
         
-# # Example usage
-# simulation = Box2DSimulation('polygon', 1*math.pi / 3, use_gui=1) # polygon or circle
-# final_score = simulation.run(3)
+# Example usage
+simulation = Box2DSimulation('polygon', 1*math.pi / 3, use_gui=1) # polygon or circle
+final_score = simulation.run(3)
