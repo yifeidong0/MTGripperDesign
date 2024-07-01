@@ -150,7 +150,7 @@ class UCatchSimulation:
         object_pos = self.object_body.position
         thickness = self.poly_rad if self.object_type == 'polygon' else self.circle_rad
         if self.check_end_condition(slack=0.9*thickness):
-            robot_y_max = max(self.robot_vertices[2][1], self.robot_vertices[3][1])
+            robot_y_max = min(self.robot_vertices[2][1], self.robot_vertices[3][1])
             robustness = robot_y_max + thickness - object_pos[1]
         else:
             robustness = 0
@@ -260,5 +260,5 @@ class UCatchSimulation:
         return final_score + 0.1*avg_robustness
 
 # Example usage
-simulation = UCatchSimulation('polygon', [10, 7, 8, np.pi/2, np.pi/1.6], use_gui=True)  # polygon or circle
+simulation = UCatchSimulation('circle', [ 6.11111111, 10. ,         6.11111111 , 1.57079633 , 2.26892803], use_gui=True)  # polygon or circle
 final_score = simulation.run(1)

@@ -10,7 +10,7 @@ from stable_baselines3.common.env_checker import check_env
 import pygame
 import random
 import math
-from sim.vpush_sim import Box2DSimulation  # Assuming Box2DSimulation is in a separate file.
+from sim.vpush_sim import VPushSimulation  # Assuming VPushSimulation is in a separate file.
 import time
 from stable_baselines3.common.utils import get_linear_fn
 
@@ -20,10 +20,10 @@ def handle_pygame_events():
             pygame.quit()
             exit()
 
-class Box2DSimulationEnv(gym.Env):
+class VPushSimulationEnv(gym.Env):
     def __init__(self, object_type='circle', v_angle=np.pi/6, gui=True, img_size=(84, 84), obs_type='image'):
-        super(Box2DSimulationEnv, self).__init__()
-        self.simulation = Box2DSimulation(object_type, v_angle)
+        super(VPushSimulationEnv, self).__init__()
+        self.simulation = VPushSimulation(object_type, v_angle)
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     v_angle = math.pi / 3  # Example angle in radians (30 degrees)
     object_type = 'polygon'  # Can be 'circle' or 'polygon'
     obs_type = 'pose'  # Can be 'image' or 'pose'
-    env = Box2DSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42), obs_type=obs_type)  # Use smaller image size or low-dim pose
+    env = VPushSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42), obs_type=obs_type)  # Use smaller image size or low-dim pose
     check_env(env)
 
     learning_rate_schedule = get_linear_fn(1e-3, 0, 10000000)

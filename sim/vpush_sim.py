@@ -7,7 +7,7 @@ import random
 from time import sleep
 import numpy as np
 
-class Box2DSimulation:
+class VPushSimulation:
     def __init__(self, object_type='circle', v_angle=np.pi/3, use_gui=True):
         self.v_angle = v_angle
         self.object_type = object_type
@@ -222,5 +222,5 @@ class Box2DSimulation:
         return final_score
         
 # Example usage
-simulation = Box2DSimulation('polygon', 1*math.pi / 3, use_gui=1) # polygon or circle
+simulation = VPushSimulation('polygon', 1*math.pi / 3, use_gui=1) # polygon or circle
 final_score = simulation.run(3)
