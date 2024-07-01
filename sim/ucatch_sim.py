@@ -34,11 +34,22 @@ class UCatchSimulation:
             }
 
         # Create the world
-        self.world = world(gravity=(0, -9.8), doSleep=True)
+        self.g = 9.81
+        self.world = world(gravity=(0, -self.g), doSleep=True)
 
-        # Create the dynamic object
+        # Randomize the object velocity, open-loop control
         self.object_position = [-30, 50]
-        self.object_velocity = [10, 0]  # Initial rightward velocity
+        self.robot_position = [25, 5]  # Middle rectangle, top left corner
+        self.object_velocity_true_vx = random.normalvariate(10, 3)
+        self.object_velocity_true = [self.object_velocity_true_vx, 0] # Initial rightward velocity
+        self.object_velocity = [self.object_velocity_true_vx+random.normalvariate(0, 3), 0]
+
+        # Compute the robot desired velocity
+        self.time_to_fall = math.sqrt(2*(self.object_position[1]-(self.robot_position[1]+5))/self.g) # +5 offset
+        self.distance_to_travel = self.robot_position[0] - (self.object_position[0]+self.object_velocity_true_vx*self.time_to_fall) 
+        self.robot_desired_vx = -self.distance_to_travel / self.time_to_fall
+        
+        # Create the dynamic object
         if self.object_type == 'circle':
             self.circle_rad = 3
             self.object_body = self.create_circle(self.world, self.object_position)
@@ -52,7 +63,6 @@ class UCatchSimulation:
         self.object_body.linearVelocity = self.object_velocity
 
         # Create the U-shaped robot gripper
-        self.robot_position = [25, 5]  # Middle rectangle, top left corner
         self.robot_body = self.create_u_shape(self.world, self.robot_position, [self.d0, self.d1, self.d2], [self.alpha0, self.alpha1])
 
         # Create table
@@ -222,7 +232,7 @@ class UCatchSimulation:
                 break
 
             # Move the robot horizontally
-            self.robot_body.linearVelocity = [-10, 0]  # Move rightward
+            self.robot_body.linearVelocity = [self.robot_desired_vx + random.normalvariate(0,1), 0]  # Move rightward
 
             # Step the world
             self.world.Step(self.timeStep, self.vel_iters, self.pos_iters)
@@ -259,6 +269,6 @@ class UCatchSimulation:
         print(f"Final score: {final_score}, Avg. robustness: {avg_robustness}")
         return final_score + 0.1*avg_robustness
 
-# Example usage
-simulation = UCatchSimulation('circle', [ 6.11111111, 10. ,         6.11111111 , 1.57079633 , 2.26892803], use_gui=True)  # polygon or circle
-final_score = simulation.run(1)
+# # Example usage
+# simulation = UCatchSimulation('circle', [ 6.11111111, 10. ,         6.11111111 , 1.57079633 , 2.26892803], use_gui=True)  # polygon or circle
+# final_score = simulation.run(1)
