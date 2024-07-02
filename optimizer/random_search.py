@@ -84,6 +84,6 @@ class RandomSearchPipeline:
         print(f"Optimal Design: {best_design}, Score: {best_score}")
 
 if __name__ == "__main__":
-    pipeline = RandomSearchPipeline(env_type="ucatch", num_samples=5, num_episodes=1, gui=False)
+    pipeline = RandomSearchPipeline(env_type="ucatch", num_samples=5, num_episodes=1, gui=False) # ucatch, vpush
     pipeline.run()
 

@@ -201,7 +201,7 @@ class UCatchSimulation:
         for i in range(num_episodes):
             self.setup()
             score = self.run_onetime()
-            print('Episode %d: %.2f' % (i, score))
+            # print('Episode %d: %.2f' % (i, score))
             avg_score += score
         avg_score /= num_episodes
         return avg_score
@@ -266,9 +266,11 @@ class UCatchSimulation:
 
         final_score = 1.0 if target_reached else 0.0
         avg_robustness = 0 if rob_count == 0 else avg_robustness / rob_count
-        print(f"Final score: {final_score}, Avg. robustness: {avg_robustness}")
-        return final_score + 0.1*avg_robustness
+        final_score = final_score + 0.1*avg_robustness
+        # print(f"Final score: {final_score}")
+        
+        return final_score
 
 # # Example usage
-# simulation = UCatchSimulation('circle', [ 6.11111111, 10. ,         6.11111111 , 1.57079633 , 2.26892803], use_gui=True)  # polygon or circle
+# simulation = UCatchSimulation('polygon', [ 5.10324166 ,9.59668479 ,9.60502911 ,1.66742133 ,2.17972928], use_gui=True)  # polygon or circle
 # final_score = simulation.run(1)
