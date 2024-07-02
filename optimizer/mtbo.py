@@ -9,16 +9,26 @@ import sys
 from utils.plot_bo import *
 from utils.plot_bo_multi import *
 
-class BayesianOptimizationPipeline:
+class BayesianOptimizationMultiTask:
     def __init__(self, env_type="push", initial_iter=3, max_iter=10, gui=False):
+        """
+        Initialize the Bayesian Optimization Pipeline with the given parameters.
+
+        Args:
+            env_type (str): The type of environment ('push', 'vpush', or 'ucatch').
+            initial_iter (int): The number of initial iterations to run.
+            max_iter (int): The maximum number of iterations to run.
+            gui (bool): Whether to use GUI for the simulations.
+        """
         self.env_type = env_type
         self.gui = gui
 
+        # Set bounds and number of tasks based on environment type
         if self.env_type == "push":
             self.x_scale = np.arange(0.1, 1.2, 0.04)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0.1, 1.2)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
-            self.num_outputs = 2 # no. of tasks
+            self.num_outputs = 2 # number of tasks
         elif self.env_type == "vpush":
             self.x_scale = np.arange(0, np.pi, np.pi/64)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
@@ -40,12 +50,41 @@ class BayesianOptimizationPipeline:
         self.setup_bo()
 
     def get_kernel_basic(self, input_dim=1):
+        """
+        Create a basic kernel for Gaussian Process.
+
+        Args:
+            input_dim (int): The dimensionality of the input space.
+
+        Returns:
+            GPy.kern: The basic kernel for GP.
+        """
         return GPy.kern.Matern52(input_dim, ARD=1) + GPy.kern.Bias(input_dim)
 
     def get_kernel_mt(self, input_dim=1, num_outputs=2):
+        """
+        Create a multi-task kernel for Gaussian Process.
+
+        Args:
+            input_dim (int): The dimensionality of the input space.
+            num_outputs (int): The number of outputs (tasks).
+
+        Returns:
+            GPy.util.multioutput.ICM: The multi-task kernel for GP.
+        """
         return GPy.util.multioutput.ICM(input_dim, num_outputs, self.get_kernel_basic(input_dim), W_rank=1, name='ICM')
 
     def mt_objective(self, xt, num_episodes=1):
+        """
+        Evaluate the multi-task objective function.
+
+        Args:
+            xt (list): The input design and task.
+            num_episodes (int): The number of episodes to run the simulation.
+
+        Returns:
+            float: The score for the given design and task.
+        """
         assert len(xt) == 1
         xt = xt[0]
         assert xt[-1] == 0.0 or xt[-1] == 1.0
@@ -71,6 +110,15 @@ class BayesianOptimizationPipeline:
         return score
 
     def cost_mt(self, xt):
+        """
+        Calculate the cost and gradients for the given input.
+
+        Args:
+            xt (np.array): The input design and task.
+
+        Returns:
+            tuple: The costs and gradients for the input.
+        """
         C0, C1 = 1.0, 1.0
         t2c = {0: C0, 1: C1}
         t2g = {0: [0.0, (C1 - C0)], 1: [0.0, (C1 - C0)]}
@@ -79,6 +127,9 @@ class BayesianOptimizationPipeline:
         return costs, gradients
 
     def setup_bo(self):
+        """
+        Set up the Bayesian Optimization pipeline.
+        """
         self.objective = GPyOpt.core.task.SingleObjective(self.mt_objective)
         self.model = GPyOpt.models.GPModel(optimize_restarts=5, verbose=False, kernel=self.kernel, noise_var=None)
         self.space = GPyOpt.Design_space(space=self.bounds)
@@ -90,11 +141,30 @@ class BayesianOptimizationPipeline:
             analytical_gradient_prediction = False
 
             def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=2):
+                """
+                Initialize the custom acquisition function.
+
+                Args:
+                    model (GPyOpt.models.GPModel): The GP model.
+                    space (GPyOpt.Design_space): The design space.
+                    optimizer (GPyOpt.optimization.AcquisitionOptimizer): The optimizer.
+                    cost_withGradients (function): The cost function with gradients.
+                    exploration_weight (float): The weight for exploration in acquisition.
+                """
                 self.optimizer = optimizer
                 super(MyAcquisition, self).__init__(model, space, optimizer, cost_withGradients=cost_withGradients)
                 self.exploration_weight = exploration_weight
 
             def _compute_acq(self, x):
+                """
+                Compute the acquisition function.
+
+                Args:
+                    x (np.array): The input points for acquisition.
+
+                Returns:
+                    np.array: The acquisition values for the input points.
+                """
                 def eval_scale(task_no):
                     X1 = self.model.model.X
                     X1 = X1[X1[:, -1] == task_no]
@@ -123,12 +193,21 @@ class BayesianOptimizationPipeline:
         self.bo = GPyOpt.methods.ModularBayesianOptimization(self.model, self.space, self.objective, self.acquisition, self.evaluator, self.initial_design, normalize_Y=False)
 
     def find_optimal_design(self, resolution=10):
+        """
+        Find the optimal design by evaluating a grid of points.
+
+        Args:
+            resolution (int): The resolution of the grid.
+
+        Returns:
+            tuple: The best design, its score, the grid points, the means, and the variances.
+        """
         # Extract the bounds for the design space
         bounds = self.space.get_bounds()
         
         # Generate a grid of points across the design space
         grids = [np.linspace(bound[0], bound[1], resolution) for bound in bounds[:-1]]
-        grid_points = np.array(np.meshgrid(*grids)).T.reshape(-1, len(bounds) - 1) # 100000*5
+        grid_points = np.array(np.meshgrid(*grids)).T.reshape(-1, len(bounds) - 1) # 10000*5
         
         # Create the input array for all grid points and all tasks
         xt = np.vstack([np.hstack([grid_points, task * np.ones((grid_points.shape[0], 1))]) 
@@ -152,22 +231,25 @@ class BayesianOptimizationPipeline:
         return best_design, best_score, grid_points, means, vars
 
     def run(self):
+        """
+        Run the Bayesian Optimization pipeline.
+        """
         for i in range(1, self.max_iter + 1):
             print("-------------- Iteration: --------------", i)
-            self.bo.run_optimization(1)
-            print('next_locations: ', self.bo.suggest_next_locations())
+            self.bo.run_optimization(1) # TODO: slow..2-8 sec
+            print('next_locations: ', self.bo.suggest_next_locations()) # 1-4 sec
             if self.env_type in ["push", "vpush"]:
                 plot_bo(self.bo, self.x_scale, i)
-    
+
         # Find the optimal design after the optimization loop
         best_design, best_score, grid_points, means, vars = self.find_optimal_design()
         print(f"Optimal Design: {best_design}, Score: {best_score}")
 
         # Plot the results
         if self.env_type in ["ucatch"]:
-            plot_marginalized_results(grid_points, means, vars, )
+            plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_outputs)), optimizer='mtbo')
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationPipeline(env_type="ucatch", initial_iter=5, max_iter=25, gui=0) # vpush, push, ucatch
+    pipeline = BayesianOptimizationMultiTask(env_type="ucatch", initial_iter=10, max_iter=1, gui=0) # vpush, push, ucatch
     pipeline.run()

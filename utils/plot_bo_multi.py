@@ -6,18 +6,23 @@ from GPyOpt.plotting.plots_bo import plot_acquisition as plot_acq
 Multi-dimensional design space plotting for multi-task Bayesian optimization.
 """
 
-def plot_marginalized_results(grid_points, means, vars, tasks=[0, 1]):
+def plot_marginalized_results(grid_points, means, vars, tasks=[0, 1], optimizer='mtbo'):
     num_dims = grid_points.shape[1]
     
     for i in range(num_dims):
         plt.figure(figsize=(14, 5))
         
-        for j, task in enumerate(tasks):
+        task_ids = tasks if optimizer=='mtbo' else [0,]
+        for j, task in enumerate(task_ids):
             plt.subplot(1, 2, j + 1)
             
             x_i = grid_points[:, i]
-            mean_i = means[task].flatten()
-            var_i = vars[task].flatten()
+            if optimizer=='mtbo':
+                mean_i = means[task].flatten()
+                var_i = vars[task].flatten()
+            elif optimizer=='bo':
+                mean_i = means.flatten()
+                var_i = vars.flatten()
             
             # Compute marginal scores
             marginalized_scores = []

@@ -71,7 +71,7 @@ def plot_task(bo, TASK_NO, x_scale):
 def plot_bo(bo, x_scale, iter):
     plt.figure(figsize=(22, 4))
     plt.subplot(1, 4, 1)
-    plot_task(bo, 0, x_scale)
+    plot_task(bo, 0, x_scale,)
     plt.subplot(1, 4, 2)
     plot_task(bo, 1, x_scale)
     plt.subplot(1, 4, 3)
