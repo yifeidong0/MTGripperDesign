@@ -161,7 +161,7 @@ class UCatchSimulation:
         thickness = self.poly_rad if self.object_type == 'polygon' else self.circle_rad
         if self.check_end_condition(slack=0.9*thickness):
             robot_y_max = min(self.robot_vertices[2][1], self.robot_vertices[3][1])
-            robustness = robot_y_max + thickness - object_pos[1]
+            robustness = max(robot_y_max + thickness - object_pos[1], 0.0)
         else:
             robustness = 0
         # print(f"Robustness: {robustness}")
@@ -223,7 +223,7 @@ class UCatchSimulation:
             robot_pos = self.robot_body.position
             if self.check_end_condition():
                 num_end_steps += 1
-                target_reached = True if num_end_steps >= 50 else False
+                target_reached = True if num_end_steps >= 100 else False
                 if target_reached:
                     break
 
