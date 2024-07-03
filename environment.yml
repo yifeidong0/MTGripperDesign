@@ -52,4 +52,6 @@ dependencies:
       - six==1.16.0
       - stable-baselines3==2.3.2
       - tzdata==2024.1
+      - stl
+      - numpy-stl
 prefix: /home/yif/miniconda3/envs/mtbo

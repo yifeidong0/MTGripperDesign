@@ -221,6 +221,6 @@ class VPushSimulation:
 
         return final_score
         
-# # Example usage
-# simulation = VPushSimulation('polygon', 1.39777, use_gui=1) # polygon or circle
-# final_score = simulation.run(3)
+# Example usage
+simulation = VPushSimulation('polygon', 1.39777, use_gui=1) # polygon or circle
+final_score = simulation.run(3)
