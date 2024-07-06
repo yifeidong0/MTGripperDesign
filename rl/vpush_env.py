@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, DQN, A2C
 from stable_baselines3.common.env_checker import check_env
 import pygame
 import random
@@ -27,18 +27,22 @@ class VPushSimulationEnv(gym.Env):
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
-        self.action_space = spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]), dtype=np.float32)
+        # self.action_space = spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]), dtype=np.float32)
+        self.action_res = 10
+        # self.action_space = spaces.MultiDiscrete([self.action_res, self.action_res, ])
+        # discrete action space
+        self.action_space = spaces.Discrete(6)
         
         if self.obs_type == 'image':
             # Observation space: smaller RGB image of the simulation
             self.observation_space = spaces.Box(low=0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
         else:
-            # Observation space: low-dimensional pose (object pose, gripper pose, goal position)
-            self.observation_space = spaces.Box(low=np.array([-1.0]*8), high=np.array([1.0]*8), dtype=np.float64)
+            # Observation space: low-dimensional pose (object pose, gripper pose)
+            self.observation_space = spaces.Box(low=np.array([-1.0]*6), high=np.array([1.0]*6), dtype=np.float64)
         
         # Goal parameters
-        self.goal_radius = 5.0
-        self.goal_position = np.array([random.uniform(-20, 20), random.uniform(10, 50)])
+        self.goal_radius = 10.0
+        self.goal_position = np.array([30, 30])
         self.simulation.goal_position = self.goal_position
         self.simulation.goal_radius = self.goal_radius
 
@@ -54,18 +58,19 @@ class VPushSimulationEnv(gym.Env):
         self.simulation.step_count = 0
 
         # Set goal position randomly within specified range
-        self.goal_position = np.array([random.uniform(-10, 10), random.uniform(15, 45)])
-        self.simulation.goal_position = self.goal_position
+        # self.goal_position = np.array([random.uniform(-10, 10), random.uniform(20, 40)])
+        # self.simulation.goal_position = self.goal_position
 
         # Randomize robot position and orientation
-        self.simulation.robot_body.position = (random.uniform(-20, 20), random.uniform(10, 50))
-        self.simulation.robot_body.angle = random.uniform(-math.pi, math.pi)
+        # self.simulation.robot_body.position = (random.uniform(-20, 20), random.uniform(10, 50))
+        self.simulation.robot_body.position = (-30+random.normalvariate(0, 3), 30+random.normalvariate(0, 3))
+        self.simulation.robot_body.angle = random.normalvariate(0, math.pi/12)
 
         # Ensure object does not penetrate gripper: place it at least some distance away from the gripper
         min_distance = 10  # Minimum distance to ensure no penetration
         while True:
-            obj_x = random.uniform(-25, 25)
-            obj_y = random.uniform(10, 50)
+            obj_x = random.normalvariate(0, 3)
+            obj_y = random.normalvariate(30, 3)
             distance = np.linalg.norm(np.array([obj_x, obj_y]) - np.array(self.simulation.robot_body.position))
             if distance >= min_distance:
                 break
@@ -83,13 +88,29 @@ class VPushSimulationEnv(gym.Env):
         obs = self._get_obs()
         return obs, {}
 
-    def step(self, action):
-        noise = np.random.normal(0, 0.1, size=action.shape)
-        action = action + noise
+    def step(self, action, sim_steps=1):
+        
+        # noise = np.random.normal(0, 0.1, size=action.shape)
+        # action = action + noise
+        
         # Rescale action to desired range
-        rescaled_action = action * np.array([.01, .01, .001])
-
-        action = np.clip(rescaled_action, self.action_space.low, self.action_space.high)
+        # action = 2*action / self.action_res - 1
+        # action = action * np.array([.1, .1,])
+        # action = action * np.array([.01, .01,])
+        # action = action * np.array([.01, .01, .001])
+        # action = np.clip(rescaled_action, self.action_space.low, self.action_space.high)
+        if action == 0:
+            action = (0.0, 0.02, 0)
+        elif action == 1:
+            action = (0.0, -0.02, 0)
+        elif action == 2:
+            action = (-0.02, 0.0, 0)
+        elif action == 3:
+            action = (0.02, 0.0, 0)
+        elif action == 4:
+            action = (0.0, 0.0, 0.001)
+        elif action == 5:
+            action = (0.0, 0.0, -0.001)
 
         # Get the current velocities
         current_linear_velocity = self.simulation.robot_body.linearVelocity
@@ -98,7 +119,9 @@ class VPushSimulationEnv(gym.Env):
         # Apply the velocity offsets
         new_linear_velocity = (
             float(current_linear_velocity[0] + action[0]),
-            float(current_linear_velocity[1] + action[1])
+            float(current_linear_velocity[1] + action[1]),
+            # float(action[0]),
+            # float(action[1])
         )
         new_angular_velocity = float(current_angular_velocity + action[2])
 
@@ -107,7 +130,8 @@ class VPushSimulationEnv(gym.Env):
         self.simulation.robot_body.angularVelocity = new_angular_velocity
 
         # Step the simulation
-        self.simulation.world.Step(self.simulation.timeStep, self.simulation.vel_iters, self.simulation.pos_iters)
+        for _ in range(sim_steps):
+            self.simulation.world.Step(self.simulation.timeStep, self.simulation.vel_iters, self.simulation.pos_iters)
         self.simulation.world.ClearForces()
         self.simulation.step_count += 1
 
@@ -137,15 +161,15 @@ class VPushSimulationEnv(gym.Env):
             return img
         else:
             # Low-dimensional observation: object pose, gripper pose, goal position
-            object_pose = np.array(list(self.simulation.object_body.position) + [self.simulation.object_body.angle])
-            gripper_pose = np.array(list(self.simulation.robot_body.position) + [self.simulation.robot_body.angle])
-            goal_position = self.goal_position
+            object_pose = np.array(list(self.simulation.object_body.position) + [self.simulation.object_body.angle,])
+            gripper_pose = np.array(list(self.simulation.robot_body.position) + [self.simulation.robot_body.angle,])
+            # goal_position = self.goal_position
 
-            obs = np.concatenate([object_pose, gripper_pose, goal_position])
+            obs = np.concatenate([object_pose, gripper_pose])
             
             # Normalize low-dimensional observation
-            max_vals = np.array([self.simulation.width / 20, self.simulation.height / 10, np.pi] * 2 + 
-                                [self.simulation.width / 20, self.simulation.height / 10,])
+            max_vals = np.array([self.simulation.width / 20, self.simulation.height / 10, np.pi] * 2 ) 
+                                # + [self.simulation.width / 20, self.simulation.height / 10,])
             obs_normalized = obs / max_vals
             
             return obs_normalized
@@ -156,12 +180,25 @@ class VPushSimulationEnv(gym.Env):
     def _compute_reward(self):
         object_pos = np.array(self.simulation.object_body.position)
         gripper_pos = np.array(self.simulation.robot_body.position)
+        # object_vel = np.array(self.simulation.object_body.linearVelocity)
+        # gripper_vel = np.array(self.simulation.robot_body.linearVelocity)
         distance_to_goal = np.linalg.norm(object_pos - self.goal_position)
         distance_to_object = np.linalg.norm(object_pos - gripper_pos)
+
         if distance_to_goal > self.goal_radius:
-            reward = -distance_to_object*0.1 + min(1000, -np.log(distance_to_goal*0.3))  # Negative reward proportional to distance
+            # reward = -distance_to_object*0.01 + min(1000, -np.log(distance_to_goal*0.3))  # Negative reward proportional to distance
+            # reward = 10/(distance_to_goal+3*distance_to_object)
+            reward = np.exp(-0.1*distance_to_object) + 3*np.exp(-0.1*distance_to_goal)
         else:
             reward = 1000  # High positive reward for reaching the goal
+
+        if abs(object_pos[0]) > 38 or (object_pos[1] < 2 or object_pos[1] > 58) or abs(gripper_pos[0]) > 38 or (gripper_pos[1] < 2 or gripper_pos[1] > 58):
+            reward -= 100  # Negative reward for going out of bounds
+
+        # Penalize high velocities
+        # reward += np.exp((-np.linalg.norm(object_vel) * 10 - np.linalg.norm(gripper_vel) * 10))
+        # print('reward', reward)
+
         return reward
 
     def _is_done(self):
@@ -196,29 +233,62 @@ class VPushSimulationEnv(gym.Env):
 
 if __name__ == "__main__":
     v_angle = math.pi / 3  # Example angle in radians (30 degrees)
-    object_type = 'polygon'  # Can be 'circle' or 'polygon'
+    object_type = 'circle'  # Can be 'circle' or 'polygon'
     obs_type = 'pose'  # Can be 'image' or 'pose'
     env = VPushSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42), obs_type=obs_type)  # Use smaller image size or low-dim pose
     check_env(env)
 
-    learning_rate_schedule = get_linear_fn(1e-3, 0, 10000000)
-    clip_range_schedule = get_linear_fn(2.5e-4, 0, 10000000)
-    # model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", env, verbose=1, learning_rate=learning_rate_schedule, clip_range=clip_range_schedule, n_steps=8*128, batch_size=256, n_epochs=4, gamma=0.995, gae_lambda=0.95, clip_range_vf=None, ent_coef=0.001, vf_coef=0.5, max_grad_norm=0.5, tensorboard_log="./ppo_box2d_tensorboard/")
-    model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
+    total_timesteps = int(1e6)
+    learning_rate_schedule = get_linear_fn(1e-1, 0, total_timesteps)
+    # clip_range_schedule = get_linear_fn(2.5e-4, 0, total_timesteps)
+    # model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
+    #             env, 
+    #             verbose=1, 
+    #             learning_rate=1e-1, 
+    #             n_steps=2048, 
+    #             batch_size=64, 
+    #             n_epochs=10, 
+    #             gamma=0.99, 
+    #             gae_lambda=0.95, 
+    #             clip_range=0.2, 
+    #             ent_coef=0.0, 
+    #             vf_coef=0.5, 
+    #             max_grad_norm=0.5, 
+    #             tensorboard_log="./ppo_box2d_tensorboard/")
+    model = DQN("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
                 env, 
                 verbose=1, 
-                learning_rate=1e-4, 
-                n_steps=2048, 
-                batch_size=64, 
-                n_epochs=10, 
-                gamma=0.99, 
-                gae_lambda=0.95, 
-                clip_range=0.2, 
-                ent_coef=0.0, 
-                vf_coef=0.5, 
-                max_grad_norm=0.5, 
-                tensorboard_log="./ppo_box2d_tensorboard/")
-    model.learn(total_timesteps=10000000, progress_bar=True)
+                learning_rate=learning_rate_schedule, 
+                # buffer_size=100000,  # Reduced buffer size to handle computational limitations
+                # learning_starts=1000,  # Start learning earlier for faster convergence
+                # batch_size=64,  # Increased batch size for stable training
+                # tau=1.0, 
+                # gamma=0.99, 
+                # train_freq=(4, 'step'),  # Ensure training frequency is correctly defined
+                # gradient_steps=1, 
+                # exploration_fraction=0.5, 
+                # exploration_initial_eps=1.0, 
+                exploration_final_eps=0.1,  # Lower final epsilon for better exploitation
+                # max_grad_norm=10, 
+                target_update_interval=250,
+                tensorboard_log="./dqn_box2d_tensorboard/")
+    # model = A2C("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
+    #             env, 
+    #             verbose=1, 
+    #             learning_rate=learning_rate_schedule,  # Adjusted learning rate
+    #             n_steps=10,  # Increase number of steps per update
+    #             gamma=0.99, 
+    #             gae_lambda=0.95, 
+    #             ent_coef=.1,  # Increase entropy coefficient to encourage exploration
+    #             vf_coef=0.5, 
+    #             max_grad_norm=0.5, 
+    #             tensorboard_log="./a2c_box2d_tensorboard/")
+    model.learn(total_timesteps=total_timesteps, progress_bar=True)
+
+    import imageio  # Import the imageio library to save video    # Wrap the environment with Monitor to save video
+    # Set up video writer
+    video_filename = 'test_video.mp4'
+    video_writer = imageio.get_writer(video_filename, fps=30)
 
     obs, _ = env.reset(seed=0)
     for episode in range(1):
@@ -230,8 +300,16 @@ if __name__ == "__main__":
             obs, reward, done, truncated, _ = env.step(action)
             env.render()
             handle_pygame_events()  # Ensure events are handled during each step
+
+            # Capture frame
+            frame = pygame.surfarray.array3d(pygame.display.get_surface())
+            frame = np.transpose(frame, (1, 0, 2))  # Convert to the shape (height, width, 3)
+            video_writer.append_data(frame)
+
             time.sleep(.002)
         print("Done!" if done else "Truncated")
         print(f"Episode {episode + 1} finished")
     
     env.close()
+    video_writer.close()
+    print(f"Video saved as {video_filename}")
