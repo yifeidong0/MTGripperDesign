@@ -2,7 +2,7 @@ import numpy as np
 from stl import mesh
 import trimesh
 
-def generate_scoop_stl_obj(coefficients, thickness, filename='scoop.stl', obj_filename='scoop.obj'):
+def generate_scoop_stl_obj(coefficients, filename='scoop.stl', obj_filename='scoop.obj'):
     x = np.linspace(0, 1, 200)
     y = sum(c * x**i for i, c in enumerate(coefficients))
     y = y - y.min()
@@ -52,9 +52,8 @@ def generate_scoop_stl_obj(coefficients, thickness, filename='scoop.stl', obj_fi
 
 # Parameters for the scoop
 coefficients = [0, 0.5, 1, -1]  # Example coefficients for a cubic polynomial
-thickness = 0.1
 
-generate_scoop_stl_obj(coefficients, thickness)
+generate_scoop_stl_obj(coefficients)
 
 
 ########## Convex decomposition of the scoop ##########
