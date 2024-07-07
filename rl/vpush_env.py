@@ -266,9 +266,9 @@ if __name__ == "__main__":
                 # gamma=0.99, 
                 # train_freq=(4, 'step'),  # Ensure training frequency is correctly defined
                 # gradient_steps=1, 
-                # exploration_fraction=0.5, 
-                # exploration_initial_eps=1.0, 
-                exploration_final_eps=0.1,  # Lower final epsilon for better exploitation
+                exploration_fraction=0.6, 
+                exploration_initial_eps=1.0, 
+                exploration_final_eps=0.2,  # Lower final epsilon for better exploitation
                 # max_grad_norm=10, 
                 target_update_interval=250,
                 tensorboard_log="./dqn_box2d_tensorboard/")
