@@ -2,7 +2,9 @@ import numpy as np
 from stl import mesh
 import math
 
-def generate_v_shape_pusher_stl_obj(finger_length, angle, thickness, height, filename='v_pusher.stl', obj_filename='v_pusher.obj'):
+def generate_v_shape_pusher(finger_length, angle, thickness, height, 
+                            filename='asset/vpusher/v_pusher.stl', 
+                            obj_filename='asset/vpusher/v_pusher.obj'):
     half_angle = angle / 2.0
     
     # Calculate the vertices for the first triangular prism
@@ -81,28 +83,36 @@ def generate_v_shape_pusher_stl_obj(finger_length, angle, thickness, height, fil
             f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
     print(f'V-shape pusher OBJ saved to {obj_filename}')
 
-# Example usage
-finger_length = .5
-angle = math.radians(60)  # 90 degrees opening angle
-thickness = 0.1
-height = 0.1
 
-generate_v_shape_pusher_stl_obj(finger_length, angle, thickness, height)
-
-
-########## Convex decomposition of the scoop ##########
 import pybullet as p
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Connect to PyBullet and load the plane
-p.connect(p.DIRECT)
+def decompose_mesh(
+        pb_connected = False,
+        input_file = "asset/vpusher/v_pusher.obj",  # Replace with your concave mesh file path
+        output_prefix = "asset/vpusher/v_pusher_vhacd.obj",
+        name_log = "log.txt",
+    ):
+    # Connect to PyBullet and load the plane
+    if not pb_connected:
+        p.connect(p.DIRECT)
 
-# Use VHACD to decompose a concave object into convex parts
-input_file = "v_pusher.obj"  # Replace with your concave mesh file path
-output_prefix = "v_pusher_vhacd.obj"
-name_log = "log.txt"
+    # Use VHACD to decompose a concave object into convex parts
+    # Decompose the mesh
+    p.vhacd(input_file, output_prefix, name_log)
 
-# Decompose the mesh
-p.vhacd(input_file, output_prefix, name_log)
+    # Disconnect from PyBullet
+    if not pb_connected:
+        p.disconnect()
+
+# # Example usage
+# finger_length = .5
+# angle = math.radians(30)  # 90 degrees opening angle
+# thickness = 0.1
+# height = 0.1
+
+# generate_v_shape_pusher(finger_length, angle, thickness, height)
+
+# decompose_mesh()

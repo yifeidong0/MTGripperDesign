@@ -16,7 +16,7 @@ planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 mass_scoop = 1
 scoop = p.loadURDF(
     "asset/vpusher/v_pusher.urdf", 
-    basePosition=[-2, 0,   2.0],  # Position above the ground
+    basePosition=[-2, 0, 2.0],  # Position above the ground
     baseOrientation=p.getQuaternionFromEuler([math.pi/2, -math.pi/2, 0]),
     globalScaling=1
 )
