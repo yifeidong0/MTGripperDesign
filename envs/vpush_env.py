@@ -7,6 +7,7 @@ from gymnasium import spaces
 import numpy as np
 from stable_baselines3 import PPO, DQN, A2C
 from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.env_util import make_vec_env
 import pygame
 import random
 import math
@@ -14,6 +15,8 @@ from sim.vpush_sim import VPushSimulation  # Assuming VPushSimulation is in a se
 import time
 from stable_baselines3.common.utils import get_linear_fn
 
+def pi_2_pi(angle):
+    return (angle + np.pi) % (2 * np.pi) - np.pi
 
 def handle_pygame_events():
     for event in pygame.event.get():
@@ -22,7 +25,7 @@ def handle_pygame_events():
             exit()
 
 class VPushSimulationEnv(gym.Env):
-    def __init__(self, object_type='circle', v_angle=np.pi/6, gui=True, img_size=(84, 84), obs_type='image'):
+    def __init__(self, object_type='circle', v_angle=np.pi/3, gui=True, img_size=(42, 42), obs_type='pose'):
         super(VPushSimulationEnv, self).__init__()
         self.simulation = VPushSimulation(object_type, v_angle)
         self.gui = gui
@@ -52,6 +55,11 @@ class VPushSimulationEnv(gym.Env):
             pygame.init()
             self.screen = pygame.display.set_mode((self.simulation.width, self.simulation.height))
             pygame.display.set_caption('Box2D with Pygame - Robot Pushing Object')
+            
+        self.last_gripper_pose = None
+        self.last_object_pose = None
+        self.last_action = None
+        self.last_angle_difference = None
 
     def reset(self, seed=None, options=None):
         print("Resetting the environment")
@@ -65,7 +73,8 @@ class VPushSimulationEnv(gym.Env):
         # Randomize robot position and orientation
         # self.simulation.robot_body.position = (random.uniform(-20, 20), random.uniform(10, 50))
         self.simulation.robot_body.position = (-30+random.normalvariate(0, 3), 30+random.normalvariate(0, 3))
-        self.simulation.robot_body.angle = random.normalvariate(0, math.pi/12)
+        # self.simulation.robot_body.angle = random.normalvariate(0, math.pi/12)
+        self.simulation.robot_body.angle = random.uniform(-math.pi/4, math.pi/4)
 
         # Ensure object does not penetrate gripper: place it at least some distance away from the gripper
         min_distance = 10  # Minimum distance to ensure no penetration
@@ -113,6 +122,9 @@ class VPushSimulationEnv(gym.Env):
         # elif action == 5:
         #     action = (0.0, 0.0, -0.001)
 
+        self.last_object_pose = np.array(list(self.simulation.object_body.position) + [self.simulation.object_body.angle,])
+        self.last_gripper_pose = np.array(list(self.simulation.robot_body.position) + [self.simulation.robot_body.angle,])
+
         # Get the current velocities
         current_linear_velocity = self.simulation.robot_body.linearVelocity
         current_angular_velocity = self.simulation.robot_body.angularVelocity
@@ -135,16 +147,17 @@ class VPushSimulationEnv(gym.Env):
         self.simulation.step_count += 1
 
         obs = self._get_obs()
-        reward = self._compute_reward()
+        reward = self._compute_reward(action)
         done = self._is_done()
         truncated = self._is_truncated()
-
+        self.last_action = action
         return obs, reward, done, truncated, {}
 
     def _get_obs(self):
         # Render the screen and capture the image
-        self.screen.fill(self.simulation.colors['background'])
-        self.simulation.draw()
+        if self.gui:
+            self.screen.fill(self.simulation.colors['background'])
+            self.simulation.draw()
         pygame.display.flip()
         if self.obs_type == 'image':
             img = pygame.surfarray.array3d(pygame.display.get_surface())
@@ -176,23 +189,40 @@ class VPushSimulationEnv(gym.Env):
     def _draw_goal(self):
         pygame.draw.circle(self.screen, (255, 255, 0), self.simulation.to_pygame(self.goal_position), int(self.goal_radius * 10))
 
-    def _compute_reward(self):
+    def _compute_reward(self, action):
         object_pos = np.array(self.simulation.object_body.position)
         gripper_pos = np.array(self.simulation.robot_body.position)
         # object_vel = np.array(self.simulation.object_body.linearVelocity)
         # gripper_vel = np.array(self.simulation.robot_body.linearVelocity)
         distance_to_goal = np.linalg.norm(object_pos - self.goal_position)
-        distance_to_object = np.linalg.norm(object_pos - gripper_pos)
 
+        reward = 0
+        
+        # if self.last_action is not None:
+        #     reward -= abs(self.last_action[-1] - action[-1])
+        
+        # last_direction_angle = math.atan2(self.last_object_pose[1] - self.last_gripper_pose[1], self.last_object_pose[0] - self.last_gripper_pose[0])
+        gripper_angle = self.simulation.robot_body.angle
+        current_direction_angle = math.atan2(self.goal_position[1] - object_pos[1], self.goal_position[0] - object_pos[0])
+        current_angle_difference = abs(current_direction_angle - gripper_angle)
+        # print('gripper_angle', gripper_angle, 'current_direction_angle', current_direction_angle)
+        if self.last_angle_difference is not None:
+            reward = (self.last_angle_difference - current_angle_difference) * 5
+        self.last_angle_difference = current_angle_difference
+        
         if distance_to_goal > self.goal_radius:
             # reward = -distance_to_object*0.01 + min(1000, -np.log(distance_to_goal*0.3))  # Negative reward proportional to distance
             # reward = 10/(distance_to_goal+3*distance_to_object)
-            reward = np.exp(-0.1*distance_to_object) + 3*np.exp(-0.1*distance_to_goal)
+            # reward = np.exp(-0.1*distance_to_object) + 3*np.exp(-0.1*distance_to_goal)
+            # reward = -distance_to_object*0.01
+            last_distance_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
+            current_distance_to_object = np.linalg.norm(gripper_pos - object_pos)
+            reward += last_distance_to_object - current_distance_to_object
         else:
-            reward = 100  # High positive reward for reaching the goal
+            reward += 100  # High positive reward for reaching the goal
 
-        if abs(object_pos[0]) > 38 or (object_pos[1] < 2 or object_pos[1] > 58) or abs(gripper_pos[0]) > 38 or (gripper_pos[1] < 2 or gripper_pos[1] > 58):
-            reward -= 100  # Negative reward for going out of bounds
+        # if abs(object_pos[0]) > 38 or (object_pos[1] < 2 or object_pos[1] > 58) or abs(gripper_pos[0]) > 38 or (gripper_pos[1] < 2 or gripper_pos[1] > 58):
+        #     reward -= 100  # Negative reward for going out of bounds
 
         # Penalize high velocities
         # reward += np.exp((-np.linalg.norm(object_vel) * 10 - np.linalg.norm(gripper_vel) * 10))
@@ -230,89 +260,3 @@ class VPushSimulationEnv(gym.Env):
     def close(self):
         pygame.quit()
 
-if __name__ == "__main__":
-    v_angle = math.pi / 3  # Example angle in radians (30 degrees)
-    object_type = 'circle'  # Can be 'circle' or 'polygon'
-    obs_type = 'pose'  # Can be 'image' or 'pose'
-    env = VPushSimulationEnv(object_type, v_angle, gui=True, img_size=(42, 42), obs_type=obs_type)  # Use smaller image size or low-dim pose
-    check_env(env)
-
-    total_timesteps = int(1e6)
-    learning_rate_schedule = get_linear_fn(1e-1, 0, total_timesteps)
-    # clip_range_schedule = get_linear_fn(2.5e-4, 0, total_timesteps)
-    model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
-                env, 
-                verbose=1, 
-                tensorboard_log="./ppo_box2d_tensorboard/")
-    # model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
-    #             env, 
-    #             verbose=1, 
-    #             learning_rate=1e-1, 
-    #             n_steps=2048, 
-    #             batch_size=64, 
-    #             n_epochs=10, 
-    #             gamma=0.99, 
-    #             gae_lambda=0.95, 
-    #             clip_range=0.2, 
-    #             ent_coef=0.0, 
-    #             vf_coef=0.5, 
-    #             max_grad_norm=0.5, 
-    #             tensorboard_log="./ppo_box2d_tensorboard/")
-    # model = DQN("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
-    #             env, 
-    #             verbose=1, 
-    #             learning_rate=learning_rate_schedule, 
-    #             # buffer_size=100000,  # Reduced buffer size to handle computational limitations
-    #             # learning_starts=1000,  # Start learning earlier for faster convergence
-    #             # batch_size=64,  # Increased batch size for stable training
-    #             # tau=1.0, 
-    #             # gamma=0.99, 
-    #             # train_freq=(4, 'step'),  # Ensure training frequency is correctly defined
-    #             # gradient_steps=1, 
-    #             # exploration_fraction=0.5, 
-    #             # exploration_initial_eps=1.0, 
-    #             exploration_final_eps=0.1,  # Lower final epsilon for better exploitation
-    #             # max_grad_norm=10, 
-    #             target_update_interval=250,
-    #             tensorboard_log="./dqn_box2d_tensorboard/")
-    # model = A2C("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
-    #             env, 
-    #             verbose=1, 
-    #             learning_rate=learning_rate_schedule,  # Adjusted learning rate
-    #             n_steps=10,  # Increase number of steps per update
-    #             gamma=0.99, 
-    #             gae_lambda=0.95, 
-    #             ent_coef=.1,  # Increase entropy coefficient to encourage exploration
-    #             vf_coef=0.5, 
-    #             max_grad_norm=0.5, 
-    #             tensorboard_log="./a2c_box2d_tensorboard/")
-    model.learn(total_timesteps=total_timesteps, progress_bar=True)
-
-    import imageio  # Import the imageio library to save video    # Wrap the environment with Monitor to save video
-    # Set up video writer
-    video_filename = 'test_video.mp4'
-    video_writer = imageio.get_writer(video_filename, fps=30)
-
-    obs, _ = env.reset(seed=0)
-    for episode in range(1):
-        time.sleep(2)
-        print(f"Episode {episode + 1} begins")
-        done, truncated = False, False
-        while not (done or truncated):
-            action, _states = model.predict(np.array(obs))
-            obs, reward, done, truncated, _ = env.step(action)
-            env.render()
-            handle_pygame_events()  # Ensure events are handled during each step
-
-            # Capture frame
-            frame = pygame.surfarray.array3d(pygame.display.get_surface())
-            frame = np.transpose(frame, (1, 0, 2))  # Convert to the shape (height, width, 3)
-            video_writer.append_data(frame)
-
-            time.sleep(.002)
-        print("Done!" if done else "Truncated")
-        print(f"Episode {episode + 1} finished")
-    
-    env.close()
-    video_writer.close()
-    print(f"Video saved as {video_filename}")
