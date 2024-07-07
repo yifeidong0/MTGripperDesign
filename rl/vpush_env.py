@@ -14,6 +14,7 @@ from sim.vpush_sim import VPushSimulation  # Assuming VPushSimulation is in a se
 import time
 from stable_baselines3.common.utils import get_linear_fn
 
+
 def handle_pygame_events():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -27,11 +28,11 @@ class VPushSimulationEnv(gym.Env):
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
-        # self.action_space = spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]), dtype=np.float32)
-        self.action_res = 10
+        self.action_space = spaces.Box(low=np.array([-1, -1, -0.2]), high=np.array([1, 1, 0.2]), dtype=np.float32)
+        # self.action_res = 10
         # self.action_space = spaces.MultiDiscrete([self.action_res, self.action_res, ])
         # discrete action space
-        self.action_space = spaces.Discrete(6)
+        # self.action_space = spaces.Discrete(6)
         
         if self.obs_type == 'image':
             # Observation space: smaller RGB image of the simulation
@@ -88,7 +89,7 @@ class VPushSimulationEnv(gym.Env):
         obs = self._get_obs()
         return obs, {}
 
-    def step(self, action, sim_steps=1):
+    def step(self, action, sim_steps=1):        
         
         # noise = np.random.normal(0, 0.1, size=action.shape)
         # action = action + noise
@@ -99,18 +100,18 @@ class VPushSimulationEnv(gym.Env):
         # action = action * np.array([.01, .01,])
         # action = action * np.array([.01, .01, .001])
         # action = np.clip(rescaled_action, self.action_space.low, self.action_space.high)
-        if action == 0:
-            action = (0.0, 0.02, 0)
-        elif action == 1:
-            action = (0.0, -0.02, 0)
-        elif action == 2:
-            action = (-0.02, 0.0, 0)
-        elif action == 3:
-            action = (0.02, 0.0, 0)
-        elif action == 4:
-            action = (0.0, 0.0, 0.001)
-        elif action == 5:
-            action = (0.0, 0.0, -0.001)
+        # if action == 0:
+        #     action = (0.0, 0.02, 0)
+        # elif action == 1:
+        #     action = (0.0, -0.02, 0)
+        # elif action == 2:
+        #     action = (-0.02, 0.0, 0)
+        # elif action == 3:
+        #     action = (0.02, 0.0, 0)
+        # elif action == 4:
+        #     action = (0.0, 0.0, 0.001)
+        # elif action == 5:
+        #     action = (0.0, 0.0, -0.001)
 
         # Get the current velocities
         current_linear_velocity = self.simulation.robot_body.linearVelocity
@@ -118,12 +119,10 @@ class VPushSimulationEnv(gym.Env):
 
         # Apply the velocity offsets
         new_linear_velocity = (
-            float(current_linear_velocity[0] + action[0]),
-            float(current_linear_velocity[1] + action[1]),
-            # float(action[0]),
-            # float(action[1])
+            float(action[0]),
+            float(action[1])
         )
-        new_angular_velocity = float(current_angular_velocity + action[2])
+        new_angular_velocity = float(action[2])
 
         # Set the new velocities
         self.simulation.robot_body.linearVelocity = new_linear_velocity
@@ -190,7 +189,7 @@ class VPushSimulationEnv(gym.Env):
             # reward = 10/(distance_to_goal+3*distance_to_object)
             reward = np.exp(-0.1*distance_to_object) + 3*np.exp(-0.1*distance_to_goal)
         else:
-            reward = 1000  # High positive reward for reaching the goal
+            reward = 100  # High positive reward for reaching the goal
 
         if abs(object_pos[0]) > 38 or (object_pos[1] < 2 or object_pos[1] > 58) or abs(gripper_pos[0]) > 38 or (gripper_pos[1] < 2 or gripper_pos[1] > 58):
             reward -= 100  # Negative reward for going out of bounds
@@ -241,6 +240,10 @@ if __name__ == "__main__":
     total_timesteps = int(1e6)
     learning_rate_schedule = get_linear_fn(1e-1, 0, total_timesteps)
     # clip_range_schedule = get_linear_fn(2.5e-4, 0, total_timesteps)
+    model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
+                env, 
+                verbose=1, 
+                tensorboard_log="./ppo_box2d_tensorboard/")
     # model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
     #             env, 
     #             verbose=1, 
@@ -255,23 +258,23 @@ if __name__ == "__main__":
     #             vf_coef=0.5, 
     #             max_grad_norm=0.5, 
     #             tensorboard_log="./ppo_box2d_tensorboard/")
-    model = DQN("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
-                env, 
-                verbose=1, 
-                learning_rate=learning_rate_schedule, 
-                # buffer_size=100000,  # Reduced buffer size to handle computational limitations
-                # learning_starts=1000,  # Start learning earlier for faster convergence
-                # batch_size=64,  # Increased batch size for stable training
-                # tau=1.0, 
-                # gamma=0.99, 
-                # train_freq=(4, 'step'),  # Ensure training frequency is correctly defined
-                # gradient_steps=1, 
-                # exploration_fraction=0.5, 
-                # exploration_initial_eps=1.0, 
-                exploration_final_eps=0.1,  # Lower final epsilon for better exploitation
-                # max_grad_norm=10, 
-                target_update_interval=250,
-                tensorboard_log="./dqn_box2d_tensorboard/")
+    # model = DQN("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
+    #             env, 
+    #             verbose=1, 
+    #             learning_rate=learning_rate_schedule, 
+    #             # buffer_size=100000,  # Reduced buffer size to handle computational limitations
+    #             # learning_starts=1000,  # Start learning earlier for faster convergence
+    #             # batch_size=64,  # Increased batch size for stable training
+    #             # tau=1.0, 
+    #             # gamma=0.99, 
+    #             # train_freq=(4, 'step'),  # Ensure training frequency is correctly defined
+    #             # gradient_steps=1, 
+    #             # exploration_fraction=0.5, 
+    #             # exploration_initial_eps=1.0, 
+    #             exploration_final_eps=0.1,  # Lower final epsilon for better exploitation
+    #             # max_grad_norm=10, 
+    #             target_update_interval=250,
+    #             tensorboard_log="./dqn_box2d_tensorboard/")
     # model = A2C("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
     #             env, 
     #             verbose=1, 

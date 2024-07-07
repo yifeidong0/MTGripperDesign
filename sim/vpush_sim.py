@@ -220,7 +220,9 @@ class VPushSimulation:
         final_score += avg_robustness * 0.1
 
         return final_score
-        
-# # Example usage
-# simulation = VPushSimulation('polygon', 1.39777, use_gui=1) # polygon or circle
-# final_score = simulation.run(3)
+
+
+if __name__ == '__main__':
+    simulation = VPushSimulation('polygon', 1.39777, use_gui=1) # polygon or circle
+    final_score = simulation.run(3)
+    print('Final score:', final_score)

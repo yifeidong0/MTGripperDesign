@@ -1,0 +1,4 @@
+**/__pycache__/
+
+# log files
+ppo_box2d_tensorboard/
