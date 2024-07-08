@@ -73,7 +73,7 @@ def generate_v_shape_pusher(finger_length, angle, thickness, height,
 
     # Save to STL
     v_shape_mesh.save(filename)
-    print(f'V-shape pusher STL saved to {filename}')
+    # print(f'V-shape pusher STL saved to {filename}')
 
     # Save to OBJ
     with open(obj_filename, 'w') as f:
@@ -81,7 +81,7 @@ def generate_v_shape_pusher(finger_length, angle, thickness, height,
             f.write(f"v {v[0]} {v[1]} {v[2]}\n")
         for face in faces:
             f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
-    print(f'V-shape pusher OBJ saved to {obj_filename}')
+    # print(f'V-shape pusher OBJ saved to {obj_filename}')
 
 
 import pybullet as p

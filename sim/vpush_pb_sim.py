@@ -65,6 +65,12 @@ class VPushPbSimulation:
                                                               distance=2, yaw=90, pitch=-89.99, roll=0, upAxisIndex=2)
         self.projectionMatrix = p.computeProjectionMatrixFOV(fov=103, aspect=1, nearVal=0.1, farVal=100)
 
+    def reset_task_and_design(self, new_task, new_design):
+        # Reset the design and task
+        self.object_type = new_task
+        self.v_angle = new_design
+        self.setup()
+
     def reset(self, min_distance=0.5):
         self.object_position = [random.normalvariate(3, 0.5),
                                 random.normalvariate(2.5, 0.5),
@@ -199,6 +205,7 @@ class VPushPbSimulation:
         avg_robustness = 0 if num_steps == 0 else avg_robustness / (num_steps // 10)
         final_score = 1 if target_reached else 0
         final_score += avg_robustness * 0.1
+        print("Final Score:", final_score)
 
         return final_score
 

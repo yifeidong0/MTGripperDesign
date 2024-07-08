@@ -1,6 +1,5 @@
 import numpy as np
 from stl import mesh
-import trimesh
 
 def generate_scoop(coefficients, filename='scoop.stl', obj_filename='scoop.obj'):
     x = np.linspace(0, 1, 200)
@@ -72,36 +71,3 @@ name_log = "log.txt"
 
 # Decompose the mesh
 p.vhacd(input_file, output_prefix, name_log)
-
-
-########## Voxelize the scoop (making it jagged) ##########
-# import numpy as np
-# from stl import mesh
-# import trimesh
-
-# def load_stl(file_path):
-#     return trimesh.load_mesh(file_path)
-
-# def fill_mesh(mesh):
-#     # Ensure the mesh is watertight
-#     if not mesh.is_watertight:
-#         mesh.fill_holes()
-#     # Create a voxelized version of the mesh
-#     voxelized = mesh.voxelized(pitch=0.005)
-#     # Convert voxel grid back to a mesh
-#     filled_mesh = voxelized.as_boxes()
-#     return filled_mesh
-
-# def save_stl(mesh, file_path):
-#     mesh.export(file_path, file_type='stl')
-
-# def repair_stl(input_file, output_file):
-#     mesh = load_stl(input_file)
-#     filled_mesh = fill_mesh(mesh)
-#     save_stl(filled_mesh, output_file)
-#     print(f"Repaired STL saved to {output_file}")
-
-# # Use the function to repair an STL file
-# input_stl = 'scoop.stl'
-# output_stl = 'scoop.stl'
-# repair_stl(input_stl, output_stl)

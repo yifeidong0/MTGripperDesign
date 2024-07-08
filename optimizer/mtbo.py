@@ -30,6 +30,13 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2 # number of tasks
         elif self.env_type == "vpush":
+            from sim.vpush_pb_sim import VPushPbSimulation as Simulation
+            self.x_scale = np.arange(0, np.pi, np.pi/64)
+            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
+                        {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
+            self.num_outputs = 2
+            self.sim = Simulation('circle', 0, self.gui)
+        elif self.env_type == "vpush-frictionless":
             self.x_scale = np.arange(0, np.pi, np.pi/64)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
@@ -97,9 +104,14 @@ class BayesianOptimizationMultiTask:
             sim = Simulation(task, x, self.gui)
             score = sim.run()
         elif self.env_type == "vpush":
+            task = 'circle' if t == 0 else 'polygon'
+            self.sim.reset_task_and_design(task, x)
+            score = self.sim.run(num_episodes)
+        elif self.env_type == "vpush-frictionless":
             from sim.vpush_sim import VPushSimulation as Simulation
             task = 'circle' if t == 0 else 'polygon'
             sim = Simulation(task, x, self.gui)
+            sim.reset_task_and_design(task, x)
             score = sim.run(num_episodes)
         elif self.env_type == "ucatch":
             from sim.ucatch_sim import UCatchSimulation as Simulation
@@ -251,5 +263,5 @@ class BayesianOptimizationMultiTask:
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(env_type="ucatch", initial_iter=10, max_iter=1, gui=0) # vpush, push, ucatch
+    pipeline = BayesianOptimizationMultiTask(env_type="vpush", initial_iter=10, max_iter=1, gui=0) # vpush, vpush-frictionless, push, ucatch
     pipeline.run()
