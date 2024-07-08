@@ -9,6 +9,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.generate_vpush import generate_v_shape_pusher, decompose_mesh
+from shapely.geometry import Polygon, Point
 
 class VPushPbSimulation:
     def __init__(self, object_type='circle', v_angle=np.pi/3, use_gui=True):
@@ -34,10 +35,11 @@ class VPushPbSimulation:
         self.object_position = [random.normalvariate(2.5, 0.3), 
                                 random.normalvariate(2.5, 0.3), 
                                 self.body_height / 2]
+        self.object_rad = 0.2
         if self.object_type == 'circle':
-            self.object_id = self.create_circle(self.object_position, radius=0.2, height=self.body_height)
+            self.object_id = self.create_circle(self.object_position, radius=self.object_rad, height=self.body_height)
         elif self.object_type == 'polygon':
-            self.object_id = self.create_polygon(self.object_position, size=0.2, height=self.body_height)
+            self.object_id = self.create_polygon(self.object_position, size=self.object_rad, height=self.body_height)
 
         # Create the goal region
         self.goal_radius = 0.5
@@ -47,14 +49,20 @@ class VPushPbSimulation:
         self.robot_position = [random.normalvariate(1, .3), 
                                random.normalvariate(2.5, .3), 
                                self.body_height / 2]
-        self.robot_id = self.create_v_shape(self.robot_position, angle=self.v_angle)
+        self.robot_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, math.pi / 6)])
+        self.finger_length = 0.8
+        self.finger_thickness = 0.1
+        self.robot_id = self.create_v_shape(self.robot_position, angle=self.v_angle, 
+                                            length=self.finger_length, thickness=self.finger_thickness, 
+                                            height=self.body_height)
 
         # Simulation parameters
         self.time_step = 1.0 / 240.0
 
         # Setup camera
         p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=90, cameraPitch=-89.99, cameraTargetPosition=[2.5, 2.5, 0])
-        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=[2.5, 2.5, 0], distance=2, yaw=90, pitch=-89.99, roll=0, upAxisIndex=2)
+        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=[2.5, 2.5, 0], 
+                                                              distance=2, yaw=90, pitch=-89.99, roll=0, upAxisIndex=2)
         self.projectionMatrix = p.computeProjectionMatrixFOV(fov=103, aspect=1, nearVal=0.1, farVal=100)
 
     def reset(self, min_distance=0.5):
@@ -110,22 +118,39 @@ class VPushPbSimulation:
         
         return body_id
 
-    def eval_robustness(self):
+    def is_point_inside_polygon(self, point, vertices, slack=2):
+        polygon = Polygon(vertices)
+        point = Point(point)
+        if polygon.contains(point):
+            return True
+        if polygon.distance(point) <= slack:
+            return True
+
+        return False
+        
+    def eval_robustness(self, slack=0.1):
         # Calculate the object position in the robot frame
-        object_pos = np.array(p.getBasePositionAndOrientation(self.object_id)[0])
-        robot_pos = np.array(p.getBasePositionAndOrientation(self.robot_id)[0])
+        object_pos = np.array(p.getBasePositionAndOrientation(self.object_id)[0][:2])
+        robot_pos = np.array(p.getBasePositionAndOrientation(self.robot_id)[0][:2])
         robot_angle = p.getBasePositionAndOrientation(self.robot_id)[1]
-        relative_pos = object_pos[:2] - robot_pos[:2]
+        object_pos_R = object_pos - robot_pos
         robot_angle = p.getEulerFromQuaternion(robot_angle)[2]
-        relative_pos = np.array([
-            relative_pos[0] * math.cos(robot_angle) + relative_pos[1] * math.sin(robot_angle),
-            -relative_pos[0] * math.sin(robot_angle) + relative_pos[1] * math.cos(robot_angle)
+        object_pos_R = np.array([ # robot frame
+            object_pos_R[0] * math.cos(robot_angle) + object_pos_R[1] * math.sin(robot_angle),
+            -object_pos_R[0] * math.sin(robot_angle) + object_pos_R[1] * math.cos(robot_angle)
         ])
 
-        if abs(relative_pos[1]) < self.goal_radius and relative_pos[0] > 0:
-            robustness = max(0, self.goal_radius - relative_pos[0])
+        # Compute robot vertices position in the robot frame
+        self.robot_vertices = [(0, 0),  # robot frame
+                               (self.finger_length*math.cos(self.v_angle/2), self.finger_length*math.sin(self.v_angle/2)),
+                               (self.finger_length*math.cos(-self.v_angle/2), self.finger_length*math.sin(-self.v_angle/2))]
+        
+        if self.is_point_inside_polygon(object_pos_R, self.robot_vertices, slack=slack):
+            soft_fixture_metric = self.finger_length*math.cos(self.v_angle/2) - object_pos_R[0] + self.object_rad
+            robustness = max(0.0, soft_fixture_metric)
         else:
             robustness = 0
+
         return robustness
 
     def run(self, num_episodes=1):
@@ -159,7 +184,7 @@ class VPushPbSimulation:
             time.sleep(self.time_step)
 
             # Evaluate robustness
-            rob = self.eval_robustness()
+            rob = self.eval_robustness(slack=self.object_rad)
             # Record average robustness every 10 steps
             if num_steps % 10 == 0:
                 avg_robustness += rob
@@ -172,12 +197,12 @@ class VPushPbSimulation:
             p.getCameraImage(320, 320, viewMatrix=self.viewMatrix, projectionMatrix=self.projectionMatrix)
 
         avg_robustness = 0 if num_steps == 0 else avg_robustness / (num_steps // 10)
-        final_score = 0.8 if target_reached else 0
+        final_score = 1 if target_reached else 0
         final_score += avg_robustness * 0.1
 
         return final_score
 
-# # Example usage
-# simulation = VPushPbSimulation('polygon', 1, use_gui=True)  # polygon or circle
-# final_score = simulation.run(3)
-# print("Final Score:", final_score)
+if __name__ == "__main__":
+    simulation = VPushPbSimulation('polygon', 1, use_gui=True)  # polygon or circle
+    final_score = simulation.run(3)
+    print("Final Score:", final_score)

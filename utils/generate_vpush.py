@@ -61,9 +61,9 @@ def generate_v_shape_pusher(finger_length, angle, thickness, height,
     # Combine the faces
     faces = np.array(faces1 + faces2)
 
-    # Center the vertices
-    center = np.mean(vertices, axis=0)
-    vertices -= center
+    # # Center the vertices
+    # center = np.mean(vertices, axis=0)
+    # vertices -= center
 
     # Create mesh
     v_shape_mesh = mesh.Mesh(np.zeros(len(faces), dtype=mesh.Mesh.dtype))
@@ -107,12 +107,12 @@ def decompose_mesh(
     if not pb_connected:
         p.disconnect()
 
-# # Example usage
-# finger_length = .5
-# angle = math.radians(30)  # 90 degrees opening angle
-# thickness = 0.1
-# height = 0.1
+if __name__ == '__main__':
+    finger_length = .5
+    angle = math.radians(40)  # 90 degrees opening angle
+    thickness = 0.1
+    height = 0.1
 
-# generate_v_shape_pusher(finger_length, angle, thickness, height)
+    generate_v_shape_pusher(finger_length, angle, thickness, height)
 
-# decompose_mesh()
+    decompose_mesh()

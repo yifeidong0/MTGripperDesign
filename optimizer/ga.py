@@ -196,6 +196,7 @@ class GeneticAlgorithmPipeline:
         best_design, best_score = self.find_optimal_design()
         print(f"Optimal Design: {best_design}, Score: {best_score}")
 
+
 if __name__ == "__main__":
     pipeline = GeneticAlgorithmPipeline(env_type="ucatch", population_size=20, generations=50, mutation_rate=0.1, num_episodes=1, gui=False) # ucatch, vpush
     pipeline.run()

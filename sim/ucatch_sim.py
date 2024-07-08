@@ -270,6 +270,7 @@ class UCatchSimulation:
         
         return final_score
 
-# Example usage
-simulation = UCatchSimulation('polygon', [ 7.10324166 ,9.59668479 ,9.60502911 ,1.66742133 ,2.17972928], use_gui=True)  # polygon or circle
-final_score = simulation.run(1)
+
+if __name__ == "__main__":
+    simulation = UCatchSimulation('polygon', [ 7.28517609 ,9.71980838, 9.29659018 ,2.07382565 ,2.30108103], use_gui=True)  # polygon or circle
+    final_score = simulation.run(1)

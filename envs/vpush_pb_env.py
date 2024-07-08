@@ -156,19 +156,19 @@ class VPushPbSimulationEnv(gym.Env):
     def close(self):
         p.disconnect()
 
-# # Example usage
-# if __name__ == "__main__":
-#     env = VPushPbSimulationEnv('polygon', np.pi/3, gui=True)
-#     check_env(env)
+# Example usage
+if __name__ == "__main__":
+    env = VPushPbSimulationEnv('polygon', np.pi/3, gui=True)
+    check_env(env)
 
-#     model = PPO('MlpPolicy', env, verbose=1)
-#     model.learn(total_timesteps=10000)
+    model = PPO('MlpPolicy', env, verbose=1)
+    model.learn(total_timesteps=10000)
 
-#     obs = env.reset()
-#     for i in range(1000):
-#         action, _states = model.predict(obs)
-#         obs, rewards, done, truncated, info = env.step(action)
-#         env.render()
-#         if done or truncated:
-#             obs = env.reset()
-#     env.close()
+    obs = env.reset()
+    for i in range(1000):
+        action, _states = model.predict(obs)
+        obs, rewards, done, truncated, info = env.step(action)
+        env.render()
+        if done or truncated:
+            obs = env.reset()
+    env.close()
