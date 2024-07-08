@@ -53,19 +53,24 @@ class VPushPbSimulation:
         self.time_step = 1.0 / 240.0
 
         # Setup camera
-        p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=90, cameraPitch=-89.99, cameraTargetPosition=[0, 0, 0])
+        p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=90, cameraPitch=-89.99, cameraTargetPosition=[2.5, 2.5, 0])
+        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=[2.5, 2.5, 0], distance=2, yaw=90, pitch=-89.99, roll=0, upAxisIndex=2)
+        self.projectionMatrix = p.computeProjectionMatrixFOV(fov=103, aspect=1, nearVal=0.1, farVal=100)
 
-        # Set RGB camera
-        p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 1)
-
-    def reset(self):
-        self.object_position = [random.normalvariate(2.5, 0.5),
+    def reset(self, min_distance=0.5):
+        self.object_position = [random.normalvariate(3, 0.5),
                                 random.normalvariate(2.5, 0.5),
                                 self.body_height / 2]
         self.object_orientation = p.getQuaternionFromEuler([0, 0, random.uniform(0, 2 * math.pi)])
-        self.robot_position = [random.normalvariate(1, .3),
-                                 random.normalvariate(2.5, .3),
-                                 self.body_height / 2]
+        
+        # Minimum distance to ensure no penetration
+        while True:
+            self.robot_position = [random.normalvariate(1, .3),
+                                    random.normalvariate(2.5, .3),
+                                    self.body_height / 2]
+            distance = np.linalg.norm(np.array(self.object_position[:2]) - np.array(self.robot_position[:2]))
+            if distance >= min_distance:
+                break
         self.robot_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, math.pi / 6)])
         
         p.resetBasePositionAndOrientation(self.object_id, self.object_position, self.object_orientation)
@@ -79,6 +84,7 @@ class VPushPbSimulation:
         body_id = p.createMultiBody(baseMass=.1, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
                                     baseVisualShapeIndex=visual_shape_id, basePosition=position, baseOrientation=[0, 0, 0, 1])
         p.changeDynamics(body_id, -1, lateralFriction=1)
+        p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
     def create_polygon(self, position, size, height):
@@ -88,6 +94,7 @@ class VPushPbSimulation:
         body_id = p.createMultiBody(baseMass=.1, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
                                     baseVisualShapeIndex=visual_shape_id, basePosition=position, baseOrientation=[0, 0, 0, 1])
         p.changeDynamics(body_id, -1, lateralFriction=1)
+        p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
     def create_v_shape(self, position, angle, length=0.8, thickness=0.1, height=0.1):
@@ -99,6 +106,7 @@ class VPushPbSimulation:
 
         # Load urdf
         body_id = p.loadURDF("asset/vpusher/v_pusher.urdf", basePosition=position, baseOrientation=p.getQuaternionFromEuler([0, 0, 0]))
+        p.changeVisualShape(body_id, -1, rgbaColor=[0, 0, 1, 1])
         
         return body_id
 
@@ -160,13 +168,16 @@ class VPushPbSimulation:
             if num_steps >= 3000:
                 break
 
+            # Get camera image
+            p.getCameraImage(320, 320, viewMatrix=self.viewMatrix, projectionMatrix=self.projectionMatrix)
+
         avg_robustness = 0 if num_steps == 0 else avg_robustness / (num_steps // 10)
         final_score = 0.8 if target_reached else 0
         final_score += avg_robustness * 0.1
 
         return final_score
 
-# Example usage
-simulation = VPushPbSimulation('polygon', 1, use_gui=True)  # polygon or circle
-final_score = simulation.run(3)
-print("Final Score:", final_score)
+# # Example usage
+# simulation = VPushPbSimulation('polygon', 1, use_gui=True)  # polygon or circle
+# final_score = simulation.run(3)
+# print("Final Score:", final_score)

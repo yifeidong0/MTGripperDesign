@@ -16,7 +16,7 @@ planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 mass_scoop = 1
 scoop = p.loadURDF(
     "asset/vpusher/v_pusher.urdf", 
-    basePosition=[-2, 0, 2.0],  # Position above the ground
+    basePosition=[0, 0, 0.0],  # Position above the ground
     baseOrientation=p.getQuaternionFromEuler([math.pi/2, -math.pi/2, 0]),
     globalScaling=1
 )
@@ -30,7 +30,12 @@ i = 0
 while True:
     # Get current position and orientation of the scoop
     scoop_position, scoop_orientation = p.getBasePositionAndOrientation(scoop)
+    scoop_euler = p.getEulerFromQuaternion(scoop_orientation)
+    print(f"Step {i}: Orientation: {scoop_euler}")
+
+    # apply z-axis torque on the scoop
+    p.applyExternalTorque(scoop, -1, torqueObj=[0, 0, 10], flags=p.WORLD_FRAME)
 
     p.stepSimulation()
-    time.sleep(1. / 240.)
+    time.sleep(10. / 240.)
     i += 1
