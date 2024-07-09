@@ -3,7 +3,6 @@ from stl import mesh
 import math
 
 def generate_v_shape_pusher(finger_length, angle, thickness, height, 
-                            filename='asset/vpusher/v_pusher.stl', 
                             obj_filename='asset/vpusher/v_pusher.obj'):
     half_angle = angle / 2.0
     
@@ -71,17 +70,12 @@ def generate_v_shape_pusher(finger_length, angle, thickness, height,
         for j in range(3):
             v_shape_mesh.vectors[i][j] = vertices[face[j], :]
 
-    # Save to STL
-    v_shape_mesh.save(filename)
-    # print(f'V-shape pusher STL saved to {filename}')
-
     # Save to OBJ
     with open(obj_filename, 'w') as f:
         for v in vertices:
             f.write(f"v {v[0]} {v[1]} {v[2]}\n")
         for face in faces:
             f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
-    # print(f'V-shape pusher OBJ saved to {obj_filename}')
 
 
 import pybullet as p
@@ -92,9 +86,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def decompose_mesh(
         pb_connected = False,
         input_file = "asset/vpusher/v_pusher.obj",  # Replace with your concave mesh file path
-        output_prefix = "asset/vpusher/v_pusher_vhacd.obj",
         name_log = "log.txt",
     ):
+    output_prefix = input_file
     # Connect to PyBullet and load the plane
     if not pb_connected:
         p.connect(p.DIRECT)

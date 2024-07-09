@@ -76,8 +76,8 @@ class VPushPbSimulationEnv(gym.Env):
         for _ in range(sim_steps):
             p.stepSimulation()
             p.getCameraImage(320, 320, viewMatrix=self.simulation.viewMatrix, projectionMatrix=self.simulation.projectionMatrix)
-            if self.gui:
-                time.sleep(self.simulation.time_step)
+            # if self.gui:
+            #     time.sleep(self.simulation.time_step)
         
         self.simulation.step_count += 1
         obs = self._get_obs()
@@ -158,7 +158,7 @@ class VPushPbSimulationEnv(gym.Env):
 
 # Example usage
 if __name__ == "__main__":
-    env = VPushPbSimulationEnv('polygon', np.pi/3, gui=True)
+    env = VPushPbSimulationEnv('polygon', np.pi/3, gui=True) # TODO: include task and design parameters in the observation space
     check_env(env)
 
     model = PPO('MlpPolicy', env, verbose=1)

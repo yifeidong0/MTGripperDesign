@@ -16,9 +16,8 @@ class VPushPbSimulation:
         self.v_angle = v_angle
         self.object_type = object_type
         self.use_gui = use_gui
-        self.setup()
 
-    def setup(self):
+        # Connect to PyBullet
         if self.use_gui:
             p.connect(p.GUI)
         else:
@@ -26,38 +25,8 @@ class VPushPbSimulation:
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -9.81)
-
-        # Load plane
-        self.plane_id = p.loadURDF("plane.urdf")
-
-        # Create the dynamic object
-        self.body_height = 0.1
-        self.object_position = [random.normalvariate(2.5, 0.3), 
-                                random.normalvariate(2.5, 0.3), 
-                                self.body_height / 2]
-        self.object_rad = 0.2
-        if self.object_type == 'circle':
-            self.object_id = self.create_circle(self.object_position, radius=self.object_rad, height=self.body_height)
-        elif self.object_type == 'polygon':
-            self.object_id = self.create_polygon(self.object_position, size=self.object_rad, height=self.body_height)
-
-        # Create the goal region
-        self.goal_radius = 0.5
-        self.goal_position = [4.5, 2.5] # workspace [[0,5], [0,5]]
-
-        # Create a dynamic V-shaped robot
-        self.robot_position = [random.normalvariate(1, .3), 
-                               random.normalvariate(2.5, .3), 
-                               self.body_height / 2]
-        self.robot_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, math.pi / 6)])
-        self.finger_length = 0.8
-        self.finger_thickness = 0.1
-        self.robot_id = self.create_v_shape(self.robot_position, angle=self.v_angle, 
-                                            length=self.finger_length, thickness=self.finger_thickness, 
-                                            height=self.body_height)
-
-        # Simulation parameters
         self.time_step = 1.0 / 240.0
+        self.plane_id = p.loadURDF("plane.urdf")
 
         # Setup camera
         p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=90, cameraPitch=-89.99, cameraTargetPosition=[2.5, 2.5, 0])
@@ -65,18 +34,27 @@ class VPushPbSimulation:
                                                               distance=2, yaw=90, pitch=-89.99, roll=0, upAxisIndex=2)
         self.projectionMatrix = p.computeProjectionMatrixFOV(fov=103, aspect=1, nearVal=0.1, farVal=100)
 
-    def reset_task_and_design(self, new_task, new_design):
-        # Reset the design and task
-        self.object_type = new_task
-        self.v_angle = new_design
-        self.setup()
+        self.finger_length = 0.8
+        self.finger_thickness = 0.1
+        self.body_height = 0.1
+        self.object_rad = 0.2
+        self.goal_radius = 0.5
+        self.goal_position = [4.5, 2.5] # workspace [[0,5], [0,5]]
+        self.setup(reset_task_and_design=True)
 
-    def reset(self, min_distance=0.5):
-        self.object_position = [random.normalvariate(3, 0.5),
-                                random.normalvariate(2.5, 0.5),
+    def setup(self, reset_task_and_design=False, reset_pose=False, min_distance=0.8):
+        """ Setup the simulation environment.
+            Args:
+                reset_task_and_design (bool): Whether to reset the task and design parameteres (for a new iteration in MTBO).
+                reset_pose (bool): Whether to reset the object and robot poses (for a new episode).
+                min_distance (float): Minimum distance between object and robot.
+        """
+        # Set the object and robot poses
+        self.object_position = [random.normalvariate(2.5, 0.3), 
+                                random.normalvariate(2.5, 0.3), 
                                 self.body_height / 2]
         self.object_orientation = p.getQuaternionFromEuler([0, 0, random.uniform(0, 2 * math.pi)])
-        
+
         # Minimum distance to ensure no penetration
         while True:
             self.robot_position = [random.normalvariate(1, .3),
@@ -86,16 +64,44 @@ class VPushPbSimulation:
             if distance >= min_distance:
                 break
         self.robot_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, math.pi / 6)])
+
+        # Create the object and robot
+        if reset_task_and_design:
+            if self.object_type == 'circle':
+                self.object_id = self.create_circle(self.object_position, radius=self.object_rad, height=self.body_height) # TODO: add orientation
+            elif self.object_type == 'polygon':
+                self.object_id = self.create_polygon(self.object_position, size=self.object_rad, height=self.body_height)
+            self.create_v_shape(angle=self.v_angle, 
+                                length=self.finger_length, thickness=self.finger_thickness, 
+                                height=self.body_height)
+
+        if reset_pose:
+            p.resetBasePositionAndOrientation(self.object_id, self.object_position, self.object_orientation)
+            p.resetBasePositionAndOrientation(self.robot_id, self.robot_position, self.robot_orientation)
+            p.resetBaseVelocity(self.robot_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
+            p.resetBaseVelocity(self.object_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
+
+    def reset_task_and_design(self, new_task, new_design):
+        """Reset the task and design parameters for MTBO."""
+        self.object_type = new_task
+        self.v_angle = new_design[0]
+
+        # Remove the old object and robot
+        p.removeBody(self.object_id)
+        p.removeBody(self.robot_id)
         
-        p.resetBasePositionAndOrientation(self.object_id, self.object_position, self.object_orientation)
-        p.resetBasePositionAndOrientation(self.robot_id, self.robot_position, [0, 0, 0, 1])
-        p.resetBaseVelocity(self.robot_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
-        p.resetBaseVelocity(self.object_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
+        # Remove old mesh files if they exist
+        # if os.path.exists("asset/vpusher/v_pusher.obj"):
+        #     os.remove("asset/vpusher/v_pusher.obj")
+        # if os.path.exists("asset/vpusher/v_pusher_vhacd.obj"):
+        #     os.remove("asset/vpusher/v_pusher_vhacd.obj")
+            
+        self.setup(reset_task_and_design=True)
 
     def create_circle(self, position, radius, height):
         visual_shape_id = p.createVisualShape(shapeType=p.GEOM_CYLINDER, radius=radius, length=height, visualFramePosition=[0, 0, 0])
         collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius=radius, height=height, collisionFramePosition=[0, 0, 0])
-        body_id = p.createMultiBody(baseMass=.1, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
+        body_id = p.createMultiBody(baseMass=.05, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
                                     baseVisualShapeIndex=visual_shape_id, basePosition=position, baseOrientation=[0, 0, 0, 1])
         p.changeDynamics(body_id, -1, lateralFriction=1)
         p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
@@ -105,25 +111,64 @@ class VPushPbSimulation:
         half_extents = [size, size, height / 2]
         visual_shape_id = p.createVisualShape(shapeType=p.GEOM_BOX, halfExtents=half_extents)
         collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=half_extents)
-        body_id = p.createMultiBody(baseMass=.1, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
+        body_id = p.createMultiBody(baseMass=.05, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
                                     baseVisualShapeIndex=visual_shape_id, basePosition=position, baseOrientation=[0, 0, 0, 1])
         p.changeDynamics(body_id, -1, lateralFriction=1)
         p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
-    def create_v_shape(self, position, angle, length=0.8, thickness=0.1, height=0.1):
+    def create_v_shape(self, angle, length=0.8, thickness=0.1, height=0.1):
         # Generate V-shaped pusher obj file
-        generate_v_shape_pusher(length, angle, thickness, height)
+        unique_obj_filename = f"v_pusher_{self.v_angle:.2f}.obj"
+        generate_v_shape_pusher(length, angle, thickness, height, f"asset/vpusher/{unique_obj_filename}")
 
-        # Decompose the mesh
-        decompose_mesh(pb_connected=True)
+        # Decompose the mesh. TODO: cancel verbose
+        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+
+        # Create a new URDF file with the updated OBJ file path
+        unique_urdf_filename = f"v_pusher_{self.v_angle:.2f}.urdf"
+        urdf_template = f"""
+            <?xml version="1.0" ?>
+            <robot name="v_pusher">
+            <link name="baseLink">
+                <contact>
+                <lateral_friction value="1.0"/>
+                <rolling_friction value="0.001"/>
+                <restitution value="0.5"/>
+                </contact>
+                <inertial>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <mass value="10"/>
+                <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
+                </inertial>
+                <visual>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://{unique_obj_filename}" scale="1 1 1"/>
+                </geometry>
+                <material name="white">
+                    <color rgba="1 1 1 1"/>
+                </material>
+                </visual>
+                <collision>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://{unique_obj_filename}" scale="1 1 1"/>
+                </geometry>
+                </collision>
+            </link>
+            </robot>
+        """
+
+        with open(f"asset/vpusher/{unique_urdf_filename}", "w") as urdf_file:
+            urdf_file.write(urdf_template)
+
+        self.robot_id = p.loadURDF(f"asset/vpusher/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=p.getQuaternionFromEuler([0, 0, 0]))
 
         # Load urdf
-        body_id = p.loadURDF("asset/vpusher/v_pusher.urdf", basePosition=position, baseOrientation=p.getQuaternionFromEuler([0, 0, 0]))
-        p.changeVisualShape(body_id, -1, rgbaColor=[0, 0, 1, 1])
+        # body_id = p.loadURDF("asset/vpusher/v_pusher.urdf", basePosition=position, baseOrientation=p.getQuaternionFromEuler([0, 0, 0]))
+        p.changeVisualShape(self.robot_id, -1, rgbaColor=[0, 0, 1, 1])
         
-        return body_id
-
     def is_point_inside_polygon(self, point, vertices, slack=2):
         polygon = Polygon(vertices)
         point = Point(point)
@@ -165,7 +210,7 @@ class VPushPbSimulation:
             score = self.run_onetime()
             print('Episode %d: %.2f' % (i, score))
             avg_score += score
-            self.reset()
+            self.setup(reset_pose=True)
         avg_score /= num_episodes
         return avg_score
 
@@ -175,28 +220,29 @@ class VPushPbSimulation:
         num_steps = 0
         avg_robustness = 0
         while running:
-            object_pos = np.array(p.getBasePositionAndOrientation(self.object_id)[0])
-            distance_to_goal = np.linalg.norm(object_pos[:2] - np.array(self.goal_position))
+            object_pos = np.array(p.getBasePositionAndOrientation(self.object_id)[0][:2])
+            robot_pos = np.array(p.getBasePositionAndOrientation(self.robot_id)[0][:2])
+            distance_to_goal = np.linalg.norm(object_pos - np.array(self.goal_position))
             if distance_to_goal < self.goal_radius:
                 target_reached = True
                 break
 
-            # Push object towards goal using velocity control with noise
-            velocity = 0.1 * np.array([1,0]) * (distance_to_goal + 2 * self.goal_radius) + np.random.normal(0, 0.05, 2)
+            # Push object towards goal using velocity control with noise. TODO: replace with a RL policy
+            velocity = 0.5 * np.array([1,0]) * (distance_to_goal + 2 * self.goal_radius) + np.random.normal(0, 0.05, 2)
             p.resetBaseVelocity(self.robot_id, linearVelocity=[velocity[0], velocity[1], 0])
 
             # Step the simulation
             p.stepSimulation()
-            time.sleep(self.time_step)
+            # time.sleep(self.time_step)
 
             # Evaluate robustness
             rob = self.eval_robustness(slack=self.object_rad)
             # Record average robustness every 10 steps
-            if num_steps % 10 == 0:
+            if num_steps % 50 == 0:
                 avg_robustness += rob
 
             num_steps += 1
-            if num_steps >= 3000:
+            if num_steps >= 1000 or robot_pos[0]>5 or robot_pos[0]<0 or robot_pos[1]>5 or robot_pos[1]<0:
                 break
 
             # Get camera image
@@ -210,6 +256,14 @@ class VPushPbSimulation:
         return final_score
 
 if __name__ == "__main__":
-    simulation = VPushPbSimulation('polygon', 1, use_gui=True)  # polygon or circle
-    final_score = simulation.run(3)
-    print("Final Score:", final_score)
+    simulation = VPushPbSimulation('polygon', 2, use_gui=True)  # polygon or circle
+    for i in range(3):
+        final_score = simulation.run(1)
+        print("Final Score:", final_score)
+
+        # randomly select circle or polygon
+        if random.random() < 0.5:
+            simulation.reset_task_and_design('polygon', [random.uniform(0, 1),])
+        else:
+            simulation.reset_task_and_design('circle', [random.uniform(0, 1),])
+
