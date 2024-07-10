@@ -28,7 +28,7 @@ def main():
     check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
-    total_timesteps = int(5e2)
+    total_timesteps = int(2e6)
     model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
                 env, 
                 verbose=1, 

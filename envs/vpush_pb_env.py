@@ -37,7 +37,7 @@ class VPushPbSimulationEnv(gym.Env):
             self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
         else:
             # Observation space: low-dimensional pose (object pose, gripper pose)
-            self.observation_space = spaces.Box(low=np.array([0., 0., -1.]*2+[0.,]*2), high=np.array([1.0]*8), dtype=np.float64)
+            self.observation_space = spaces.Box(low=np.array([0., 0., -1.]*2 +[0.,]*4), high=np.array([1.0]*10), dtype=np.float64)
         
         # Goal parameters
         self.goal_radius = 0.5

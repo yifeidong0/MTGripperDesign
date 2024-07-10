@@ -56,4 +56,5 @@ dependencies:
       - numpy-stl
       - wandb
       - imageio[ffmpeg]
+      - shapely
 # prefix: /home/yif/miniconda3/envs/mtbo
