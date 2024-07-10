@@ -107,8 +107,8 @@ class VPushPbSimulationEnv(gym.Env):
                                    [p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.object_id)[1])[2]])
             gripper_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2]) + 
                                     [p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2]])
-            obs = np.concatenate([object_pose, gripper_pose])
-            max_vals = np.array([5.0, 5.0, np.pi, 5.0, 5.0, np.pi])  # Normalization constants
+            obs = np.concatenate([object_pose, gripper_pose, self.goal_position])
+            max_vals = np.array([5.0, 5.0, np.pi, 5.0, 5.0, np.pi, 5, 5])  # Normalization constants
             obs_normalized = obs / max_vals
 
             # Concatenate with task and design parameters
