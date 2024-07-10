@@ -9,7 +9,6 @@ import numpy as np
 from stable_baselines3 import PPO, DQN, A2C
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.env_util import make_vec_env
-import pygame
 import random
 import math
 from sim.vpush_pb_sim import VPushPbSimulation  # Assuming VPushPbSimulation is in a separate file.
@@ -19,27 +18,26 @@ from stable_baselines3.common.utils import get_linear_fn
 def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
-def handle_pygame_events():
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
-
 class VPushPbSimulationEnv(gym.Env):
-    def __init__(self, object_type='circle', v_angle=np.pi/3, gui=0, img_size=(42, 42), obs_type='pose'):
+    def __init__(self, gui=1, img_size=(42, 42), obs_type='pose'):
         super(VPushPbSimulationEnv, self).__init__()
-        self.simulation = VPushPbSimulation(object_type, v_angle, gui)
+        self.task = 'circle' 
+        self.task_int = 0 if self.task == 'circle' else 1
+        self.v_angle = np.pi/3
+        self.simulation = VPushPbSimulation(self.task, self.v_angle, gui)
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
         self.action_space = spaces.Box(low=np.array([-1, -1, -0.2]), high=np.array([1, 1, 0.2]), dtype=np.float32)
-        
+        self.canvas_min_x, self.canvas_max_x = 0, 5
+        self.canvas_min_y, self.canvas_max_y = 0, 5
+
         if self.obs_type == 'image':
             # Observation space: smaller RGB image of the simulation
-            self.observation_space = spaces.Box(low=0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
+            self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
         else:
             # Observation space: low-dimensional pose (object pose, gripper pose)
-            self.observation_space = spaces.Box(low=np.array([-1.0]*6), high=np.array([1.0]*6), dtype=np.float64)
+            self.observation_space = spaces.Box(low=np.array([0., 0., -1.]*2+[0.,]*2), high=np.array([1.0]*8), dtype=np.float64)
         
         # Goal parameters
         self.goal_radius = 0.5
@@ -53,10 +51,12 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_angle_difference = None
 
     def reset(self, seed=None, options=None):
-        # print("Resetting the environment")
         super().reset(seed=seed)
         self.simulation.step_count = 0
-        self.simulation.reset()
+        self.task = random.choice(['circle', 'polygon'])
+        self.task_int = 0 if self.task == 'circle' else 1
+        self.v_angle = random.uniform(0, np.pi)
+        self.simulation.reset_task_and_design(self.task, self.v_angle)
         obs = self._get_obs()
         return obs, {}
 
@@ -75,10 +75,15 @@ class VPushPbSimulationEnv(gym.Env):
         # Step the simulation
         for _ in range(sim_steps):
             p.stepSimulation()
-            p.getCameraImage(320, 320, viewMatrix=self.simulation.viewMatrix, projectionMatrix=self.simulation.projectionMatrix)
+            width, height, rgbPixels, _, _ = p.getCameraImage(320, 320, 
+                                                              viewMatrix=self.simulation.viewMatrix, 
+                                                              projectionMatrix=self.simulation.projectionMatrix)
             # if self.gui:
             #     time.sleep(self.simulation.time_step)
-        
+
+            frame = np.reshape(rgbPixels, (height, width, 4))[:, :, :3]
+            self.frame = np.uint8(frame)
+
         self.simulation.step_count += 1
         obs = self._get_obs()
         reward = self._compute_reward(action)
@@ -87,6 +92,9 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_action = action
         return obs, reward, done, truncated, {}
 
+    def get_rgb_image(self):
+        return self.frame
+    
     def _get_obs(self):
         if self.obs_type == 'image': # TODO: debug image observation
             width, height, rgb, _, _ = p.getCameraImage(width=self.img_size[0], height=self.img_size[1])
@@ -102,7 +110,11 @@ class VPushPbSimulationEnv(gym.Env):
             obs = np.concatenate([object_pose, gripper_pose])
             max_vals = np.array([5.0, 5.0, np.pi, 5.0, 5.0, np.pi])  # Normalization constants
             obs_normalized = obs / max_vals
-            return obs_normalized
+
+            # Concatenate with task and design parameters
+            task_design_params_normalized = np.array([self.task_int, self.v_angle/np.pi])
+
+            return np.concatenate([obs_normalized, task_design_params_normalized])
 
     def _compute_reward(self, action):
         object_pos = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
@@ -138,19 +150,17 @@ class VPushPbSimulationEnv(gym.Env):
         gripper_pos = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
         object_pos = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
         
-        canvas_min_x, canvas_max_x = 0, 5
-        canvas_min_y, canvas_max_y = 0, 5
-        
-        gripper_out_of_canvas = not (canvas_min_x <= gripper_pos[0] <= canvas_max_x and canvas_min_y <= gripper_pos[1] <= canvas_max_y)
-        object_out_of_canvas = not (canvas_min_x <= object_pos[0] <= canvas_max_x and canvas_min_y <= object_pos[1] <= canvas_max_y)
+        gripper_out_of_canvas = not (self.canvas_min_x <= gripper_pos[0] <= self.canvas_max_x 
+                                     and self.canvas_min_y <= gripper_pos[1] <= self.canvas_max_y)
+        object_out_of_canvas = not (self.canvas_min_x <= object_pos[0] <= self.canvas_max_x 
+                                    and self.canvas_min_y <= object_pos[1] <= self.canvas_max_y)
     
         time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
 
-    def render(self, mode='human'):
+    def render(self):
         if self.gui:
-            handle_pygame_events()
             p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
 
     def close(self):
@@ -158,17 +168,17 @@ class VPushPbSimulationEnv(gym.Env):
 
 # Example usage
 if __name__ == "__main__":
-    env = VPushPbSimulationEnv('polygon', np.pi/3, gui=True) # TODO: include task and design parameters in the observation space
+    env = VPushPbSimulationEnv(gui=True) # TODO: include task and design parameters in the observation space
     check_env(env)
 
     model = PPO('MlpPolicy', env, verbose=1)
     model.learn(total_timesteps=10000)
 
-    obs = env.reset()
-    for i in range(1000):
-        action, _states = model.predict(obs)
-        obs, rewards, done, truncated, info = env.step(action)
-        env.render()
-        if done or truncated:
-            obs = env.reset()
+    # obs = env.reset()
+    # for i in range(1000):
+    #     action, _states = model.predict(obs)
+    #     obs, rewards, done, truncated, info = env.step(action)
+    #     env.render()
+    #     if done or truncated:
+    #         obs = env.reset()
     env.close()

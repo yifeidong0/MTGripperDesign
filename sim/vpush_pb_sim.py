@@ -38,11 +38,12 @@ class VPushPbSimulation:
         self.finger_thickness = 0.1
         self.body_height = 0.1
         self.object_rad = 0.2
+        self.object_mass = 0.05
         self.goal_radius = 0.5
         self.goal_position = [4.5, 2.5] # workspace [[0,5], [0,5]]
         self.setup(reset_task_and_design=True)
 
-    def setup(self, reset_task_and_design=False, reset_pose=False, min_distance=0.8):
+    def setup(self, reset_task_and_design=False, reset_pose=False, min_distance=1.1):
         """ Setup the simulation environment.
             Args:
                 reset_task_and_design (bool): Whether to reset the task and design parameteres (for a new iteration in MTBO).
@@ -68,12 +69,10 @@ class VPushPbSimulation:
         # Create the object and robot
         if reset_task_and_design:
             if self.object_type == 'circle':
-                self.object_id = self.create_circle(self.object_position, radius=self.object_rad, height=self.body_height) # TODO: add orientation
+                self.object_id = self.create_circle()
             elif self.object_type == 'polygon':
-                self.object_id = self.create_polygon(self.object_position, size=self.object_rad, height=self.body_height)
-            self.create_v_shape(angle=self.v_angle, 
-                                length=self.finger_length, thickness=self.finger_thickness, 
-                                height=self.body_height)
+                self.object_id = self.create_polygon()
+            self.create_v_shape()
 
         if reset_pose:
             p.resetBasePositionAndOrientation(self.object_id, self.object_position, self.object_orientation)
@@ -84,45 +83,42 @@ class VPushPbSimulation:
     def reset_task_and_design(self, new_task, new_design):
         """Reset the task and design parameters for MTBO."""
         self.object_type = new_task
-        self.v_angle = new_design[0]
+        self.v_angle = new_design
 
         # Remove the old object and robot
         p.removeBody(self.object_id)
         p.removeBody(self.robot_id)
-        
-        # Remove old mesh files if they exist
-        # if os.path.exists("asset/vpusher/v_pusher.obj"):
-        #     os.remove("asset/vpusher/v_pusher.obj")
-        # if os.path.exists("asset/vpusher/v_pusher_vhacd.obj"):
-        #     os.remove("asset/vpusher/v_pusher_vhacd.obj")
-            
+
         self.setup(reset_task_and_design=True)
 
-    def create_circle(self, position, radius, height):
-        visual_shape_id = p.createVisualShape(shapeType=p.GEOM_CYLINDER, radius=radius, length=height, visualFramePosition=[0, 0, 0])
-        collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius=radius, height=height, collisionFramePosition=[0, 0, 0])
-        body_id = p.createMultiBody(baseMass=.05, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
-                                    baseVisualShapeIndex=visual_shape_id, basePosition=position, baseOrientation=[0, 0, 0, 1])
+    def create_circle(self,):
+        visual_shape_id = p.createVisualShape(shapeType=p.GEOM_CYLINDER, radius=self.object_rad, length=self.body_height, visualFramePosition=[0, 0, 0])
+        collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius=self.object_rad, height=self.body_height, collisionFramePosition=[0, 0, 0])
+        body_id = p.createMultiBody(baseMass=self.object_mass, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
+                                    baseVisualShapeIndex=visual_shape_id, basePosition=self.object_position, baseOrientation=self.object_orientation)
         p.changeDynamics(body_id, -1, lateralFriction=1)
         p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
-    def create_polygon(self, position, size, height):
-        half_extents = [size, size, height / 2]
+    def create_polygon(self,):
+        half_extents = [self.object_rad, self.object_rad, self.body_height / 2]
         visual_shape_id = p.createVisualShape(shapeType=p.GEOM_BOX, halfExtents=half_extents)
         collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=half_extents)
-        body_id = p.createMultiBody(baseMass=.05, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
-                                    baseVisualShapeIndex=visual_shape_id, basePosition=position, baseOrientation=[0, 0, 0, 1])
+        body_id = p.createMultiBody(baseMass=self.object_mass, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
+                                    baseVisualShapeIndex=visual_shape_id, basePosition=self.object_position, baseOrientation=self.object_orientation)
         p.changeDynamics(body_id, -1, lateralFriction=1)
         p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
-    def create_v_shape(self, angle, length=0.8, thickness=0.1, height=0.1):
+    def create_v_shape(self,):
+        # Remove previous obj and urdf files
+        os.system("rm -rf asset/vpusher/*")
+
         # Generate V-shaped pusher obj file
         unique_obj_filename = f"v_pusher_{self.v_angle:.2f}.obj"
-        generate_v_shape_pusher(length, angle, thickness, height, f"asset/vpusher/{unique_obj_filename}")
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
 
-        # Decompose the mesh. TODO: cancel verbose
+        # Decompose the mesh
         decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
 
         # Create a new URDF file with the updated OBJ file path
@@ -163,10 +159,9 @@ class VPushPbSimulation:
         with open(f"asset/vpusher/{unique_urdf_filename}", "w") as urdf_file:
             urdf_file.write(urdf_template)
 
-        self.robot_id = p.loadURDF(f"asset/vpusher/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=p.getQuaternionFromEuler([0, 0, 0]))
+        self.robot_id = p.loadURDF(f"asset/vpusher/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=self.robot_orientation)
 
         # Load urdf
-        # body_id = p.loadURDF("asset/vpusher/v_pusher.urdf", basePosition=position, baseOrientation=p.getQuaternionFromEuler([0, 0, 0]))
         p.changeVisualShape(self.robot_id, -1, rgbaColor=[0, 0, 1, 1])
         
     def is_point_inside_polygon(self, point, vertices, slack=2):
@@ -214,7 +209,7 @@ class VPushPbSimulation:
         avg_score /= num_episodes
         return avg_score
 
-    def run_onetime(self):
+    def run_onetime(self, rob_eval_freq=50):
         running = True
         target_reached = False
         num_steps = 0
@@ -236,9 +231,9 @@ class VPushPbSimulation:
             # time.sleep(self.time_step)
 
             # Evaluate robustness
-            rob = self.eval_robustness(slack=self.object_rad)
             # Record average robustness every 10 steps
-            if num_steps % 50 == 0:
+            if num_steps % rob_eval_freq == 0:
+                rob = self.eval_robustness(slack=self.object_rad)
                 avg_robustness += rob
 
             num_steps += 1
@@ -248,22 +243,21 @@ class VPushPbSimulation:
             # Get camera image
             p.getCameraImage(320, 320, viewMatrix=self.viewMatrix, projectionMatrix=self.projectionMatrix)
 
-        avg_robustness = 0 if num_steps == 0 else avg_robustness / (num_steps // 10)
-        final_score = 1 if target_reached else 0
-        final_score += avg_robustness * 0.1
-        print("Final Score:", final_score)
+        avg_robustness = 0 if num_steps == 0 else avg_robustness / (num_steps // rob_eval_freq)
+        final_score = 1. if target_reached else 0.
+        final_score += avg_robustness
 
         return final_score
 
 if __name__ == "__main__":
-    simulation = VPushPbSimulation('polygon', 2, use_gui=True)  # polygon or circle
+    simulation = VPushPbSimulation('polygon', random.uniform(0, math.pi), use_gui=True)  # polygon or circle
     for i in range(3):
         final_score = simulation.run(1)
         print("Final Score:", final_score)
 
         # randomly select circle or polygon
         if random.random() < 0.5:
-            simulation.reset_task_and_design('polygon', [random.uniform(0, 1),])
+            simulation.reset_task_and_design('polygon', random.uniform(0, math.pi))
         else:
-            simulation.reset_task_and_design('circle', [random.uniform(0, 1),])
+            simulation.reset_task_and_design('circle', random.uniform(0, math.pi))
 
