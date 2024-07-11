@@ -11,7 +11,7 @@ from utils.generate_scoop import generate_scoop
 from utils.vhacd import decompose_mesh
 
 class ScoopingSimulation:
-    def __init__(self, object_type='insole', coef=[0, 0.5, 1, -1], use_gui=True):
+    def __init__(self, object_type='insole', coef=[1, 1], use_gui=True):
         self.coef = coef
         self.object_type = object_type
         self.use_gui = use_gui
@@ -66,10 +66,10 @@ class ScoopingSimulation:
                                     random.normalvariate(3, .3,), 
                                     random.normalvariate(2.5, .3,), 
                                     self.body_height]
-        self.robot_position = [random.normalvariate(0.5, .3),
+        self.robot_position = [random.normalvariate(0.5, .1),
                                 random.normalvariate(2.5, .3),
-                                .8]
-        self.robot_orientation = p.getQuaternionFromEuler([math.pi/2, -0.6-math.pi/2, random.normalvariate(0, 0)])
+                                0]
+        self.robot_orientation = p.getQuaternionFromEuler([0,0,0])
 
         # Create the object and robot
         if reset_task_and_design:
@@ -102,14 +102,14 @@ class ScoopingSimulation:
         os.system("rm -rf asset/poly_scoop/*")
 
         # Generate V-shaped pusher obj file
-        unique_obj_filename = f"scoop_{self.coef[0]:.2f}_{self.coef[1]:.2f}_{self.coef[2]:.2f}_{self.coef[-1]:.2f}.obj"
+        unique_obj_filename = f"scoop_{self.coef[0]:.2f}_{self.coef[1]:.2f}.obj"
         generate_scoop(self.coef, f"asset/poly_scoop/{unique_obj_filename}")
 
         # Decompose the mesh
         decompose_mesh(pb_connected=True, input_file=f"asset/poly_scoop/{unique_obj_filename}")
 
         # Create a new URDF file with the updated OBJ file path
-        unique_urdf_filename = f"scoop_{self.coef[0]:.2f}_{self.coef[1]:.2f}_{self.coef[2]:.2f}_{self.coef[-1]:.2f}.urdf"
+        unique_urdf_filename = f"scoop_{self.coef[0]:.2f}_{self.coef[1]:.2f}.urdf"
         urdf_template = f"""
             <?xml version="1.0" ?>
             <robot name="scoop">
@@ -163,7 +163,7 @@ class ScoopingSimulation:
             useNeoHookean=1,
             NeoHookeanMu=1.5,
             NeoHookeanLambda=1,
-            NeoHookeanDamping=0.1,
+            NeoHookeanDamping=0.5,
             useSelfCollision=1,
             frictionCoeff=0.5,
             collisionMargin=0.001
@@ -180,7 +180,7 @@ class ScoopingSimulation:
             useNeoHookean=1,
             NeoHookeanMu=0.5,
             NeoHookeanLambda=1,
-            NeoHookeanDamping=0.01,
+            NeoHookeanDamping=0.5,
             useSelfCollision=1,
             frictionCoeff=0.5,
             collisionMargin=0.001
@@ -193,7 +193,7 @@ class ScoopingSimulation:
         self.obstacle = p.createMultiBody(
             baseMass=0,
             baseCollisionShapeIndex=box,
-            basePosition=[5, 2.5, 0.1],
+            basePosition=[5, 2.5, 0.05],
             baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
         )
         
@@ -216,8 +216,8 @@ class ScoopingSimulation:
         avg_robustness = 0
         target_reached = False
         while True:
-            # if i % 100 == 0:
-            #     print(f"Step {i}")
+            if i % 100 == 0:
+                print(f"Step {i}")
 
             # Get current position of the object and robot
             self.object_position = np.array(p.getBasePositionAndOrientation(self.object_id)[0])
@@ -229,7 +229,7 @@ class ScoopingSimulation:
             #     target_reached = True
             #     break
 
-            # Apply force on scoop
+            # Apply velocity on scoop
             if i > 100 and i < 1000:
                 p.applyExternalForce(self.robot_id, -1, [7, 0, 0], self.robot_position, p.WORLD_FRAME)
             
@@ -258,7 +258,7 @@ class ScoopingSimulation:
                 ):
                 break
 
-            # Get camera image
+            # Get camera image (time consuming, only for visualization purpose)
             # p.getCameraImage(320, 320, viewMatrix=self.viewMatrix, projectionMatrix=self.projectionMatrix)
 
         # Final score calculation
@@ -269,15 +269,17 @@ class ScoopingSimulation:
         return final_score
 
 if __name__ == "__main__":
-    coef = [0, 0.5, 1, -1]
-    simulation = ScoopingSimulation('insole', coef=coef, use_gui=True)  # insole or pillow
+    coef = [1, 1]
+    simulation = ScoopingSimulation('pillow', coef=coef, use_gui=True)  # insole or pillow
     for i in range(3):
         print('Iteration %d' % i)
         final_score = simulation.run(1)
         print("Final Score:", final_score)
 
         # randomly select insole or pillow and new design parameters
+        coef = [random.uniform(.5, 5), 
+                random.uniform(0.2,1.3), ]
         if random.random() < 0.5:
-            simulation.reset_task_and_design('insole', [coef[i]+random.uniform(-.3, .3) for i in range(4)],)
+            simulation.reset_task_and_design('insole', coef,)
         else:
-            simulation.reset_task_and_design('pillow', [coef[i]+random.uniform(-.3, .3) for i in range(4)],)
+            simulation.reset_task_and_design('pillow', coef,)

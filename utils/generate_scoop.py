@@ -2,26 +2,34 @@ import numpy as np
 from stl import mesh
 
 def generate_scoop(coefficients, filename='scoop.obj'):
-    x = np.linspace(0, 1, 200)
-    y = sum(c * x**i for i, c in enumerate(coefficients))
-    y = y - y.min()
-    y = y / y.max()  # Normalize to range [0, 1]
+    x = np.linspace(0, 1.5, 30)
+    # y = sum(c * x**i for i, c in enumerate(coefficients))
+    # y = y - y.min()
+    # y = y / y.max()  # Normalize to range [0, 1]
+    
+    # the curve passes through the origin and (1,0)
+    c = coefficients
+    # z = c[0] * x * (1.5-x) * (c[1]-x)**2 * (c[2]-x)**2
+    z = c[0] * x * (1.5-x) * (c[1]-x)**2
 
-    depth = 1
+    depth = 1.5
 
     # Generate the surface by extruding the curve along the depth axis
-    z = np.linspace(0, depth, 200)
-    x_grid, z_grid = np.meshgrid(x, z)
-    y_grid = np.meshgrid(y, z)[0]
+    y = np.linspace(0, depth, 30)
+    x_grid, y_grid = np.meshgrid(x, y)
+    z_grid = np.meshgrid(z, y)[0]
 
     vertices = np.zeros((len(x_grid.ravel()), 3))
     vertices[:, 0] = x_grid.ravel()
     vertices[:, 1] = y_grid.ravel()
     vertices[:, 2] = z_grid.ravel()
 
-    # Centering the vertices
+    # Centering the vertices (center x, y but not z)
+    # center = np.mean(vertices, axis=0)
+    # vertices -= center
     center = np.mean(vertices, axis=0)
-    vertices -= center
+    vertices[:, 0] -= center[0]
+    vertices[:, 1] -= center[1]
 
     # Create faces for a single-layer thin scoop
     faces = []

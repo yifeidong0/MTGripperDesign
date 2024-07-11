@@ -3,6 +3,12 @@ import pybullet_data
 import time
 import math
 import numpy as np
+import os
+import sys
+import random
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.generate_scoop import generate_scoop
+from utils.vhacd import decompose_mesh
 
 # Physics simulation setup
 g = -9.81
@@ -12,12 +18,24 @@ p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)  # Enable Finite Element Method 
 p.setGravity(0, 0, g)
 planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 
+# Create scoop
+coef = [random.uniform(.5, 5), 
+        random.uniform(0,1.5), 
+        random.uniform(0,1.5)]
+coef = [1, 1]
+unique_obj_filename = 'test.obj'
+generate_scoop(coef, f"asset/{unique_obj_filename}")
+
+# Decompose the mesh
+decompose_mesh(pb_connected=True, input_file=f"asset/{unique_obj_filename}", resolution = int(1e2),)
+
 # Load scoop as robot end-effector
 mass_scoop = 1
-robot_orientation = p.getQuaternionFromEuler([math.pi/2, -.6-math.pi/2, 0*math.pi/2])
+# robot_orientation = p.getQuaternionFromEuler([math.pi/2, -.6-math.pi/2, 0*math.pi/2])
+robot_orientation = p.getQuaternionFromEuler([0,0,0])
 scoop = p.loadURDF(
     "asset/scoop.urdf", 
-    basePosition=[-2, 0, 1.0],  # Position above the ground
+    basePosition=[1,2.5,0],  # Position above the ground
     baseOrientation=robot_orientation,
     globalScaling=1
 )
@@ -29,45 +47,45 @@ p.changeDynamics(scoop, -1, mass=mass_scoop)
 # Load the insole soft body
 tex = p.loadTexture("uvmap.png")
 mass_pillow = 0.005
-insole = p.loadSoftBody(
-    "asset/insole.vtk", # pillow, insole
-    basePosition=[0, -0.5, 1.2],  # Position on top of the scoop
-    baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-    scale=5,
-    mass=0.005,
-    useNeoHookean=1,
-    NeoHookeanMu=1.5,
-    NeoHookeanLambda=1,
-    NeoHookeanDamping=0.1,
-    useSelfCollision=1,
-    frictionCoeff=0.5,
-    collisionMargin=0.001
-)
-p.changeVisualShape(insole, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
-
-# Load the pillow soft body
-# pillow = p.loadSoftBody(
-#     "asset/pillow.vtk", # pillow, insole
-#     basePosition=[0, 0, 1],  # Position on top of the scoop
+# insole = p.loadSoftBody(
+#     "asset/insole.vtk", # pillow, insole
+#     basePosition=[2.5, 2.5, 1.2],  # Position on top of the scoop
 #     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-#     scale=2.5,
-#     mass=mass_pillow,
+#     scale=5,
+#     mass=0.005,
 #     useNeoHookean=1,
-#     NeoHookeanMu=.5,
-#     # NeoHookeanLambda=1,
-#     NeoHookeanDamping=.01,
+#     NeoHookeanMu=1.5,
+#     NeoHookeanLambda=1,
+#     NeoHookeanDamping=0.1,
 #     useSelfCollision=1,
 #     frictionCoeff=0.5,
 #     collisionMargin=0.001
 # )
-# p.changeVisualShape(pillow, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+# p.changeVisualShape(insole, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+
+# Load the pillow soft body
+pillow = p.loadSoftBody(
+    "asset/pillow.vtk", # pillow, insole
+    basePosition=[2.5, 2.5, 1],  # Position on top of the scoop
+    baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
+    scale=2.5,
+    mass=mass_pillow,
+    useNeoHookean=1,
+    NeoHookeanMu=.5,
+    # NeoHookeanLambda=1,
+    NeoHookeanDamping=.1,
+    useSelfCollision=1,
+    frictionCoeff=0.5,
+    collisionMargin=0.001
+)
+p.changeVisualShape(pillow, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
 
 # Create a heavy box to fix the insole at the other end
 box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.8, 0.1])
 box_body = p.createMultiBody(
     baseMass=0,
     baseCollisionShapeIndex=box,
-    basePosition=[3, 0, 0.1],
+    basePosition=[5, 2.5, 0.1],
     baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
 )
 
@@ -91,7 +109,6 @@ while True:
     #     scoop_position[1],
     #     scoop_position[2]
     # ]
-
     # p.resetBasePositionAndOrientation(scoop, new_position, scoop_orientation)
 
     # Apply force on scoop
@@ -109,5 +126,5 @@ while True:
         p.resetBaseVelocity(scoop, [0, 0, 0], [0, 0, 0])
 
     p.stepSimulation()
-    time.sleep(1. / 240.)
+    time.sleep(2. / 240.)
     i += 1
