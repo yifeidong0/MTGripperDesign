@@ -106,7 +106,7 @@ class BayesianOptimizationMultiTask:
             score = sim.run()
         elif self.env_type == "vpush":
             task = 'circle' if int(t) == 0 else 'polygon'
-            self.sim.reset_task_and_design(task, x)
+            self.sim.reset_task_and_design(task, x[0])
             score = self.sim.run(num_episodes)
         elif self.env_type == "vpush-frictionless":
             from sim.vpush_sim import VPushSimulation as Simulation

@@ -14,49 +14,53 @@ planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 
 # Load scoop as robot end-effector
 mass_scoop = 1
+robot_orientation = p.getQuaternionFromEuler([math.pi/2, -.6-math.pi/2, 0*math.pi/2])
 scoop = p.loadURDF(
-    "asset/poly_scoop/scoop.urdf", 
+    "asset/scoop.urdf", 
     basePosition=[-2, 0, 1.0],  # Position above the ground
-    baseOrientation=p.getQuaternionFromEuler([math.pi/2, -math.pi/2, 0]),
+    baseOrientation=robot_orientation,
     globalScaling=1
 )
 p.changeDynamics(scoop, -1, lateralFriction=0.6, spinningFriction=0.4, rollingFriction=0.4)
 
+# Change mass
+p.changeDynamics(scoop, -1, mass=mass_scoop)
+
 # Load the insole soft body
 tex = p.loadTexture("uvmap.png")
-# insole = p.loadSoftBody(
-#     "asset/insole.vtk", # pillow, insole
-#     basePosition=[0, -0.5, 1.2],  # Position on top of the scoop
-#     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-#     scale=10,
-#     mass=0.005,
-#     useNeoHookean=1,
-#     NeoHookeanMu=2,
-#     NeoHookeanLambda=1,
-#     NeoHookeanDamping=1,
-#     useSelfCollision=1,
-#     frictionCoeff=0.5,
-#     collisionMargin=0.001
-# )
-# p.changeVisualShape(insole, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
-
-# Load the pillow soft body
 mass_pillow = 0.005
-pillow = p.loadSoftBody(
-    "asset/pillow.vtk", # pillow, insole
-    basePosition=[0, 0, 1],  # Position on top of the scoop
+insole = p.loadSoftBody(
+    "asset/insole.vtk", # pillow, insole
+    basePosition=[0, -0.5, 1.2],  # Position on top of the scoop
     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-    scale=2.5,
-    mass=mass_pillow,
+    scale=5,
+    mass=0.005,
     useNeoHookean=1,
-    NeoHookeanMu=.5,
-    # NeoHookeanLambda=1,
-    NeoHookeanDamping=.01,
+    NeoHookeanMu=1.5,
+    NeoHookeanLambda=1,
+    NeoHookeanDamping=0.1,
     useSelfCollision=1,
     frictionCoeff=0.5,
     collisionMargin=0.001
 )
-p.changeVisualShape(pillow, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+p.changeVisualShape(insole, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+
+# Load the pillow soft body
+# pillow = p.loadSoftBody(
+#     "asset/pillow.vtk", # pillow, insole
+#     basePosition=[0, 0, 1],  # Position on top of the scoop
+#     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
+#     scale=2.5,
+#     mass=mass_pillow,
+#     useNeoHookean=1,
+#     NeoHookeanMu=.5,
+#     # NeoHookeanLambda=1,
+#     NeoHookeanDamping=.01,
+#     useSelfCollision=1,
+#     frictionCoeff=0.5,
+#     collisionMargin=0.001
+# )
+# p.changeVisualShape(pillow, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
 
 # Create a heavy box to fix the insole at the other end
 box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.8, 0.1])

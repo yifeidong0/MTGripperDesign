@@ -1,6 +1,10 @@
 import numpy as np
 from stl import mesh
 import math
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.vhacd import decompose_mesh
 
 def generate_v_shape_pusher(finger_length, angle, thickness, height, 
                             obj_filename='asset/vpusher/v_pusher.obj'):
@@ -77,46 +81,6 @@ def generate_v_shape_pusher(finger_length, angle, thickness, height,
         for face in faces:
             f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
 
-
-import pybullet as p
-import os
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-def decompose_mesh(
-        pb_connected = False,
-        input_file = "asset/vpusher/v_pusher.obj",  # Replace with your concave mesh file path
-        name_log = "log.txt",
-    ):
-    input_file = input_file
-    # Connect to PyBullet and load the plane
-    if not pb_connected:
-        p.connect(p.DIRECT)
-
-    # Redirect stdout and stderr to null to suppress verbose output
-    devnull = open(os.devnull, 'w')
-    old_stdout = os.dup(1)
-    old_stderr = os.dup(2)
-    os.dup2(devnull.fileno(), 1)
-    os.dup2(devnull.fileno(), 2)
-
-    try:
-        # Use VHACD to decompose a concave object into convex parts
-        # Decompose the mesh
-        p.vhacd(input_file, input_file, name_log)
-    finally:
-        # Restore stdout and stderr
-        os.dup2(old_stdout, 1)
-        os.dup2(old_stderr, 2)
-        devnull.close()
-
-    # Disconnect from PyBullet
-    if not pb_connected:
-        p.disconnect()
-
-    # Remove log file
-    if os.path.exists(name_log):
-        os.remove(name_log)
         
 if __name__ == '__main__':
     finger_length = .5

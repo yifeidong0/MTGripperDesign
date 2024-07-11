@@ -1,7 +1,7 @@
 import numpy as np
 from stl import mesh
 
-def generate_scoop(coefficients, filename='scoop.stl', obj_filename='scoop.obj'):
+def generate_scoop(coefficients, filename='scoop.obj'):
     x = np.linspace(0, 1, 200)
     y = sum(c * x**i for i, c in enumerate(coefficients))
     y = y - y.min()
@@ -37,37 +37,15 @@ def generate_scoop(coefficients, filename='scoop.stl', obj_filename='scoop.obj')
         for j in range(3):
             scoop_mesh.vectors[i][j] = vertices[f[j], :]
 
-    # Save to STL
-    scoop_mesh.save(filename)
-    print(f'Scoop STL saved to {filename}')
-
     # Save to OBJ
-    with open(obj_filename, 'w') as f:
+    with open(filename, 'w') as f:
         for v in vertices:
             f.write(f"v {v[0]} {v[1]} {v[2]}\n")
         for face in faces:
             f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
-    print(f'Scoop OBJ saved to {obj_filename}')
+    print(f'Scoop OBJ saved to {filename}')
 
-# Parameters for the scoop
-coefficients = [0, 0.5, 1, -1]  # Example coefficients for a cubic polynomial
+# # Parameters for the scoop
+# coefficients = [0, 0.5, 1, -1]  # Example coefficients for a cubic polynomial
 
-generate_scoop(coefficients)
-
-
-########## Convex decomposition of the scoop ##########
-import pybullet as p
-import os
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Connect to PyBullet and load the plane
-p.connect(p.DIRECT)
-
-# Use VHACD to decompose a concave object into convex parts
-input_file = "scoop.obj"  # Replace with your concave mesh file path
-output_prefix = "scoop_decomposed_convex.obj"
-name_log = "log.txt"
-
-# Decompose the mesh
-p.vhacd(input_file, output_prefix, name_log)
+# generate_scoop(coefficients)

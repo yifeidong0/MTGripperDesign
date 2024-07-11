@@ -8,7 +8,8 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.generate_vpush import generate_v_shape_pusher, decompose_mesh
+from utils.generate_vpush import generate_v_shape_pusher
+from utils.vhacd import decompose_mesh
 from shapely.geometry import Polygon, Point
 
 class VPushPbSimulation:
@@ -115,14 +116,14 @@ class VPushPbSimulation:
         os.system("rm -rf asset/vpusher/*")
 
         # Generate V-shaped pusher obj file
-        unique_obj_filename = f"v_pusher_{self.v_angle:.2f}.obj"
+        unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
         generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
 
         # Decompose the mesh
         decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
 
         # Create a new URDF file with the updated OBJ file path
-        unique_urdf_filename = f"v_pusher_{self.v_angle:.2f}.urdf"
+        unique_urdf_filename = f"v_pusher_{self.v_angle:.3f}.urdf"
         urdf_template = f"""
             <?xml version="1.0" ?>
             <robot name="v_pusher">
@@ -210,11 +211,10 @@ class VPushPbSimulation:
         return avg_score
 
     def run_onetime(self, rob_eval_freq=50):
-        running = True
         target_reached = False
         num_steps = 0
         avg_robustness = 0
-        while running:
+        while True:
             object_pos = np.array(p.getBasePositionAndOrientation(self.object_id)[0][:2])
             robot_pos = np.array(p.getBasePositionAndOrientation(self.robot_id)[0][:2])
             distance_to_goal = np.linalg.norm(object_pos - np.array(self.goal_position))
@@ -231,7 +231,7 @@ class VPushPbSimulation:
             # time.sleep(self.time_step)
 
             # Evaluate robustness
-            # Record average robustness every 10 steps
+            # Record average robustness every rob_eval_freq steps
             if num_steps % rob_eval_freq == 0:
                 rob = self.eval_robustness(slack=self.object_rad)
                 avg_robustness += rob

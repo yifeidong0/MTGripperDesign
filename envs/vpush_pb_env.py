@@ -171,8 +171,8 @@ if __name__ == "__main__":
     env = VPushPbSimulationEnv(gui=True) # TODO: include task and design parameters in the observation space
     check_env(env)
 
-    # model = PPO('MlpPolicy', env, verbose=1)
-    # model.learn(total_timesteps=10000)
+    model = PPO('MlpPolicy', env, verbose=1)
+    model.learn(total_timesteps=10000)
 
     obs = env.reset()
     for i in range(1000):
