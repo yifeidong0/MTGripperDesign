@@ -1,5 +1,15 @@
 # Multi-task Gripper Co-Design
 
+## How to run
+For training the RL agent, run the following command:
+```
+python3 experiments/train.py
+```
+For testing, run the following command:
+```
+python3 experiments/test.py
+```
+
 ## Folder Descriptions
 
 ### optimizer

@@ -26,7 +26,7 @@ class VPushPbSimulation:
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -9.81)
-        self.time_step = 1.0 / 240.0
+        p.setTimeStep(1.0 / 240.0)
         self.plane_id = p.loadURDF("plane.urdf")
 
         # Setup camera
@@ -258,6 +258,7 @@ class VPushPbSimulation:
 
 if __name__ == "__main__":
     simulation = VPushPbSimulation('polygon', random.uniform(0, math.pi), use_gui=True)  # polygon or circle
+    simulation.setup(reset_task_and_design=True, reset_pose=True)
     for i in range(3):
         final_score = simulation.run(1)
         print("Final Score:", final_score)

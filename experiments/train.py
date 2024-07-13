@@ -13,7 +13,7 @@ def main():
     env_id = 'VPushPbSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0
     device = 'auto' # 'cpu', 'cuda', 'auto'
     obs_type = 'pose' # image, pose
-    env = gym.make(env_id, gui=True, obs_type=obs_type)
+    env = gym.make(env_id, gui=False, obs_type=obs_type)
     check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
