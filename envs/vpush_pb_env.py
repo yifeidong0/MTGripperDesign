@@ -49,6 +49,8 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_object_pose = None
         self.last_action = None
         self.last_angle_difference = None
+        
+        self.is_success = False
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -58,6 +60,7 @@ class VPushPbSimulationEnv(gym.Env):
         self.v_angle = random.uniform(0, np.pi)
         self.simulation.reset_task_and_design(self.task, self.v_angle)
         obs = self._get_obs()
+        self.is_success = False
         return obs, {}
 
     def step(self, action, sim_steps=1):
@@ -90,7 +93,11 @@ class VPushPbSimulationEnv(gym.Env):
         done = self._is_done()
         truncated = self._is_truncated()
         self.last_action = action
-        return obs, reward, done, truncated, {}
+        
+        info = {}
+        if done or truncated:
+            info['is_success'] = self.is_success
+        return obs, reward, done, truncated, info
 
     def get_rgb_image(self):
         return self.frame
@@ -144,7 +151,10 @@ class VPushPbSimulationEnv(gym.Env):
     def _is_done(self):
         object_pos = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
         distance_to_goal = np.linalg.norm(object_pos - self.goal_position)
-        return bool(distance_to_goal < self.goal_radius)
+        if bool(distance_to_goal < self.goal_radius):
+            self.is_success = True
+            return True
+        return False
 
     def _is_truncated(self):
         gripper_pos = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])

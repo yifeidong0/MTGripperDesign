@@ -1,7 +1,6 @@
 **/__pycache__/
 *.pyc
 
-# log files
-ppo_box2d_tensorboard/
-
 assets/vpusher/*
+
+results/*
