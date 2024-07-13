@@ -8,7 +8,6 @@ import sys
 import random
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.generate_scoop import generate_scoop
-from utils.vhacd import decompose_mesh
 
 # Physics simulation setup
 g = -9.81
@@ -33,7 +32,7 @@ planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 mass_scoop = 1
 robot_orientation = p.getQuaternionFromEuler([0,0,0])
 scoop = p.loadURDF(
-    "asset/scoop_1.00_1.00.urdf", 
+    "asset/poly_scoop/scoop_0.50_0.20.urdf", 
     basePosition=[1,2.5,0],  # Position above the ground
     baseOrientation=robot_orientation,
     globalScaling=1
@@ -44,43 +43,45 @@ p.changeDynamics(scoop, -1, lateralFriction=0.0, spinningFriction=0.4, rollingFr
 p.changeDynamics(scoop, -1, mass=mass_scoop)
 
 # Load the bread soft body
+object_type = "pillow" # bread or pillow
 tex = p.loadTexture("uvmap.png")
 mass_pillow = 0.005
-object_id = p.loadSoftBody(
-    "asset/bread.vtk", # pillow, bread
-    basePosition=[0,0,1],  # Position on top of the scoop
-    baseOrientation=p.getQuaternionFromEuler([math.pi/2, 0, math.pi/2]),
-    scale=.5,
-    mass=0.005,
-    useNeoHookean=1,
-    NeoHookeanMu=1.5,
-    NeoHookeanLambda=1,
-    NeoHookeanDamping=0.1,
-    useSelfCollision=1,
-    frictionCoeff=0.5,
-    collisionMargin=0.001
-)
-p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
-
-# Load the pillow soft body
-# object_id = p.loadSoftBody(
-#     "asset/pillow.vtk", # pillow, bread
-#     basePosition=[0,0, 1],  # Position on top of the scoop
-#     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-#     scale=2.5,
-#     mass=mass_pillow,
-#     useNeoHookean=1,
-#     NeoHookeanMu=.5,
-#     # NeoHookeanLambda=1,
-#     NeoHookeanDamping=.1,
-#     useSelfCollision=1,
-#     frictionCoeff=0.0,
-#     collisionMargin=0.001
-# )
-# p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+if object_type == "bread":
+    object_id = p.loadSoftBody(
+        "asset/bread.vtk", # pillow, bread
+        basePosition=[2.5,2.5,1],  # Position on top of the scoop
+        baseOrientation=p.getQuaternionFromEuler([math.pi/2, 0, math.pi/2]),
+        scale=.5,
+        mass=0.005,
+        useNeoHookean=1,
+        NeoHookeanMu=5,
+        NeoHookeanLambda=5,
+        NeoHookeanDamping=0.1,
+        useSelfCollision=1,
+        frictionCoeff=0.5,
+        collisionMargin=0.001
+    )
+    p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+else:
+    # Load the pillow soft body
+    object_id = p.loadSoftBody(
+        "asset/pillow.vtk", # pillow, bread
+        basePosition=[2.5, 2.5, 1],  # Position on top of the scoop
+        baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
+        scale=2.5,
+        mass=mass_pillow,
+        useNeoHookean=1,
+        NeoHookeanMu=5,
+        NeoHookeanLambda=5,
+        NeoHookeanDamping=.1,
+        useSelfCollision=1,
+        frictionCoeff=0.0,
+        collisionMargin=0.001
+    )
+    p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
 
 # Create a heavy box to fix the bread at the other end
-box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.8, 0.1])
+box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.8, 1.1])
 box_body = p.createMultiBody(
     baseMass=0,
     baseCollisionShapeIndex=box,
@@ -100,6 +101,7 @@ scoop_target_position = [1, 0, 1.2]  # Target position for the scoop to move alo
 i = 0
 dt = 1. / 240.
 while True:
+    print(i) if i % 10 == 0 else None
     # Get current position and orientation of the scoop
     scoop_position, scoop_orientation = p.getBasePositionAndOrientation(scoop)
     object_position, object_orientation = p.getBasePositionAndOrientation(object_id)
@@ -131,7 +133,6 @@ while True:
         curr_vel = p.getBaseVelocity(object_id)[0]
         new_vel = [v + dv for v, dv in zip(curr_vel, delta_vel)]
         p.resetBaseVelocity(object_id, new_vel, [0, 0, 0])
-        print("object base position", object_position[2])
         
         # # Random FORCE on robot
         # p.applyExternalForce(scoop, -1, [random.uniform(-10000,10000) for _ in range(3)], scoop_position, p.WORLD_FRAME)

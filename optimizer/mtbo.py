@@ -49,6 +49,13 @@ class BayesianOptimizationMultiTask:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
+        elif self.env_type == "scoop":
+            from sim.scoop_sim import ScoopingSimulation as Simulation
+            self.bounds = [{'name': 'c0', 'type': 'continuous', 'domain': (0.5, 2)},
+                        {'name': 'c1', 'type': 'continuous', 'domain': (0.2, 1.3)},
+                        {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
+            self.num_outputs = 2
+            self.sim = Simulation('pillow', [1,1], self.gui)
 
         self.initial_iter = initial_iter
         self.max_iter = max_iter
@@ -118,6 +125,10 @@ class BayesianOptimizationMultiTask:
             task = 'circle' if int(t) == 0 else 'polygon'
             sim = Simulation(task, x, self.gui)
             score = sim.run(num_episodes)
+        elif self.env_type == "scoop":
+            task = 'bread' if int(t) == 0 else 'pillow'
+            self.sim.reset_task_and_design(task, x)
+            score = self.sim.run(num_episodes)
 
         return score
 
@@ -258,10 +269,10 @@ class BayesianOptimizationMultiTask:
         print(f"Optimal Design: {best_design}, Score: {best_score}")
 
         # Plot the results
-        if self.env_type in ["ucatch"]:
+        if self.env_type in ["ucatch", "scoop"]:
             plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_outputs)), optimizer='mtbo')
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(env_type="vpush", initial_iter=10, max_iter=1, gui=1) # vpush, vpush-frictionless, push, ucatch
+    pipeline = BayesianOptimizationMultiTask(env_type="scoop", initial_iter=3, max_iter=1, gui=1) # vpush, (vpush-frictionless, push), ucatch, scoop
     pipeline.run()
