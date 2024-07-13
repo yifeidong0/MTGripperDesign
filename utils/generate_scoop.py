@@ -12,7 +12,7 @@ def generate_scoop(coefficients, filename='scoop.obj'):
     # z = c[0] * x * (1.5-x) * (c[1]-x)**2 * (c[2]-x)**2
     z = c[0] * x * (1.5-x) * (c[1]-x)**2
 
-    depth = 1.5
+    depth = 1
 
     # Generate the surface by extruding the curve along the depth axis
     y = np.linspace(0, depth, 30)

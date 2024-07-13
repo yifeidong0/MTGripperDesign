@@ -60,18 +60,18 @@ class ScoopingSimulation:
         # Set the object and robot poses
         if self.object_type == 'bread':
             self.object_orientation = p.getQuaternionFromEuler([math.pi/2, 0, math.pi/2+random.normalvariate(0, 0.1)])
-            self.object_position = [random.normalvariate(2, .3,), 
-                                    random.normalvariate(2.1, .3,), 
+            self.object_position = [random.normalvariate(3, .3,), 
+                                    random.normalvariate(2.5, .1,), 
                                     self.body_height]
         elif self.object_type == 'pillow':
             self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)]) 
             self.object_position = [random.normalvariate(3, .3,), 
-                                    random.normalvariate(2.5, .3,), 
+                                    random.normalvariate(2.5, .1,), 
                                     self.body_height]
         self.robot_position = [random.normalvariate(0.5, .1),
-                               random.normalvariate(2.5, .3),
+                               random.normalvariate(2.5, .1),
                                0]
-        self.robot_orientation = p.getQuaternionFromEuler([0,0,0])
+        self.robot_orientation = p.getQuaternionFromEuler([0,0,random.normalvariate(0, 0.05)])
 
         # Create the object and robot
         if reset_task_and_design:
@@ -108,7 +108,7 @@ class ScoopingSimulation:
         generate_scoop(self.coef, f"asset/poly_scoop/{unique_obj_filename}")
 
         # Decompose the mesh
-        decompose_mesh(pb_connected=True, input_file=f"asset/poly_scoop/{unique_obj_filename}")
+        decompose_mesh(pb_connected=True, input_file=f"asset/poly_scoop/{unique_obj_filename}", timeout=2)
 
         # Create a new URDF file with the updated OBJ file path
         unique_urdf_filename = f"scoop_{self.coef[0]:.2f}_{self.coef[1]:.2f}.urdf"
@@ -163,11 +163,11 @@ class ScoopingSimulation:
             scale=.5,
             mass=self.object_mass,
             useNeoHookean=1,
-            NeoHookeanMu=1.5,
-            NeoHookeanLambda=1,
-            NeoHookeanDamping=0.5,
+            NeoHookeanMu=5,
+            NeoHookeanLambda=5,
+            NeoHookeanDamping=0.1,
             useSelfCollision=1,
-            frictionCoeff=0.1,
+            frictionCoeff=0.5,
             collisionMargin=0.001
         )
         p.changeVisualShape(self.object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=self.tex, flags=0)
@@ -180,18 +180,18 @@ class ScoopingSimulation:
             scale=2.5,
             mass=self.object_mass,
             useNeoHookean=1,
-            NeoHookeanMu=0.5,
-            NeoHookeanLambda=1,
-            NeoHookeanDamping=0.5,
+            NeoHookeanMu=5,
+            NeoHookeanLambda=5,
+            NeoHookeanDamping=0.1,
             useSelfCollision=1,
-            frictionCoeff=0.1,
+            frictionCoeff=0.5,
             collisionMargin=0.001
         )
         p.changeVisualShape(self.object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=self.tex, flags=0)
 
     def load_obstacle(self):
         # Create a heavy box to fix the bread at the other end
-        box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 1.8, 0.1])
+        box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 1.8, 0.3])
         self.obstacle = p.createMultiBody(
             baseMass=0,
             baseCollisionShapeIndex=box,
@@ -233,7 +233,7 @@ class ScoopingSimulation:
         self.done_evaluation = False
 
         while True:
-            if i % 300 == 0:
+            if i % 500 == 0:
                 print(f"Step {i}")
 
             # Get current position of the object and robot
@@ -278,16 +278,17 @@ class ScoopingSimulation:
         return final_score
 
 if __name__ == "__main__":
-    coef = [1, 1]
-    simulation = ScoopingSimulation('bread', coef=coef, use_gui=1)  # bread or pillow
+    coef = [random.uniform(.5, 2), 
+            random.uniform(0.2,1.3),]
+    simulation = ScoopingSimulation('pillow', coef=coef, use_gui=1)  # bread or pillow
     for i in range(3):
         print('Iteration %d' % i)
         final_score = simulation.run(1)
         print("Final Score:", final_score)
 
         # randomly select bread or pillow and new design parameters
-        coef = [random.uniform(.5, 5), 
-                random.uniform(0.2,1.3), ]
+        coef = [random.uniform(.5, 2), 
+                random.uniform(0.2,1.3),]
         if random.random() < 0.5:
             simulation.reset_task_and_design('bread', coef,)
         else:
