@@ -21,7 +21,7 @@ def handle_pygame_events():
             exit()
 
 def main():
-    env_id = 'VPushPbSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0
+    env_id = 'UCatchSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
 
     obs_type = 'pose' # image, pose
     env = gym.make(env_id)

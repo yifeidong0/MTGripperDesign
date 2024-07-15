@@ -186,9 +186,6 @@ class VPushSimulationEnv(gym.Env):
             
             return obs_normalized
 
-    def _draw_goal(self):
-        pygame.draw.circle(self.screen, (255, 255, 0), self.simulation.to_pygame(self.goal_position), int(self.goal_radius * 10))
-
     def _compute_reward(self, action):
         object_pos = np.array(self.simulation.object_body.position)
         gripper_pos = np.array(self.simulation.robot_body.position)

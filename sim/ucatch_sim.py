@@ -15,27 +15,28 @@ class UCatchSimulation:
         self.use_gui = use_gui
         self.setup()
 
-    def setup(self):
-        if self.use_gui:
-            # Initialize Pygame
-            pygame.init()
-            self.width, self.height = 800, 600
-            self.screen = pygame.display.set_mode((self.width, self.height))
-            pygame.display.set_caption('Box2D with Pygame - Robot Gripper')
+    def setup(self, reset_task_and_design=0):
+        if not reset_task_and_design:
+            if self.use_gui:
+                # Initialize Pygame
+                pygame.init()
+                self.width, self.height = 800, 600
+                self.screen = pygame.display.set_mode((self.width, self.height))
+                pygame.display.set_caption('Box2D with Pygame - U Catch')
 
-            # Colors
-            self.colors = {
-                'background': (255, 255, 255),
-                'robot': (0, 0, 255),
-                'circle': (255, 0, 0),
-                'polygon': (0, 255, 50),
-                'goal': (0, 128, 128),
-                'table': (128, 128, 0),
-            }
+                # Colors
+                self.colors = {
+                    'background': (255, 255, 255),
+                    'robot': (0, 0, 255),
+                    'circle': (255, 0, 0),
+                    'polygon': (0, 255, 50),
+                    'goal': (0, 128, 128),
+                    'table': (128, 128, 0),
+                }
 
-        # Create the world
-        self.g = 9.81
-        self.world = world(gravity=(0, -self.g), doSleep=True)
+            # Create the world
+            self.g = 9.81
+            self.world = world(gravity=(0, -self.g), doSleep=True)
 
         # Randomize the object velocity, open-loop control
         self.object_position = [-30, 50]
@@ -73,6 +74,17 @@ class UCatchSimulation:
         self.timeStep = 1.0 / 60
         self.vel_iters, self.pos_iters = 6, 2
 
+    def reset_task_and_design(self, new_task, new_design):
+        """Reset the task and design parameters for MTBO or RL training."""
+        self.object_type = new_task
+        self.d0, self.d1, self.d2, self.alpha0, self.alpha1 = new_design
+
+        # Remove the old object and robot
+        self.world.DestroyBody(self.object_body)
+        self.world.DestroyBody(self.robot_body)
+
+        self.setup(reset_task_and_design=1)
+
     def create_table(self, world, position, width, height):
         table = world.CreateStaticBody(position=position)
         vertices = [(-width/2, 0), (width/2, 0), (width/2, height), (-width/2, height)]
@@ -81,12 +93,12 @@ class UCatchSimulation:
 
     def create_circle(self, world, position):
         body = world.CreateDynamicBody(position=position)
-        body.CreateCircleFixture(radius=self.circle_rad, density=0.1, friction=1)
+        body.CreateCircleFixture(radius=self.circle_rad, density=0.01, friction=1)
         return body
 
     def create_polygon(self, world, position, vertices):
         body = world.CreateDynamicBody(position=position)
-        body.CreatePolygonFixture(vertices=vertices, density=0.1, friction=1)
+        body.CreatePolygonFixture(vertices=vertices, density=0.01, friction=1)
         return body
 
     def create_u_shape(self, world, position, lengths, angles, width=.5):
@@ -273,4 +285,9 @@ class UCatchSimulation:
 
 if __name__ == "__main__":
     simulation = UCatchSimulation('polygon', [ 7.28517609 ,9.71980838, 9.29659018 ,2.07382565 ,2.30108103], use_gui=True)  # polygon or circle
-    final_score = simulation.run(1)
+    for i in range(3):
+        task = random.choice(['circle', 'polygon'])
+        design = [random.uniform(5, 10), random.uniform(5, 10), random.uniform(5, 10), 
+                 random.uniform(np.pi/2, np.pi), random.uniform(np.pi/2, np.pi)]
+        simulation.reset_task_and_design(task, design)
+        final_score = simulation.run(1)
