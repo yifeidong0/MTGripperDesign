@@ -49,6 +49,8 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_object_pose = None
         self.last_action = None
         self.last_angle_difference = None
+        
+        self.is_success = False
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -58,9 +60,10 @@ class VPushPbSimulationEnv(gym.Env):
         self.v_angle = random.uniform(0, np.pi)
         self.simulation.reset_task_and_design(self.task, self.v_angle)
         obs = self._get_obs()
+        self.is_success = False
         return obs, {}
 
-    def step(self, action, sim_steps=1):
+    def step(self, action):
         self.last_object_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
                                           + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.object_id)[1])[2]),])
         self.last_gripper_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
@@ -73,6 +76,7 @@ class VPushPbSimulationEnv(gym.Env):
         p.resetBaseVelocity(self.simulation.robot_id, linearVelocity=new_linear_velocity, angularVelocity=[0, 0, new_angular_velocity])
 
         # Step the simulation
+        sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
             p.stepSimulation()
             width, height, rgbPixels, _, _ = p.getCameraImage(320, 320, 
@@ -86,11 +90,15 @@ class VPushPbSimulationEnv(gym.Env):
 
         self.simulation.step_count += 1
         obs = self._get_obs()
-        reward = self._compute_reward(action)
         done = self._is_done()
+        reward = self._compute_reward(action)
         truncated = self._is_truncated()
         self.last_action = action
-        return obs, reward, done, truncated, {}
+        
+        info = {}
+        if done or truncated:
+            info['is_success'] = self.is_success
+        return obs, reward, done, truncated, info
 
     def get_rgb_image(self):
         return self.frame
@@ -117,34 +125,39 @@ class VPushPbSimulationEnv(gym.Env):
             return np.concatenate([obs_normalized, task_design_params_normalized])
 
     def _compute_reward(self, action):
-        object_pos = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
-        gripper_pos = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
-        distance_to_goal = np.linalg.norm(object_pos - self.goal_position)
+        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
+        gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
+        current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
+        current_dist_object_to_goal = np.linalg.norm(object_position - self.goal_position)
 
         # Reward for aligning the gripper with the goal
         reward = 0
         gripper_angle = pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2])
-        current_direction_angle = math.atan2(self.goal_position[1] - object_pos[1], self.goal_position[0] - object_pos[0])
+        current_direction_angle = math.atan2(self.goal_position[1] - object_position[1], self.goal_position[0] - object_position[0])
         current_angle_difference = abs(current_direction_angle - gripper_angle)
         
         if self.last_angle_difference is not None:
             reward = (self.last_angle_difference - current_angle_difference) * 5
         self.last_angle_difference = current_angle_difference
         
-        # Reward for moving towards the goal
-        if distance_to_goal > self.goal_radius:
-            last_distance_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
-            current_distance_to_object = np.linalg.norm(gripper_pos[:2] - object_pos[:2])
-            reward += last_distance_to_object - current_distance_to_object
+        if current_dist_gripper_to_object > 0.5:
+            last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
+            reward += last_dist_gripper_to_object - current_dist_gripper_to_object
         else:
-            reward += 100  # High positive reward for reaching the goal
-
+            last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
+            reward += last_dist_object_to_goal - current_dist_object_to_goal
+        
+        if self.is_success:
+            reward += 100
         return reward
 
     def _is_done(self):
         object_pos = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
         distance_to_goal = np.linalg.norm(object_pos - self.goal_position)
-        return bool(distance_to_goal < self.goal_radius)
+        if bool(distance_to_goal < self.goal_radius):
+            self.is_success = True
+            return True
+        return False
 
     def _is_truncated(self):
         gripper_pos = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
@@ -165,21 +178,3 @@ class VPushPbSimulationEnv(gym.Env):
 
     def close(self):
         p.disconnect()
-
-# Example usage
-if __name__ == "__main__":
-    env = VPushPbSimulationEnv(gui=True) # TODO: include task and design parameters in the observation space
-    check_env(env)
-
-    model = PPO('MlpPolicy', env, verbose=1)
-    model.learn(total_timesteps=10000)
-
-    obs = env.reset()
-    for i in range(1000):
-        # action, _states = model.predict(obs)
-        action = env.action_space.sample()
-        obs, rewards, done, truncated, info = env.step(action)
-        env.render()
-        if done or truncated:
-            obs = env.reset()
-    env.close()

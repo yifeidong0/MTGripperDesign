@@ -26,7 +26,7 @@ class VPushPbSimulation:
         
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
         p.setGravity(0, 0, -9.81)
-        self.time_step = 1.0 / 240.0
+        p.setTimeStep(1.0 / 240.0)
         self.plane_id = p.loadURDF("plane.urdf")
 
         # Setup camera
@@ -42,7 +42,12 @@ class VPushPbSimulation:
         self.object_mass = 0.05
         self.goal_radius = 0.5
         self.goal_position = [4.5, 2.5] # workspace [[0,5], [0,5]]
-        self.setup(reset_task_and_design=True)
+        self.object_position = None
+        self.object_orientation = None
+        self.robot_position = None
+        self.robot_orientation = None
+        self.robot_id = None
+        self.object_id = None
 
     def setup(self, reset_task_and_design=False, reset_pose=False, min_distance=1.1):
         """ Setup the simulation environment.
@@ -85,10 +90,12 @@ class VPushPbSimulation:
         """Reset the task and design parameters for MTBO."""
         self.object_type = new_task
         self.v_angle = new_design
-
+        
         # Remove the old object and robot
-        p.removeBody(self.object_id)
-        p.removeBody(self.robot_id)
+        if self.object_id is not None:
+            p.removeBody(self.object_id)
+        if self.robot_id is not None:
+            p.removeBody(self.robot_id)
 
         self.setup(reset_task_and_design=True)
 
@@ -251,6 +258,7 @@ class VPushPbSimulation:
 
 if __name__ == "__main__":
     simulation = VPushPbSimulation('polygon', random.uniform(0, math.pi), use_gui=True)  # polygon or circle
+    simulation.setup(reset_task_and_design=True, reset_pose=True)
     for i in range(3):
         final_score = simulation.run(1)
         print("Final Score:", final_score)
