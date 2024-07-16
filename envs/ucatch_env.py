@@ -33,15 +33,15 @@ class UCatchSimulationEnv(gym.Env):
 
         if self.gui:
             pygame.init()
-            self.screen = pygame.display.set_mode((800, 600))
+            self.screen = pygame.display.set_mode((self.simulation.width, self.simulation.height))
             pygame.display.set_caption('Box2D with Pygame - U Catch')
 
-        # self.last_robot_pose = None
-        # self.last_object_pose = None
-        # self.last_action = None
-
+        self.last_position_difference = None
+        self.last_velocity_difference = None
         self.canvas_min_x, self.canvas_max_x = -self.simulation.width / 20, self.simulation.width / 20  # -40,40
         self.canvas_min_y, self.canvas_max_y = 0, self.simulation.height / 10  # 0,60
+        self.num_end_steps = 0
+        self.is_success = False
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -53,6 +53,8 @@ class UCatchSimulationEnv(gym.Env):
                              random.uniform(np.pi/2, np.pi), random.uniform(np.pi/2, np.pi)]
         self.simulation.reset_task_and_design(self.obs_type, self.design_param)
         obs = self._get_obs()
+        self.num_end_steps = 0
+        self.is_success = False
         return obs, {}
 
     def step(self, action, sim_steps=1):
@@ -60,12 +62,13 @@ class UCatchSimulationEnv(gym.Env):
         # self.last_robot_pose = np.array([self.simulation.robot_body.position[0], self.simulation.robot_body.position[1]])
 
         action = np.clip(action, self.action_space.low, self.action_space.high)
-        new_velocity = [action[0] * 10, 0]  # Scale action to desired range
+        new_velocity = [action[0] * 20, 0]  # Scale action to desired range
 
         self.simulation.robot_body.linearVelocity = new_velocity
 
         for _ in range(sim_steps):
             self.simulation.world.Step(self.simulation.timeStep, self.simulation.vel_iters, self.simulation.pos_iters)
+            # pygame.time.Clock().tick(260)
         self.simulation.world.ClearForces()
         self.simulation.step_count += 1
 
@@ -75,7 +78,10 @@ class UCatchSimulationEnv(gym.Env):
         truncated = self._is_truncated()
         self.last_action = action
 
-        return obs, reward, done, truncated, {}
+        info = {}
+        if done or truncated:
+            info['is_success'] = self.is_success
+        return obs, reward, done, truncated, info
 
     def _get_obs(self):
         if self.gui:
@@ -112,19 +118,40 @@ class UCatchSimulationEnv(gym.Env):
 
     def _compute_reward(self, action):
         object_pos = np.array([self.simulation.object_body.position[0], self.simulation.object_body.position[1]])
+        object_vel = np.array([self.simulation.object_body.linearVelocity[0], self.simulation.object_body.linearVelocity[1]])
         robot_pos = np.array([self.simulation.robot_body.position[0], self.simulation.robot_body.position[1]])
-        distance_to_goal = np.linalg.norm(object_pos - robot_pos)
+        current_position_difference = abs(self.simulation.object_landing_position_x - robot_pos[0])
 
+        # Reward for decreasing the distance between object and the goal
         reward = 0
+        if self.last_position_difference is not None:
+            reward += self.last_position_difference - current_position_difference
+        self.last_position_difference = current_position_difference
+        
+        # Reward for reaching desired velocity
+        self.robot_distance_to_travel = robot_pos[0] - self.simulation.object_landing_position_x
+        time_to_fall = abs(self.simulation.object_landing_velocity_y - object_vel[1]) / self.simulation.g
+        self.robot_desired_vx = -self.robot_distance_to_travel / time_to_fall
+        current_velocity_difference = abs(self.robot_desired_vx - action[0]) # - self.simulation.robot_body.linearVelocity[0]
+        if self.last_velocity_difference is not None:
+            reward += self.last_velocity_difference - current_velocity_difference
+        self.last_velocity_difference = current_velocity_difference
+
+        # TODO: Reward of caging robustness
+
+        # Reward for catching the object
         if self.simulation.check_end_condition():
-            reward += 100
-        else:
-            reward -= distance_to_goal * 0.1
+            reward += 1
 
         return reward
 
     def _is_done(self):
-        return self.simulation.check_end_condition()
+        if self.simulation.check_end_condition():
+            self.num_end_steps += 1
+        if self.num_end_steps >= 100: # end if object stays in the basket for 100 steps
+            self.is_success = True
+            return True
+        return False
 
     def _is_truncated(self):
         robot_pos = np.array(self.simulation.robot_body.position)
@@ -136,9 +163,10 @@ class UCatchSimulationEnv(gym.Env):
             object_pos[0] < self.canvas_min_x or object_pos[0] > self.canvas_max_x or 
             object_pos[1] < self.canvas_min_y or object_pos[1] > self.canvas_max_y
         )
-        time_ended = self.simulation.step_count >= 2000  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 500  # Maximum number of steps
+        object_on_ground = object_pos[1] < self.simulation.object_on_ground_height # object falls on the ground outside the basket
 
-        return bool(out_of_bounds or time_ended)
+        return bool(out_of_bounds or time_ended or object_on_ground)
 
     def render(self, mode='human'):
         if self.gui:
