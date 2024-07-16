@@ -13,6 +13,7 @@ class UCatchSimulation:
         self.object_type = object_type
         self.d0, self.d1, self.d2, self.alpha0, self.alpha1 = design_param
         self.use_gui = use_gui
+        self.width, self.height = 800, 600 # visualizer window size
         self.setup()
 
     def setup(self, reset_task_and_design=0):
@@ -20,7 +21,6 @@ class UCatchSimulation:
             if self.use_gui:
                 # Initialize Pygame
                 pygame.init()
-                self.width, self.height = 800, 600
                 self.screen = pygame.display.set_mode((self.width, self.height))
                 pygame.display.set_caption('Box2D with Pygame - U Catch')
 
@@ -39,6 +39,7 @@ class UCatchSimulation:
             self.world = world(gravity=(0, -self.g), doSleep=True)
 
         # Randomize the object velocity, open-loop control
+        self.object_rad = 3
         self.object_position = [-30, 50]
         self.robot_position = [25, 5]  # Middle rectangle, top left corner
         self.object_velocity_true_vx = random.normalvariate(10, 3)
@@ -46,16 +47,18 @@ class UCatchSimulation:
         self.object_velocity = [self.object_velocity_true_vx+random.normalvariate(0, 3), 0]
 
         # Compute the robot desired velocity
-        self.time_to_fall = math.sqrt(2*(self.object_position[1]-(self.robot_position[1]+5))/self.g) # +5 offset
-        self.distance_to_travel = self.robot_position[0] - (self.object_position[0]+self.object_velocity_true_vx*self.time_to_fall) 
-        self.robot_desired_vx = -self.distance_to_travel / self.time_to_fall
+        self.time_to_fall_total = math.sqrt(2*(self.object_position[1]-(self.robot_position[1]+5))/self.g) # +5 offset
+        self.object_landing_velocity_y = -math.sqrt(2 * self.g * (self.object_position[1] - (self.robot_position[1])))
+        self.object_landing_position_x  = self.object_position[0] + self.object_velocity[0]*self.time_to_fall_total
+        self.distance_to_travel = self.robot_position[0] - self.object_landing_position_x 
+        self.robot_desired_vx = -self.distance_to_travel / self.time_to_fall_total
         
         # Create the dynamic object
         if self.object_type == 'circle':
-            self.circle_rad = 3
+            self.circle_rad = self.object_rad
             self.object_body = self.create_circle(self.world, self.object_position)
         elif self.object_type == 'polygon':
-            self.poly_rad = 3
+            self.poly_rad = self.object_rad
             vertices = [(-self.poly_rad, -self.poly_rad),
                         (self.poly_rad, -self.poly_rad),
                         (self.poly_rad, self.poly_rad),
@@ -69,6 +72,7 @@ class UCatchSimulation:
         # Create table
         self.robot_shell_width = 0.5
         self.table_body = self.create_table(self.world, (0, self.robot_position[1]-2*self.robot_shell_width), 80, self.robot_shell_width)
+        self.object_on_ground_height = self.robot_position[1] - (1-0.1)*self.robot_shell_width + self.object_rad # 0.1 offset
 
         # Simulation parameters
         self.timeStep = 1.0 / 60
@@ -244,7 +248,11 @@ class UCatchSimulation:
                 break
 
             # Move the robot horizontally
-            self.robot_body.linearVelocity = [self.robot_desired_vx + random.normalvariate(0,1), 0]  # Move rightward
+            object_velocity = self.object_body.linearVelocity
+            self.robot_distance_to_travel = robot_pos[0] - self.object_landing_position_x
+            time_to_fall = abs(self.object_landing_velocity_y - object_velocity[1]) / self.g
+            self.robot_desired_vx = -self.robot_distance_to_travel / time_to_fall
+            self.robot_body.linearVelocity = [self.robot_desired_vx, 0]  # Move rightward
 
             # Step the world
             self.world.Step(self.timeStep, self.vel_iters, self.pos_iters)
