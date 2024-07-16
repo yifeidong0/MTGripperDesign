@@ -147,6 +147,8 @@ class VPushPbSimulationEnv(gym.Env):
             last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
             reward += last_dist_object_to_goal - current_dist_object_to_goal
         
+        # TODO: Reward of caging robustness
+
         if self.is_success:
             reward += 100
         return reward

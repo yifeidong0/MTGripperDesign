@@ -87,7 +87,7 @@ class UCatchSimulationEnv(gym.Env):
         if self.gui:
             self.screen.fill(self.simulation.colors['background'])
             self.simulation.draw()
-        pygame.display.flip()
+            pygame.display.flip()
 
         if self.obs_type == 'image': # TODO: debug this
             img = pygame.surfarray.array3d(pygame.display.get_surface())

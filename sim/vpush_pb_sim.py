@@ -235,7 +235,7 @@ class VPushPbSimulation:
 
             # Step the simulation
             p.stepSimulation()
-            # time.sleep(self.time_step)
+            # time.sleep(1./240.)
 
             # Evaluate robustness
             # Record average robustness every rob_eval_freq steps
@@ -257,7 +257,7 @@ class VPushPbSimulation:
         return final_score
 
 if __name__ == "__main__":
-    simulation = VPushPbSimulation('polygon', random.uniform(0, math.pi), use_gui=True)  # polygon or circle
+    simulation = VPushPbSimulation('polygon', random.uniform(0, math.pi), use_gui=1)  # polygon or circle
     simulation.setup(reset_task_and_design=True, reset_pose=True)
     for i in range(3):
         final_score = simulation.run(1)

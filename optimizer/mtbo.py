@@ -54,7 +54,7 @@ class BayesianOptimizationMultiTask:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
-            self.model_path = "results/models/ppo_box2dUCatchSimulationEnv-v0_500000_2024-07-16-10-57-45.zip"
+            self.model_path = "results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip"
         elif self.env_type == "scoop":
             from sim.scoop_sim import ScoopingSimulation as Simulation
             self.bounds = [{'name': 'c0', 'type': 'continuous', 'domain': (0.5, 2)},
@@ -306,7 +306,7 @@ class BayesianOptimizationMultiTask:
 
 if __name__ == "__main__":
     pipeline = BayesianOptimizationMultiTask(env_type="ucatch", # vpush, (vpush-frictionless, push), ucatch, scoop
-                                             initial_iter=3, 
-                                             max_iter=3, 
+                                             initial_iter=20, 
+                                             max_iter=15, 
                                              gui=1) 
     pipeline.run()

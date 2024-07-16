@@ -3,9 +3,13 @@ import sys
 import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import random
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3 import PPO
+import envs
+import gymnasium as gym
 
 class GeneticAlgorithmPipeline:
-    def __init__(self, env_type="push", population_size=20, generations=50, mutation_rate=0.1, num_episodes=1, gui=False):
+    def __init__(self, env_type="push", population_size=20, generations=50, mutation_rate=0.1, num_episodes=1, gui=False, policy="heuristic"):
         """
         Initialize the Genetic Algorithm Pipeline with the given parameters.
 
@@ -19,14 +23,17 @@ class GeneticAlgorithmPipeline:
         """
         self.env_type = env_type
         self.gui = gui
+        self.policy = policy  # "heuristic" or "rl"
 
         if self.env_type == "push":
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0.1, 1.2)},
                            {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
         elif self.env_type == "vpush":
+            from sim.vpush_pb_sim import VPushPbSimulation as Simulation
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
                            {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
+            self.sim = Simulation('circle', 1, self.gui)
             self.num_outputs = 2
         elif self.env_type == "ucatch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)},
@@ -36,6 +43,7 @@ class GeneticAlgorithmPipeline:
                            {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi / 2, np.pi)},
                            {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
+            self.model_path = "results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip"
 
         self.population_size = population_size
         self.generations = generations
@@ -73,21 +81,46 @@ class GeneticAlgorithmPipeline:
         """
         x, t = xt[:-1], int(xt[-1])
         
-        if self.env_type == "push":
-            from sim.push_sim import ForwardSimulationPlanePush as Simulation
-            task = 'ball' if t == 0 else 'box'
-            sim = Simulation(task, x, self.gui)
-            score = sim.run()
-        elif self.env_type == "vpush":
-            from sim.vpush_sim import VPushSimulation as Simulation
-            task = 'circle' if t == 0 else 'polygon'
-            sim = Simulation(task, x, self.gui)
-            score = sim.run(self.num_episodes)
-        elif self.env_type == "ucatch":
-            from sim.ucatch_sim import UCatchSimulation as Simulation
-            task = 'circle' if t == 0 else 'polygon'
-            sim = Simulation(task, x, self.gui)
-            score = sim.run(self.num_episodes)
+        if self.policy == "heuristic":
+            if self.env_type == "push":
+                from sim.push_sim import ForwardSimulationPlanePush as Simulation
+                task = 'ball' if t == 0 else 'box'
+                sim = Simulation(task, x, self.gui)
+                score = sim.run()
+            elif self.env_type == "vpush":
+                # from sim.vpush_sim import VPushSimulation as Simulation
+                task = 'circle' if int(t) == 0 else 'polygon'
+                self.sim.reset_task_and_design(task, x[0])
+                score = self.sim.run(self.num_episodes)
+            elif self.env_type == "ucatch":
+                from sim.ucatch_sim import UCatchSimulation as Simulation
+                task = 'circle' if t == 0 else 'polygon'
+                sim = Simulation(task, x, self.gui)
+                score = sim.run(self.num_episodes)
+        elif self.policy == "rl":
+            if self.env_type == "push":
+                env_id = 'VPushPbSimulationEnv-v0'
+            elif self.env_type == "ucatch":
+                env_id = 'UCatchSimulationEnv-v0'
+            
+            env = gym.make(env_id, gui=self.gui, obs_type='pose')
+            model = PPO.load(self.model_path)
+
+            avg_score = 0
+            for episode in range(self.num_episodes):
+                obs, _ = env.reset(seed=0)
+                print(f"Episode {episode + 1} begins")
+                done, truncated = False, False
+                while not (done or truncated):
+                    action = model.predict(obs)[0]
+                    obs, reward, done, truncated, info = env.step(action)
+                    env.render()
+                score = 1 if done else 0
+                avg_score += score
+                print("Done!" if done else "Truncated.")
+                print(f"Episode {episode + 1} finished")
+            score = avg_score / self.num_episodes
+            env.close()
 
         return score
 
@@ -198,5 +231,11 @@ class GeneticAlgorithmPipeline:
 
 
 if __name__ == "__main__":
-    pipeline = GeneticAlgorithmPipeline(env_type="ucatch", population_size=20, generations=50, mutation_rate=0.1, num_episodes=1, gui=False) # ucatch, vpush
+    pipeline = GeneticAlgorithmPipeline(env_type="vpush",  # ucatch, vpush
+                                        population_size=20, 
+                                        generations=5, 
+                                        mutation_rate=0.1, 
+                                        num_episodes=1, 
+                                        gui=1,
+                                        policy="heuristic")  # heuristic, rl
     pipeline.run()

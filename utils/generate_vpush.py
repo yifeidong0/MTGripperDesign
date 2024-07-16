@@ -81,7 +81,8 @@ def generate_v_shape_pusher(finger_length, angle, thickness, height,
         for face in faces:
             f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
 
-        
+
+# TODO: produce v pushers in advance before runtime
 if __name__ == '__main__':
     finger_length = .5
     angle = math.radians(40)  # 90 degrees opening angle

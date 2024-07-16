@@ -292,7 +292,7 @@ class UCatchSimulation:
 
 
 if __name__ == "__main__":
-    simulation = UCatchSimulation('polygon', [ 7.28517609 ,9.71980838, 9.29659018 ,2.07382565 ,2.30108103], use_gui=True)  # polygon or circle
+    simulation = UCatchSimulation('polygon', [ 9.34592631, 9.10978859 ,9.7866753,  1.93805852 ,2.40456379 ], use_gui=True)  # polygon or circle
     for i in range(3):
         task = random.choice(['circle', 'polygon'])
         design = [random.uniform(5, 10), random.uniform(5, 10), random.uniform(5, 10), 
