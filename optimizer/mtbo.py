@@ -8,6 +8,10 @@ import os
 import sys
 from utils.plot_bo import *
 from utils.plot_bo_multi import *
+import gymnasium as gym
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3 import PPO
+import envs
 
 class BayesianOptimizationMultiTask:
     def __init__(self, env_type="push", initial_iter=3, max_iter=10, gui=False):
@@ -22,6 +26,7 @@ class BayesianOptimizationMultiTask:
         """
         self.env_type = env_type
         self.gui = gui
+        self.policy = "rl" # "heuristic" or "rl"
 
         # Set bounds and number of tasks based on environment type
         if self.env_type == "push":
@@ -49,6 +54,7 @@ class BayesianOptimizationMultiTask:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
+            self.model_path = "results/models/ppo_box2dUCatchSimulationEnv-v0_500000_2024-07-16-10-57-45.zip"
         elif self.env_type == "scoop":
             from sim.scoop_sim import ScoopingSimulation as Simulation
             self.bounds = [{'name': 'c0', 'type': 'continuous', 'domain': (0.5, 2)},
@@ -106,29 +112,54 @@ class BayesianOptimizationMultiTask:
         x, t = xt[:-1], int(xt[-1])
         self.task_counter[t] = self.task_counter.get(t, 0) + 1
         
-        if self.env_type == "push":
-            from sim.push_sim import ForwardSimulationPlanePush as Simulation
-            task = 'ball' if int(t) == 0 else 'box'
-            sim = Simulation(task, x, self.gui)
-            score = sim.run()
-        elif self.env_type == "vpush":
-            task = 'circle' if int(t) == 0 else 'polygon'
-            self.sim.reset_task_and_design(task, x[0])
-            score = self.sim.run(num_episodes)
-        elif self.env_type == "vpush-frictionless":
-            from sim.vpush_sim import VPushSimulation as Simulation
-            task = 'circle' if int(t) == 0 else 'polygon'
-            sim = Simulation(task, x, self.gui)
-            score = sim.run(num_episodes)
-        elif self.env_type == "ucatch":
-            from sim.ucatch_sim import UCatchSimulation as Simulation
-            task = 'circle' if int(t) == 0 else 'polygon'
-            sim = Simulation(task, x, self.gui)
-            score = sim.run(num_episodes)
-        elif self.env_type == "scoop":
-            task = 'bread' if int(t) == 0 else 'pillow'
-            self.sim.reset_task_and_design(task, x)
-            score = self.sim.run(num_episodes)
+        if self.policy == "heuristic":
+            if self.env_type == "push":
+                from sim.push_sim import ForwardSimulationPlanePush as Simulation
+                task = 'ball' if int(t) == 0 else 'box'
+                sim = Simulation(task, x, self.gui)
+                score = sim.run()
+            elif self.env_type == "vpush":
+                task = 'circle' if int(t) == 0 else 'polygon'
+                self.sim.reset_task_and_design(task, x[0])
+                score = self.sim.run(num_episodes)
+            elif self.env_type == "vpush-frictionless":
+                from sim.vpush_sim import VPushSimulation as Simulation
+                task = 'circle' if int(t) == 0 else 'polygon'
+                sim = Simulation(task, x, self.gui)
+                score = sim.run(num_episodes)
+            elif self.env_type == "ucatch":
+                from sim.ucatch_sim import UCatchSimulation as Simulation
+                task = 'circle' if int(t) == 0 else 'polygon'
+                sim = Simulation(task, x, self.gui)
+                score = sim.run(num_episodes)
+            elif self.env_type == "scoop":
+                task = 'bread' if int(t) == 0 else 'pillow'
+                self.sim.reset_task_and_design(task, x)
+                score = self.sim.run(num_episodes)
+        elif self.policy == "rl":
+            if self.env_type == "push":
+                env_id = 'VPushPbSimulationEnv-v0'
+            elif self.env_type == "ucatch":
+                env_id = 'UCatchSimulationEnv-v0'
+            
+            env = gym.make(env_id, gui=self.gui, obs_type='pose')
+            model = PPO.load(self.model_path)
+
+            avg_score = 0
+            for episode in range(num_episodes):
+                obs, _ = env.reset(seed=0)
+                print(f"Episode {episode + 1} begins")
+                done, truncated = False, False
+                while not (done or truncated):
+                    action = model.predict(obs)[0]
+                    obs, reward, done, truncated, info = env.step(action)
+                    env.render()
+                score = 1 if done else 0
+                avg_score += score
+                print("Done!" if done else "Truncated.")
+                print(f"Episode {episode + 1} finished")
+            score = avg_score / num_episodes
+            env.close()
 
         return score
 
@@ -274,5 +305,8 @@ class BayesianOptimizationMultiTask:
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(env_type="scoop", initial_iter=3, max_iter=1, gui=1) # vpush, (vpush-frictionless, push), ucatch, scoop
+    pipeline = BayesianOptimizationMultiTask(env_type="ucatch", # vpush, (vpush-frictionless, push), ucatch, scoop
+                                             initial_iter=3, 
+                                             max_iter=3, 
+                                             gui=1) 
     pipeline.run()
