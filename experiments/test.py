@@ -8,11 +8,11 @@ from stable_baselines3 import PPO
 import envs
 
 def main():    
-    env_id = 'UCatchSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
+    env_id = 'VPushPbSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
     env = gym.make(env_id, gui=True, obs_type='pose')
-    model = PPO.load("results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip")
+    model = PPO.load("results/models/ppo_VPushPbSimulationEnv-v0_2000000_2024-07-17-11-00-39.zip")
 
-    for episode in range(2):
+    for episode in range(12):
         obs, _ = env.reset(seed=0)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
