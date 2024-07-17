@@ -41,8 +41,8 @@ class ScoopingSimulation:
         self.body_height = 0.2
         self.object_mass = 0.005
         self.robot_mass = 1
-        self.goal_radius = 0.5
-        self.goal_position = [2.5, 4.5] # workspace [[0,5], [0,5]]
+        # self.goal_radius = 0.5
+        # self.goal_position = [2.5, 4.5] # workspace [[0,5], [0,5]]
         self.tex = p.loadTexture("uvmap.png")
         self.hover_height = 1.
         self.reached_height = 0.8 * self.hover_height
@@ -280,7 +280,7 @@ class ScoopingSimulation:
 if __name__ == "__main__":
     coef = [random.uniform(.5, 2), 
             random.uniform(0.2,1.3),]
-    simulation = ScoopingSimulation('pillow', coef=coef, use_gui=1)  # bread or pillow
+    simulation = ScoopingSimulation('pillow', coef=coef, use_gui=1) # bread or pillow
     for i in range(3):
         print('Iteration %d' % i)
         final_score = simulation.run(1)

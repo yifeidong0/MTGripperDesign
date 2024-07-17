@@ -17,3 +17,8 @@ register(
     id='UCatchSimulationEnv-v0',
     entry_point='envs.ucatch_env:UCatchSimulationEnv',
 )
+
+register(
+    id='ScoopSimulationEnv-v0',
+    entry_point='envs.scoop_env:ScoopSimulationEnv',
+)

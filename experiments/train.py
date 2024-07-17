@@ -11,7 +11,7 @@ import envs
 import datetime
 
 def main():
-    env_id = 'UCatchSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
+    env_id = 'ScoopSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0, ScoopSimulationEnv-v0
     device = 'auto' # 'cpu', 'cuda', 'auto'
     obs_type = 'pose' # image, pose
     env = gym.make(env_id, gui=1, obs_type=obs_type)

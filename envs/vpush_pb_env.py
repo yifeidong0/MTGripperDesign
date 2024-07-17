@@ -11,7 +11,7 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.env_util import make_vec_env
 import random
 import math
-from sim.vpush_pb_sim import VPushPbSimulation  # Assuming VPushPbSimulation is in a separate file.
+from sim.vpush_pb_sim import VPushPbSimulation
 import time
 from stable_baselines3.common.utils import get_linear_fn
 
@@ -140,6 +140,7 @@ class VPushPbSimulationEnv(gym.Env):
             reward = (self.last_angle_difference - current_angle_difference) * 5
         self.last_angle_difference = current_angle_difference
         
+        # Reward for approaching the object and pushing it towards the goal
         if current_dist_gripper_to_object > 0.5:
             last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
             reward += last_dist_gripper_to_object - current_dist_gripper_to_object
