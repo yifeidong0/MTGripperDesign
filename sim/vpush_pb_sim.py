@@ -35,10 +35,10 @@ class VPushPbSimulation:
                                                               distance=2, yaw=90, pitch=-89.99, roll=0, upAxisIndex=2)
         self.projectionMatrix = p.computeProjectionMatrixFOV(fov=103, aspect=1, nearVal=0.1, farVal=100)
 
-        self.finger_length = 0.8
+        self.finger_length = 1.0
         self.finger_thickness = 0.1
         self.body_height = 0.1
-        self.object_rad = 0.2
+        self.object_rad = 0.15
         self.object_mass = 0.05
         self.goal_radius = 0.5
         self.goal_position = [4.5, 2.5] # workspace [[0,5], [0,5]]

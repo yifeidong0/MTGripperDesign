@@ -35,7 +35,7 @@ def decompose_mesh(
         p.connect(p.DIRECT)
 
     # Redirect stdout and stderr to null to suppress verbose output
-    print(f"Decomposing {input_file}...")
+    # print(f"Decomposing {input_file}...")
     devnull = open(os.devnull, 'w')
     old_stdout = os.dup(1)
     old_stderr = os.dup(2)
@@ -59,10 +59,10 @@ def decompose_mesh(
     if os.path.exists(name_log):
         os.remove(name_log)
 
-    if success:
-        print(f"Decomposed mesh saved to {output_file}")
-    else:
-        print("Failed to decompose mesh within the time limit.")
+    # if success:
+    #     print(f"Decomposed mesh saved to {output_file}")
+    # else:
+    #     print("Failed to decompose mesh within the time limit.")
     return success
 
 # Example usage

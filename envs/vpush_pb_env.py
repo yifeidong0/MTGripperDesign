@@ -28,7 +28,7 @@ class VPushPbSimulationEnv(gym.Env):
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
-        self.action_space = spaces.Box(low=np.array([-1, -1, -0.2]), high=np.array([1, 1, 0.2]), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([-1, -1, -0.4]), high=np.array([1, 1, 0.4]), dtype=np.float32)
         self.canvas_min_x, self.canvas_max_x = 0, 5
         self.canvas_min_y, self.canvas_max_y = 0, 5
 
@@ -49,7 +49,9 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_object_pose = None
         self.last_action = None
         self.last_angle_difference = None
+        self.last_angle_difference_approach = None
         
+        self.status_push = "turn_to_object"
         self.is_success = False
 
     def reset(self, seed=None, options=None):
@@ -57,9 +59,11 @@ class VPushPbSimulationEnv(gym.Env):
         self.simulation.step_count = 0
         self.task = random.choice(['circle', 'polygon'])
         self.task_int = 0 if self.task == 'circle' else 1
-        self.v_angle = random.uniform(0, np.pi)
+        self.v_angle = random.uniform(np.pi/12, np.pi*11/12)
         self.simulation.reset_task_and_design(self.task, self.v_angle)
         obs = self._get_obs()
+
+        self.status_push = "turn_to_object"
         self.is_success = False
         return obs, {}
 
@@ -79,14 +83,15 @@ class VPushPbSimulationEnv(gym.Env):
         sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
             p.stepSimulation()
-            width, height, rgbPixels, _, _ = p.getCameraImage(320, 320, 
-                                                              viewMatrix=self.simulation.viewMatrix, 
-                                                              projectionMatrix=self.simulation.projectionMatrix)
-            # if self.gui:
-            #     time.sleep(self.simulation.time_step)
 
-            frame = np.reshape(rgbPixels, (height, width, 4))[:, :, :3]
-            self.frame = np.uint8(frame)
+        # width, height, rgbPixels, _, _ = p.getCameraImage(64, 64, 
+        #                                                     viewMatrix=self.simulation.viewMatrix, 
+        #                                                     projectionMatrix=self.simulation.projectionMatrix)
+        # if self.gui:
+        #     time.sleep(1./240.)
+
+        # frame = np.reshape(rgbPixels, (height, width, 4))[:, :, :3]
+        # self.frame = np.uint8(frame)
 
         self.simulation.step_count += 1
         obs = self._get_obs()
@@ -129,6 +134,8 @@ class VPushPbSimulationEnv(gym.Env):
         gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
         current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
         current_dist_object_to_goal = np.linalg.norm(object_position - self.goal_position)
+        robustness = self.simulation.eval_robustness(slack=self.simulation.object_rad)
+        condition_approached = bool(robustness>0)
 
         # Reward for aligning the gripper with the goal
         reward = 0
@@ -140,15 +147,15 @@ class VPushPbSimulationEnv(gym.Env):
             reward = (self.last_angle_difference - current_angle_difference) * 5
         self.last_angle_difference = current_angle_difference
         
-        # Reward for approaching the object and pushing it towards the goal
-        if current_dist_gripper_to_object > 0.5:
+        if not condition_approached:
             last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
             reward += last_dist_gripper_to_object - current_dist_gripper_to_object
         else:
             last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
             reward += last_dist_object_to_goal - current_dist_object_to_goal
         
-        # TODO: Reward of caging robustness
+        # Reward of caging robustness
+        reward += robustness
 
         if self.is_success:
             reward += 100

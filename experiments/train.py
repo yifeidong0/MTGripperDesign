@@ -18,7 +18,7 @@ def main():
     check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
-    total_timesteps = int(1e6)
+    total_timesteps = int(2e6)
     # current time in yyyy-mm-dd-hh-mm-ss format
     curr_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
