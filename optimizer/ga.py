@@ -98,7 +98,7 @@ class GeneticAlgorithmPipeline:
                 sim = Simulation(task, x, self.gui)
                 score = sim.run(self.num_episodes)
         elif self.policy == "rl":
-            if self.env_type == "push":
+            if self.env_type == "vpush":
                 env_id = 'VPushPbSimulationEnv-v0'
             elif self.env_type == "ucatch":
                 env_id = 'UCatchSimulationEnv-v0'

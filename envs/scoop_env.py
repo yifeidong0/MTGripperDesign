@@ -28,7 +28,7 @@ class ScoopSimulationEnv(gym.Env):
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
-        self.action_space = spaces.Box(low=np.array([-1,]*3+[-0.2,]*3), high=np.array([1,]*3+[0.2,]*3), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([-1,]*2+[-0.2,]), high=np.array([1,]*2+[0.2,]), dtype=np.float32)
         self.canvas_min_x, self.canvas_max_x = 0, 6
         self.canvas_min_y, self.canvas_max_y = 0, 6
 
@@ -73,12 +73,12 @@ class ScoopSimulationEnv(gym.Env):
         #                                   + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2]),])
 
         # Set the new velocities
-        new_linear_velocity = [float(a) for a in action[:3]]
-        new_angular_velocity = [float(a) for a in action[3:]]
+        new_linear_velocity = [float(a) for a in action[:2]]+[0,]
+        new_angular_velocity = [0, 0, action[2]]
         
         p.resetBaseVelocity(self.simulation.robot_id, linearVelocity=new_linear_velocity, angularVelocity=new_angular_velocity)
 
-        # Step the simulation
+        # Step the simulation (slow with deformable objects)
         sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
             p.stepSimulation()
@@ -129,10 +129,10 @@ class ScoopSimulationEnv(gym.Env):
             return np.concatenate([obs_normalized, task_design_params_normalized])
 
     def _compute_reward(self, action):
-        # object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
-        # gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
-        # current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
-        # current_dist_object_to_goal = np.linalg.norm(object_position - self.goal_position)
+        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
+        gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
+        current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
+        current_dist_object_to_goal = np.linalg.norm(object_position - self.goal_position)
 
         # # Reward for aligning the gripper with the goal
         reward = 0

@@ -137,7 +137,7 @@ class BayesianOptimizationMultiTask:
                 self.sim.reset_task_and_design(task, x)
                 score = self.sim.run(num_episodes)
         elif self.policy == "rl":
-            if self.env_type == "push":
+            if self.env_type == "vpush":
                 env_id = 'VPushPbSimulationEnv-v0'
             elif self.env_type == "ucatch":
                 env_id = 'UCatchSimulationEnv-v0'
