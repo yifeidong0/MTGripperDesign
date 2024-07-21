@@ -142,7 +142,6 @@ class GeneticAlgorithmPipeline:
             xt = np.append(individual, task)
             score = self.mt_objective(xt)
             scores.append(score)
-        time.sleep(1)
         return np.mean(scores)
 
     def select_parents(self, fitness):

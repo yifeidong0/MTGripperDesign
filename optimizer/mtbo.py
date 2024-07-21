@@ -35,12 +35,12 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2 # number of tasks
         elif self.env_type == "vpush":
-            from sim.vpush_pb_sim import VPushPbSimulation as Simulation
             self.x_scale = np.arange(0, np.pi, np.pi/64)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
-            self.sim = Simulation('circle', 1, self.gui)
+            self.env_id = 'VPushPbSimulationEnv-v0'
+            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_2000000_2024-07-17-11-00-39.zip"
         elif self.env_type == "vpush-frictionless":
             self.x_scale = np.arange(0, np.pi, np.pi/64)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
@@ -54,15 +54,25 @@ class BayesianOptimizationMultiTask:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
+            self.env_id = 'UCatchSimulationEnv-v0'
             self.model_path = "results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip"
         elif self.env_type == "scoop":
-            from sim.scoop_sim import ScoopingSimulation as Simulation
             self.bounds = [{'name': 'c0', 'type': 'continuous', 'domain': (0.5, 2)},
                         {'name': 'c1', 'type': 'continuous', 'domain': (0.2, 1.3)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
-            self.sim = Simulation('pillow', [1,1], self.gui)
 
+        if self.policy == "heuristic":
+            if self.env_type == "vpush":
+                from sim.vpush_pb_sim import VPushPbSimulation as Simulation
+                self.sim = Simulation('circle', 1, self.gui)
+            elif self.env_type == "scoop":
+                from sim.scoop_sim import ScoopingSimulation as Simulation
+                self.sim = Simulation('pillow', [1,1], self.gui)
+        elif self.policy == "rl":
+            self.env = gym.make(self.env_id, gui=self.gui, obs_type='pose')
+            self.rl_model = PPO.load(self.model_path)
+        
         self.initial_iter = initial_iter
         self.max_iter = max_iter
         self.kernel = self.get_kernel_mt(input_dim=len(self.bounds)-1, num_outputs=self.num_outputs)
@@ -137,29 +147,21 @@ class BayesianOptimizationMultiTask:
                 self.sim.reset_task_and_design(task, x)
                 score = self.sim.run(num_episodes)
         elif self.policy == "rl":
-            if self.env_type == "vpush":
-                env_id = 'VPushPbSimulationEnv-v0'
-            elif self.env_type == "ucatch":
-                env_id = 'UCatchSimulationEnv-v0'
-            
-            env = gym.make(env_id, gui=self.gui, obs_type='pose')
-            model = PPO.load(self.model_path)
-
             avg_score = 0
+            obs, _ = self.env.reset(seed=0)
             for episode in range(num_episodes):
-                obs, _ = env.reset(seed=0)
-                print(f"Episode {episode + 1} begins")
+                obs, _ = self.env.reset_task_and_design(t, x, seed=0)
+                # print(f"Episode {episode + 1} begins")
                 done, truncated = False, False
                 while not (done or truncated):
-                    action = model.predict(obs)[0]
-                    obs, reward, done, truncated, info = env.step(action)
-                    env.render()
+                    action = self.rl_model.predict(obs)[0]
+                    obs, reward, done, truncated, info = self.env.step(action)
+                    self.env.render()
                 score = 1 if done else 0
                 avg_score += score
                 print("Done!" if done else "Truncated.")
-                print(f"Episode {episode + 1} finished")
+                # print(f"Episode {episode + 1} finished")
             score = avg_score / num_episodes
-            env.close()
 
         return score
 
