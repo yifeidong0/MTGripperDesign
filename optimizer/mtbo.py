@@ -14,7 +14,7 @@ from stable_baselines3 import PPO
 import envs
 
 class BayesianOptimizationMultiTask:
-    def __init__(self, env_type="push", initial_iter=3, max_iter=10, gui=False):
+    def __init__(self, env_type="push", initial_iter=3, max_iter=10, policy='rl', gui=False):
         """
         Initialize the Bayesian Optimization Pipeline with the given parameters.
 
@@ -26,7 +26,7 @@ class BayesianOptimizationMultiTask:
         """
         self.env_type = env_type
         self.gui = gui
-        self.policy = "rl" # "heuristic" or "rl"
+        self.policy = policy # "heuristic" or "rl"
 
         # Set bounds and number of tasks based on environment type
         if self.env_type == "push":
@@ -305,8 +305,9 @@ class BayesianOptimizationMultiTask:
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(env_type="ucatch", # vpush, (vpush-frictionless, push), ucatch, scoop
-                                             initial_iter=20, 
-                                             max_iter=15, 
+    pipeline = BayesianOptimizationMultiTask(env_type="vpush", # vpush, (vpush-frictionless, push), ucatch, scoop
+                                             initial_iter=10, 
+                                             max_iter=5, 
+                                             policy='rl',
                                              gui=1) 
     pipeline.run()

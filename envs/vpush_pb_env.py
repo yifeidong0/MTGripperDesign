@@ -51,7 +51,6 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_angle_difference = None
         self.last_angle_difference_approach = None
         
-        self.status_push = "turn_to_object"
         self.is_success = False
 
     def reset(self, seed=None, options=None):
@@ -63,10 +62,21 @@ class VPushPbSimulationEnv(gym.Env):
         self.simulation.reset_task_and_design(self.task, self.v_angle)
         obs = self._get_obs()
 
-        self.status_push = "turn_to_object"
         self.is_success = False
         return obs, {}
 
+    def reset_task_and_design(self, task_int, v_angle, seed=None, options=None):
+        super().reset(seed=seed)
+        self.simulation.step_count = 0
+        self.task_int = task_int
+        self.task = 'circle' if self.task_int == 0 else 'polygon'
+        self.v_angle = v_angle[0]
+        self.simulation.reset_task_and_design(self.task, self.v_angle)
+        obs = self._get_obs()
+
+        self.is_success = False
+        return obs, {}
+    
     def step(self, action):
         self.last_object_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
                                           + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.object_id)[1])[2]),])

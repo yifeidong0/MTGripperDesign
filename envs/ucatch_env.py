@@ -57,6 +57,18 @@ class UCatchSimulationEnv(gym.Env):
         self.is_success = False
         return obs, {}
 
+    def reset_task_and_design(self, task_int, design_param, seed=None, options=None):
+        super().reset(seed=seed)
+        self.simulation.step_count = 0
+        self.task_int = task_int
+        self.obs_type = 'circle' if self.task_int == 0 else 'polygon'
+        self.design_param = design_param
+        self.simulation.reset_task_and_design(self.obs_type, self.design_param)
+        obs = self._get_obs()
+        self.num_end_steps = 0
+        self.is_success = False
+        return obs, {}
+
     def step(self, action, sim_steps=1):
         # self.last_object_pose = np.array([self.simulation.object_body.position[0], self.simulation.object_body.position[1]])
         # self.last_robot_pose = np.array([self.simulation.robot_body.position[0], self.simulation.robot_body.position[1]])
