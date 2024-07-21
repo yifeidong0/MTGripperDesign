@@ -292,7 +292,7 @@ class UCatchSimulation:
 
 
 if __name__ == "__main__":
-    simulation = UCatchSimulation('polygon', [ 9.34592631, 9.10978859 ,9.7866753,  1.93805852 ,2.40456379 ], use_gui=True)  # polygon or circle
+    simulation = UCatchSimulation('polygon', [ 8.71044961, 6.91757313, 6.76436022, 1.99070677, 2.39736517 ], use_gui=True)  # ga design pop_size=20, gen=5
     for i in range(3):
         task = random.choice(['circle', 'polygon'])
         design = [random.uniform(5, 10), random.uniform(5, 10), random.uniform(5, 10), 

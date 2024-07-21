@@ -115,7 +115,7 @@ class GeneticAlgorithmPipeline:
                     action = model.predict(obs)[0]
                     obs, reward, done, truncated, info = env.step(action)
                     env.render()
-                score = 1 if done else 0
+                score = 1 if done else 0 # TODO: hybrid score for success and robustness
                 avg_score += score
                 print("Done!" if done else "Truncated.")
                 print(f"Episode {episode + 1} finished")
@@ -231,11 +231,11 @@ class GeneticAlgorithmPipeline:
 
 
 if __name__ == "__main__":
-    pipeline = GeneticAlgorithmPipeline(env_type="vpush",  # ucatch, vpush
+    pipeline = GeneticAlgorithmPipeline(env_type="ucatch",  # ucatch, vpush
                                         population_size=20, 
                                         generations=5, 
                                         mutation_rate=0.1, 
                                         num_episodes=1, 
                                         gui=1,
-                                        policy="heuristic")  # heuristic, rl
+                                        policy="rl")  # heuristic, rl
     pipeline.run()

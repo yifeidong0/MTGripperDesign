@@ -32,7 +32,7 @@ planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 mass_scoop = 1
 robot_orientation = p.getQuaternionFromEuler([0,0,0])
 scoop = p.loadURDF(
-    "asset/poly_scoop/scoop_0.50_0.20.urdf", 
+    "asset/poly_scoop/scoop_1.31_0.64.urdf", 
     basePosition=[1,2.5,0],  # Position above the ground
     baseOrientation=robot_orientation,
     globalScaling=1
@@ -43,7 +43,7 @@ p.changeDynamics(scoop, -1, lateralFriction=0.0, spinningFriction=0.4, rollingFr
 p.changeDynamics(scoop, -1, mass=mass_scoop)
 
 # Load the bread soft body
-object_type = "pillow" # bread or pillow
+object_type = "insole" # bread, pillow, cube
 tex = p.loadTexture("uvmap.png")
 mass_pillow = 0.005
 if object_type == "bread":
@@ -62,7 +62,7 @@ if object_type == "bread":
         collisionMargin=0.001
     )
     p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
-else:
+elif object_type == "pillow":
     # Load the pillow soft body
     object_id = p.loadSoftBody(
         "asset/pillow.vtk", # pillow, bread
@@ -79,6 +79,41 @@ else:
         collisionMargin=0.001
     )
     p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+elif object_type == "insole":
+    # Load the pillow soft body
+    object_id = p.loadSoftBody(
+        "asset/insole.vtk", # pillow, bread
+        basePosition=[2.5, 2.5, 1],  # Position on top of the scoop
+        baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
+        scale=5,
+        mass=mass_pillow,
+        useNeoHookean=1,
+        NeoHookeanMu=5,
+        NeoHookeanLambda=5,
+        NeoHookeanDamping=.1,
+        useSelfCollision=1,
+        frictionCoeff=0.0,
+        collisionMargin=0.001
+    )
+    p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
+elif object_type == "cube":
+    # object_id = p.loadSoftBody(
+    #     "cube.obj",
+    #     basePosition=[2.5, 2.5, 1],  # Position on top of the scoop
+    #     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
+    #     scale=1,
+    #     mass=1,
+    object_id = p.loadSoftBody("asset/torus_textured.obj", 
+                               mass = 3, 
+                               useNeoHookean = 1, 
+                               basePosition=[0,0, 1], 
+                               NeoHookeanMu = 180, 
+                               NeoHookeanLambda = 600, 
+                               NeoHookeanDamping = 0.01, 
+                               collisionMargin = 0.006, 
+                               useSelfCollision = 1, 
+                               frictionCoeff = 0.5, 
+                               repulsionStiffness = 800)
 
 # Create a heavy box to fix the bread at the other end
 box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.8, 1.1])

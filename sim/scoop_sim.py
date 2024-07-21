@@ -11,7 +11,7 @@ from utils.generate_scoop import generate_scoop
 from utils.vhacd import decompose_mesh
 
 class ScoopingSimulation:
-    def __init__(self, object_type='bread', coef=[1, 1], use_gui=True):
+    def __init__(self, object_type='insole', coef=[1, 1], use_gui=True):
         self.coef = coef
         self.object_type = object_type
         self.use_gui = use_gui
@@ -58,8 +58,8 @@ class ScoopingSimulation:
                 reset_pose (bool): Whether to reset the object and robot poses (for a new episode).
         """
         # Set the object and robot poses
-        if self.object_type == 'bread':
-            self.object_orientation = p.getQuaternionFromEuler([math.pi/2, 0, math.pi/2+random.normalvariate(0, 0.1)])
+        if self.object_type == 'insole':
+            self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)])
             self.object_position = [random.normalvariate(3, .3,), 
                                     random.normalvariate(2.5, .1,), 
                                     self.body_height]
@@ -75,7 +75,7 @@ class ScoopingSimulation:
 
         # Create the object and robot
         if reset_task_and_design:
-            if self.object_type == 'bread':
+            if self.object_type == 'insole':
                 self.load_insole()
             elif self.object_type == 'pillow':
                 self.load_pillow()
@@ -157,10 +157,10 @@ class ScoopingSimulation:
 
     def load_insole(self):
         self.object_id = p.loadSoftBody(
-            "asset/bread.vtk",
+            "asset/insole.vtk",
             basePosition=self.object_position,
             baseOrientation=self.object_orientation,
-            scale=.5,
+            scale=4,
             mass=self.object_mass,
             useNeoHookean=1,
             NeoHookeanMu=5,
@@ -190,7 +190,7 @@ class ScoopingSimulation:
         p.changeVisualShape(self.object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=self.tex, flags=0)
 
     def load_obstacle(self):
-        # Create a heavy box to fix the bread at the other end
+        # Create a heavy box to fix the object at the other end
         box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 1.8, 0.3])
         self.obstacle = p.createMultiBody(
             baseMass=0,
@@ -280,16 +280,16 @@ class ScoopingSimulation:
 if __name__ == "__main__":
     coef = [random.uniform(.5, 2), 
             random.uniform(0.2,1.3),]
-    simulation = ScoopingSimulation('pillow', coef=coef, use_gui=1) # bread or pillow
+    simulation = ScoopingSimulation('insole', coef=coef, use_gui=1) # insole or pillow
     for i in range(3):
         print('Iteration %d' % i)
         final_score = simulation.run(1)
         print("Final Score:", final_score)
 
-        # randomly select bread or pillow and new design parameters
+        # randomly select insole or pillow and new design parameters
         coef = [random.uniform(.5, 2), 
                 random.uniform(0.2,1.3),]
         if random.random() < 0.5:
-            simulation.reset_task_and_design('bread', coef,)
+            simulation.reset_task_and_design('insole', coef,)
         else:
             simulation.reset_task_and_design('pillow', coef,)

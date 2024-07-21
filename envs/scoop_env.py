@@ -6,14 +6,9 @@ import pybullet as p
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from stable_baselines3 import PPO, DQN, A2C
-from stable_baselines3.common.env_checker import check_env
-from stable_baselines3.common.env_util import make_vec_env
 import random
 import math
 from sim.scoop_sim import ScoopingSimulation
-import time
-from stable_baselines3.common.utils import get_linear_fn
 
 def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
@@ -21,8 +16,8 @@ def pi_2_pi(angle):
 class ScoopSimulationEnv(gym.Env):
     def __init__(self, gui=1, img_size=(42, 42), obs_type='pose'):
         super(ScoopSimulationEnv, self).__init__()
-        self.task = 'pillow' # bread or pillow
-        self.task_int = 0 if self.task == 'bread' else 1
+        self.task = 'pillow' # insole or pillow
+        self.task_int = 0 if self.task == 'insole' else 1
         self.coef = [1,1]
         self.simulation = ScoopingSimulation(self.task, self.coef, gui)
         self.gui = gui
@@ -45,10 +40,11 @@ class ScoopSimulationEnv(gym.Env):
         # self.simulation.goal_position = self.goal_position
         # self.simulation.goal_radius = self.goal_radius
 
-        # self.last_gripper_pose = None
-        # self.last_object_pose = None
+        self.last_gripper_pose = None
+        self.last_object_pose = None
         # self.last_action = None
-        # self.last_angle_difference = None
+        self.last_angle_difference = None
+        self.current_dist_gripper_to_object = np.inf
         
         self.num_end_steps = 0
         self.is_success = False
@@ -56,8 +52,8 @@ class ScoopSimulationEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.simulation.step_count = 0
-        self.task = random.choice(['bread', 'pillow'])
-        self.task_int = 0 if self.task == 'bread' else 1
+        self.task = random.choice(['insole', 'pillow'])
+        self.task_int = 0 if self.task == 'insole' else 1
         self.coef = [random.uniform(.5, 2), 
                      random.uniform(0.2,1.3),]
         self.simulation.reset_task_and_design(self.task, self.coef)
@@ -67,10 +63,10 @@ class ScoopSimulationEnv(gym.Env):
         return obs, {}
 
     def step(self, action):
-        # self.last_object_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
-        #                                   + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.object_id)[1])[2]),])
-        # self.last_gripper_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
-        #                                   + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2]),])
+        self.last_object_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
+                                          + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.object_id)[1])[2]),])
+        self.last_gripper_pose = np.array(list(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
+                                          + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2]),])
 
         # Set the new velocities
         new_linear_velocity = [float(a) for a in action[:2]]+[0,]
@@ -129,28 +125,24 @@ class ScoopSimulationEnv(gym.Env):
             return np.concatenate([obs_normalized, task_design_params_normalized])
 
     def _compute_reward(self, action):
-        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
-        gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
-        current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
-        current_dist_object_to_goal = np.linalg.norm(object_position - self.goal_position)
+        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
+        gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
+        self.current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
 
-        # # Reward for aligning the gripper with the goal
+        # # Reward for aligning the scoop with the object
         reward = 0
-        # gripper_angle = pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2])
-        # current_direction_angle = math.atan2(self.goal_position[1] - object_position[1], self.goal_position[0] - object_position[0])
-        # current_angle_difference = abs(current_direction_angle - gripper_angle)
+        gripper_angle = pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2])
+        current_direction_angle = math.atan2(object_position[1] - gripper_position[1], 
+                                             object_position[0] - gripper_position[0])
+        current_angle_difference = abs(current_direction_angle - gripper_angle)
         
-        # if self.last_angle_difference is not None:
-        #     reward = (self.last_angle_difference - current_angle_difference) * 5
-        # self.last_angle_difference = current_angle_difference
+        if self.last_angle_difference is not None:
+            reward = (self.last_angle_difference - current_angle_difference) * 5
+        self.last_angle_difference = current_angle_difference
         
-        # # Reward for approaching the object and pushing it towards the goal
-        # if current_dist_gripper_to_object > 0.5:
-        #     last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
-        #     reward += last_dist_gripper_to_object - current_dist_gripper_to_object
-        # else:
-        #     last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
-        #     reward += last_dist_object_to_goal - current_dist_object_to_goal
+        # Reward for approaching the object
+        last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
+        reward += last_dist_gripper_to_object - self.current_dist_gripper_to_object
         
         # TODO: Reward of caging robustness
 
@@ -159,7 +151,8 @@ class ScoopSimulationEnv(gym.Env):
         return reward
 
     def _is_done(self):
-        if self.simulation.reached_height < p.getBasePositionAndOrientation(self.simulation.object_id)[0][2]:
+        # if self.simulation.reached_height < p.getBasePositionAndOrientation(self.simulation.object_id)[0][2]:
+        if self.current_dist_gripper_to_object < 0.5:
             self.num_end_steps += 1
         if self.num_end_steps >= 100: # end if object stays in the basket for 100 steps
             self.is_success = True
