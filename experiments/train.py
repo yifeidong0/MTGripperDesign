@@ -11,14 +11,14 @@ import envs
 import datetime
 
 def main():
-    env_id = 'ScoopSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0, ScoopSimulationEnv-v0
-    device = 'auto' # 'cpu', 'cuda', 'auto'
+    env_id = 'VPushPbSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0, ScoopSimulationEnv-v0
+    device = 'cuda' # 'cpu', 'cuda', 'auto'
     obs_type = 'pose' # image, pose
     env = gym.make(env_id, gui=1, obs_type=obs_type)
     check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
-    total_timesteps = int(2e6)
+    total_timesteps = int(3e6)
     # current time in yyyy-mm-dd-hh-mm-ss format
     curr_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 

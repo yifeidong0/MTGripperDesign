@@ -15,7 +15,7 @@ import envs
 import time
 
 class BayesianOptimizationMultiTask:
-    def __init__(self, env_type="push", initial_iter=3, max_iter=10, policy='rl', gui=False):
+    def __init__(self, env_type="push", initial_iter=3, max_iter=10, policy='rl', num_episodes=1, gui=False):
         """
         Initialize the Bayesian Optimization Pipeline with the given parameters.
 
@@ -28,6 +28,7 @@ class BayesianOptimizationMultiTask:
         self.env_type = env_type
         self.gui = gui
         self.policy = policy # "heuristic" or "rl"
+        self.num_episodes = num_episodes
 
         # Set bounds and number of tasks based on environment type
         if self.env_type == "push":
@@ -36,8 +37,8 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2 # number of tasks
         elif self.env_type == "vpush":
-            self.x_scale = np.arange(0, np.pi, np.pi/64)
-            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
+            self.x_scale = np.arange(np.pi/12, np.pi*11/12, np.pi/64)
+            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (np.pi/12, np.pi*11/12)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
@@ -92,7 +93,8 @@ class BayesianOptimizationMultiTask:
         Returns:
             GPy.kern: The basic kernel for GP.
         """
-        return GPy.kern.Matern52(input_dim, ARD=1) + GPy.kern.Bias(input_dim)
+        # return GPy.kern.Matern52(input_dim, ARD=1) + GPy.kern.Bias(input_dim)
+        return GPy.kern.Matern52(input_dim, ARD=1, lengthscale=10.0) + GPy.kern.White(input_dim, variance=1.0)
 
     def get_kernel_mt(self, input_dim=1, num_outputs=2):
         """
@@ -107,7 +109,7 @@ class BayesianOptimizationMultiTask:
         """
         return GPy.util.multioutput.ICM(input_dim, num_outputs, self.get_kernel_basic(input_dim), W_rank=1, name='ICM')
 
-    def mt_objective(self, xt, num_episodes=1):
+    def mt_objective(self, xt,):
         """
         Evaluate the multi-task objective function.
 
@@ -118,7 +120,7 @@ class BayesianOptimizationMultiTask:
         Returns:
             float: The score for the given design and task.
         """
-        print('xt: ', xt)
+        # print('xt: ', xt)
         assert len(xt) == 1
         xt = xt[0]
         assert xt[-1] == 0.0 or xt[-1] == 1.0
@@ -134,25 +136,25 @@ class BayesianOptimizationMultiTask:
             elif self.env_type == "vpush":
                 task = 'circle' if int(t) == 0 else 'polygon'
                 self.sim.reset_task_and_design(task, x[0])
-                score = self.sim.run(num_episodes)
+                score = self.sim.run(self.num_episodes)
             elif self.env_type == "vpush-frictionless":
                 from sim.vpush_sim import VPushSimulation as Simulation
                 task = 'circle' if int(t) == 0 else 'polygon'
                 sim = Simulation(task, x, self.gui)
-                score = sim.run(num_episodes)
+                score = sim.run(self.num_episodes)
             elif self.env_type == "ucatch":
                 from sim.ucatch_sim import UCatchSimulation as Simulation
                 task = 'circle' if int(t) == 0 else 'polygon'
                 sim = Simulation(task, x, self.gui)
-                score = sim.run(num_episodes)
+                score = sim.run(self.num_episodes)
             elif self.env_type == "scoop":
                 task = 'bread' if int(t) == 0 else 'pillow'
                 self.sim.reset_task_and_design(task, x)
-                score = self.sim.run(num_episodes)
+                score = self.sim.run(self.num_episodes)
         elif self.policy == "rl":
             avg_score = 0
             obs, _ = self.env.reset(seed=0)
-            for episode in range(num_episodes):
+            for episode in range(self.num_episodes):
                 obs, _ = self.env.reset_task_and_design(t, x, seed=0)
                 done, truncated = False, False
                 avg_robustness = 0
@@ -164,13 +166,14 @@ class BayesianOptimizationMultiTask:
                         num_robustness_step += 1
                         avg_robustness += info['robustness'] * self.robustness_score_weight
                     self.env.render()
-                success_score = 1 if done else 0
+                success_score = 0.5 if done else 0.1
                 robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
-                print(f"Success: {success_score}, Robustness: {robustness_score}")
+                # print(f"Success: {success_score}, Robustness: {robustness_score}")
                 score = success_score + robustness_score
                 avg_score += score
                 print("Done!" if done else "Truncated.")
-            score = avg_score / num_episodes
+            score = avg_score / self.num_episodes
+        print(f"Task: {t}, Design: {x}, Score: {score}")
             # time.sleep(1)
 
         return score
@@ -197,7 +200,7 @@ class BayesianOptimizationMultiTask:
         Set up the Bayesian Optimization pipeline.
         """
         self.objective = GPyOpt.core.task.SingleObjective(self.mt_objective)
-        self.model = GPyOpt.models.GPModel(optimize_restarts=5, verbose=False, kernel=self.kernel, noise_var=None)
+        self.model = GPyOpt.models.GPModel(optimize_restarts=5, verbose=False, kernel=self.kernel, noise_var=1e-1)
         self.space = GPyOpt.Design_space(space=self.bounds)
         self.acquisition_optimizer = GPyOpt.optimization.AcquisitionOptimizer(self.space)
         self.initial_design = GPyOpt.experiment_design.initial_design('random', self.space, self.initial_iter)
@@ -252,7 +255,10 @@ class BayesianOptimizationMultiTask:
                     f_acqu[x[:, -1] == 0] = f_acqu[x[:, -1] == 0] / c0
                 except:
                     pass
-                return f_acqu
+
+                # Penalize high variance (potential outliers)
+                penalized_acq = f_acqu - (s / 2.0)
+                return penalized_acq
 
         self.acquisition = MyAcquisition(self.model, self.space, optimizer=self.acquisition_optimizer, cost_withGradients=self.cost_mt)
         self.evaluator = GPyOpt.core.evaluators.Sequential(self.acquisition)
@@ -302,7 +308,7 @@ class BayesianOptimizationMultiTask:
         """
         for i in range(1, self.max_iter + 1):
             print("-------------- Iteration: --------------", i)
-            self.bo.run_optimization(1) # TODO: slow..2-8 sec
+            self.bo.run_optimization(1) # TODO: slow..2-8 sec (plotting)
             print('next_locations: ', self.bo.suggest_next_locations()) # 1-4 sec
             if self.env_type in ["push", "vpush"]:
                 plot_bo(self.bo, self.x_scale, i)
@@ -317,9 +323,10 @@ class BayesianOptimizationMultiTask:
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(env_type="ucatch", # vpush, (vpush-frictionless, push), ucatch, scoop
-                                             initial_iter=10, 
-                                             max_iter=5, 
+    pipeline = BayesianOptimizationMultiTask(env_type="vpush", # vpush, (vpush-frictionless, push), ucatch, scoop
+                                             initial_iter=1, 
+                                             max_iter=30, 
                                              policy='rl',
+                                             num_episodes=3,
                                              gui=1) 
     pipeline.run()

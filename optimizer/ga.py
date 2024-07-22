@@ -249,7 +249,7 @@ if __name__ == "__main__":
                                         population_size=20, 
                                         generations=5, 
                                         mutation_rate=0.1, 
-                                        num_episodes=1, 
+                                        num_episodes=3, 
                                         gui=1,
                                         policy="rl")  # heuristic, rl
     pipeline.run()
