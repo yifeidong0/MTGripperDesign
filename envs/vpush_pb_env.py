@@ -111,6 +111,7 @@ class VPushPbSimulationEnv(gym.Env):
         self.last_action = action
         
         info = {}
+        info['robustness'] = self.robustness
         if done or truncated:
             info['is_success'] = self.is_success
         return obs, reward, done, truncated, info
@@ -144,8 +145,8 @@ class VPushPbSimulationEnv(gym.Env):
         gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])
         current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
         current_dist_object_to_goal = np.linalg.norm(object_position - self.goal_position)
-        robustness = self.simulation.eval_robustness(slack=self.simulation.object_rad)
-        condition_approached = bool(robustness>0)
+        self.robustness = self.simulation.eval_robustness(slack=self.simulation.object_rad)
+        condition_approached = bool(self.robustness>0)
 
         # Reward for aligning the gripper with the goal
         reward = 0
@@ -157,6 +158,7 @@ class VPushPbSimulationEnv(gym.Env):
             reward = (self.last_angle_difference - current_angle_difference) * 5
         self.last_angle_difference = current_angle_difference
         
+        # Reward for approaching the object and the goal
         if not condition_approached:
             last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
             reward += last_dist_gripper_to_object - current_dist_gripper_to_object
@@ -165,7 +167,7 @@ class VPushPbSimulationEnv(gym.Env):
             reward += last_dist_object_to_goal - current_dist_object_to_goal
         
         # Reward of caging robustness
-        reward += robustness
+        reward += self.robustness
 
         if self.is_success:
             reward += 100

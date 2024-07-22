@@ -34,6 +34,7 @@ class GeneticAlgorithmPipeline:
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
+            self.robustness_score_weight = 1.0
             self.env_id = 'VPushPbSimulationEnv-v0'
             self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_2000000_2024-07-17-11-00-39.zip"
         elif self.env_type == "ucatch":
@@ -44,6 +45,7 @@ class GeneticAlgorithmPipeline:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi / 2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
+            self.robustness_score_weight = 0.1
             self.env_id = 'UCatchSimulationEnv-v0'
             self.model_path = "results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip"
 
@@ -114,15 +116,24 @@ class GeneticAlgorithmPipeline:
                 obs, _ = self.env.reset_task_and_design(t, x, seed=0)
                 # print(f"Episode {episode + 1} begins")
                 done, truncated = False, False
+                avg_robustness = 0
+                num_robustness_step = 0
                 while not (done or truncated):
                     action = self.model.predict(obs)[0]
                     obs, reward, done, truncated, info = self.env.step(action)
+                    if info['robustness'] is not None and info['robustness'] > 0:
+                        num_robustness_step += 1
+                        avg_robustness += info['robustness'] * self.robustness_score_weight
                     self.env.render()
-                score = 1 if done else 0 # TODO: hybrid score for success and robustness
+                success_score = 1 if done else 0
+                robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+                # print(f"Success: {success_score}, Robustness: {robustness_score}")
+                score = success_score + robustness_score
                 avg_score += score
                 print("Done!" if done else "Truncated.")
                 # print(f"Episode {episode + 1} finished")
             score = avg_score / self.num_episodes
+            time.sleep(1)
             # self.env.close()
 
         return score

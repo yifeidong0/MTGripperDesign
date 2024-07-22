@@ -91,6 +91,7 @@ class UCatchSimulationEnv(gym.Env):
         self.last_action = action
 
         info = {}
+        info['robustness'] = self.robustness
         if done or truncated:
             info['is_success'] = self.is_success
         return obs, reward, done, truncated, info
@@ -133,6 +134,7 @@ class UCatchSimulationEnv(gym.Env):
         object_vel = np.array([self.simulation.object_body.linearVelocity[0], self.simulation.object_body.linearVelocity[1]])
         robot_pos = np.array([self.simulation.robot_body.position[0], self.simulation.robot_body.position[1]])
         current_position_difference = abs(self.simulation.object_landing_position_x - robot_pos[0])
+        self.robustness = self.simulation.eval_robustness()
 
         # Reward for decreasing the distance between object and the goal
         reward = 0
@@ -149,7 +151,8 @@ class UCatchSimulationEnv(gym.Env):
             reward += self.last_velocity_difference - current_velocity_difference
         self.last_velocity_difference = current_velocity_difference
 
-        # TODO: Reward of caging robustness
+        # Reward of caging robustness
+        reward += self.robustness
 
         # Reward for catching the object
         if self.simulation.check_end_condition():
