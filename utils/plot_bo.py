@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 def plot_err(x, y, yerr, color=None, alpha_fill=0.2, ax=None, label="", lw=1, ls="-"):
     y, yerr = y.reshape(-1), yerr.reshape(-1)
@@ -68,7 +69,7 @@ def plot_task(bo, TASK_NO, x_scale):
     plt.title("task %i" % TASK_NO)
     plt.grid()
 
-def plot_bo(bo, x_scale, iter):
+def plot_bo(bo, x_scale, iter, id_run=0):
     plt.figure(figsize=(22, 4))
     plt.subplot(1, 4, 1)
     plot_task(bo, 0, x_scale,)
@@ -80,4 +81,8 @@ def plot_bo(bo, x_scale, iter):
     plot_params(bo)
     # save
     plt.tight_layout()
-    plt.savefig("bo_iter%i.png" % iter)
+
+    # Create folder if not exists
+    if not os.path.exists(f"results/png/{id_run}"):
+        os.makedirs(f"results/png/{id_run}")
+    plt.savefig(f"results/png/{id_run}/mtbo_iter_{iter}.png")

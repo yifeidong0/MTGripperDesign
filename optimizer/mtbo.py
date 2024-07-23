@@ -43,7 +43,7 @@ class BayesianOptimizationMultiTask:
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
             self.env_id = 'VPushPbSimulationEnv-v0'
-            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_2000000_2024-07-17-11-00-39.zip"
+            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip"
         elif self.env_type == "vpush-frictionless":
             self.x_scale = np.arange(0, np.pi, np.pi/64)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
@@ -302,20 +302,45 @@ class BayesianOptimizationMultiTask:
         
         return best_design, best_score, grid_points, means, vars
 
+    def save_to_csv(self, filename, csv_buffer):
+        """
+        Save the results of num_iter, best_design, best_score to a csv file.
+        """
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open (filename, 'w') as f:
+            f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
+            for line in csv_buffer:
+                f.write(f"{line[0]},{line[1]},{line[2]},{line[3]}\n")
+
     def run(self):
         """
         Run the Bayesian Optimization pipeline.
         """
+        # Create a file with unique name
+        k = 0
+        while True:     
+            csv_filename = f"results/csv/{self.env_type}_mtbo_results_{k}.csv"
+            if os.path.exists(csv_filename):
+                k += 1
+            else:
+                break
+
+        csv_buffer = []
         for i in range(1, self.max_iter + 1):
             print("-------------- Iteration: --------------", i)
             self.bo.run_optimization(1) # TODO: slow..2-8 sec (plotting)
             print('next_locations: ', self.bo.suggest_next_locations()) # 1-4 sec
             if self.env_type in ["push", "vpush"]:
-                plot_bo(self.bo, self.x_scale, i)
+                plot_bo(self.bo, self.x_scale, i, id_run=k)
 
-        # Find the optimal design after the optimization loop
-        best_design, best_score, grid_points, means, vars = self.find_optimal_design()
-        print(f"Optimal Design: {best_design}, Score: {best_score}")
+            # Find the optimal design after the optimization loop
+            best_design, best_score, grid_points, means, vars = self.find_optimal_design()
+            print(f"Optimal Design: {best_design}, Score: {best_score}")
+            num_episodes_so_far = self.num_episodes * (i + self.initial_iter)
+            csv_buffer.append([i, num_episodes_so_far, best_design, best_score])
+        
+        # Save intermediate designs to a csv file
+        self.save_to_csv(csv_filename, csv_buffer)
 
         # Plot the results
         if self.env_type in ["ucatch", "scoop"]:
@@ -323,10 +348,12 @@ class BayesianOptimizationMultiTask:
 
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(env_type="vpush", # vpush, (vpush-frictionless, push), ucatch, scoop
-                                             initial_iter=1, 
-                                             max_iter=30, 
-                                             policy='rl',
-                                             num_episodes=3,
-                                             gui=1) 
-    pipeline.run()
+    num_run = 10
+    for r in range(num_run):
+        pipeline = BayesianOptimizationMultiTask(env_type="vpush", # vpush, (vpush-frictionless, push), ucatch, scoop
+                                                initial_iter=1, 
+                                                max_iter=50, 
+                                                policy='rl',
+                                                num_episodes=4,
+                                                gui=0) 
+        pipeline.run()

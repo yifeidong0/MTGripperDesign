@@ -36,7 +36,7 @@ class GeneticAlgorithmPipeline:
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
             self.env_id = 'VPushPbSimulationEnv-v0'
-            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_2000000_2024-07-17-11-00-39.zip"
+            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip"
         elif self.env_type == "ucatch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'd1', 'type': 'continuous', 'domain': (5, 10)},
@@ -245,11 +245,11 @@ class GeneticAlgorithmPipeline:
 
 
 if __name__ == "__main__":
-    pipeline = GeneticAlgorithmPipeline(env_type="ucatch",  # ucatch, vpush
-                                        population_size=20, 
+    pipeline = GeneticAlgorithmPipeline(env_type="vpush",  # ucatch, vpush
+                                        population_size=2, # has to be even
                                         generations=5, 
                                         mutation_rate=0.1, 
-                                        num_episodes=3, 
+                                        num_episodes=2, 
                                         gui=1,
                                         policy="rl")  # heuristic, rl
     pipeline.run()
