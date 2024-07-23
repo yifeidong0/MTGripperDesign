@@ -8,10 +8,12 @@ from stable_baselines3 import PPO
 import envs
 import csv
 import ast
+import numpy as np
+import matplotlib.pyplot as plt
 
 def evaluate_design(design=[1,], num_episodes=10):
     env_id = 'VPushPbSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
-    env = gym.make(env_id, gui=True, obs_type='pose')
+    env = gym.make(env_id, gui=0, obs_type='pose')
     if env_id == 'UCatchSimulationEnv-v0':
         model = PPO.load("results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip")
         robustness_score_weight = 0.1
@@ -90,10 +92,7 @@ def write_scores(file_path, scores):
             writer.writerow(row + list(scores[i]))
     
 
-def main():
-    env_name = 'vpush' # 'vpush', 'ucatch'
-    num_runs = 2
-
+def main(env_name, num_runs, num_episodes):
     # Load designs from CSV files
     file_paths = []
     for r in range(num_runs):
@@ -106,11 +105,69 @@ def main():
         print("Designs:", designs)
         scores = []
         for design in designs:
-            scores.append(evaluate_design(design, num_episodes=1))
+            scores.append(evaluate_design(design, num_episodes=num_episodes))
         print("scores:", scores)
 
         # Write scores to a CSV file
         write_scores(file_path, scores)
 
+def main_plot(env_name, num_runs):
+    """
+    Plot scores v.s. number of episodes so far
+    """
+    # Load data from CSV files
+    file_paths = []
+    for r in range(num_runs):
+        file_path = f"results/csv/{env_name}_mtbo_results_{r}.csv"
+        file_paths.append(file_path)
+
+    score_true_runs = []
+    score_estimated_runs = []
+    for file_path in file_paths:
+        with open(file_path, 'r') as f:
+            reader = csv.reader(f)
+            next(reader)
+            num_episodes_so_far = []
+            score_true = []
+            scores_estimated = []
+
+            for row in reader:
+                # Evaluate the string as a list
+                epi = float(row[1])
+                score_estimated = float(row[3])
+                score = float(row[4])
+                num_episodes_so_far.append(epi)
+                scores_estimated.append(score_estimated)
+                score_true.append(score)
+
+            score_estimated_runs.append(scores_estimated)
+            score_true_runs.append(score_true) # num_runs * num_mtbo_iter
+
+    # Compute mean and std of scores using np
+    score_true_mean = np.mean(score_true_runs, axis=0)
+    score_true_std = np.std(score_true_runs, axis=0)
+    score_estimated_mean = np.mean(score_estimated_runs, axis=0)
+    score_estimated_std = np.std(score_estimated_runs, axis=0)
+
+    # Plot scores (x-log scale)
+    plt.figure()
+    plt.plot(num_episodes_so_far, score_true_mean, label='True total score')
+    plt.fill_between(num_episodes_so_far, score_true_mean - score_true_std, score_true_mean + score_true_std, alpha=0.2)
+    plt.plot(num_episodes_so_far, score_estimated_mean, label='Estimated total score')
+    plt.fill_between(num_episodes_so_far, score_estimated_mean - score_estimated_std, score_estimated_mean + score_estimated_std, alpha=0.2)
+    plt.yscale('linear')
+    plt.xscale('log')
+    plt.xlabel('Number of episodes')
+    plt.ylabel('Total score')
+    plt.legend()
+    plt.savefig(f"results/plots/{env_name}_mtbo_total_scores.png")
+
+
 if __name__ == "__main__":
-    main()
+    num_runs = 10
+    num_episodes = 10
+    env_name = 'vpush' # 'vpush', 'ucatch'
+
+    # main(env_name, num_runs, num_episodes)
+
+    main_plot(env_name, num_runs)

@@ -9,7 +9,6 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import EvalCallback
 import envs
 import datetime
-from stable_baselines3.common.callbacks import EvalCallback
 
 def main():
     env_id = 'UCatchSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0, ScoopSimulationEnv-v0
@@ -19,7 +18,7 @@ def main():
     check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
-    total_timesteps = int(3e5)
+    total_timesteps = int(1e6)
     # current time in yyyy-mm-dd-hh-mm-ss format
     curr_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     model = PPO("CnnPolicy" if obs_type == 'image' else "MlpPolicy", 
