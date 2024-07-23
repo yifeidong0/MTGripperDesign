@@ -59,7 +59,7 @@ class BayesianOptimizationMultiTask:
             self.num_outputs = 2
             self.robustness_score_weight = 0.1
             self.env_id = 'UCatchSimulationEnv-v0'
-            self.model_path = "results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip"
+            self.model_path = "results/models/best_model_ucatch_w_robustness_reward.zip"
         elif self.env_type == "scoop":
             self.bounds = [{'name': 'c0', 'type': 'continuous', 'domain': (0.5, 2)},
                         {'name': 'c1', 'type': 'continuous', 'domain': (0.2, 1.3)},
@@ -301,16 +301,21 @@ class BayesianOptimizationMultiTask:
         best_score = avg_scores[best_idx]
         
         return best_design, best_score, grid_points, means, vars
-
+    
     def save_to_csv(self, filename, csv_buffer):
         """
         Save the results of num_iter, best_design, best_score to a csv file.
         """
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open (filename, 'w') as f:
-            f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
-            for line in csv_buffer:
-                f.write(f"{line[0]},{line[1]},{line[2]},{line[3]}\n")
+        with open(filename, 'w') as f:
+            if self.env_type in ["vpush"]:
+                f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
+                for line in csv_buffer:
+                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[3]}\n")
+            elif self.env_type in ["ucatch",]:
+                f.write("num_iter,num_episodes_so_far,best_design_0,best_design_1,best_design_2,best_design_3,best_design_4,best_score_estimated\n")
+                for line in csv_buffer:
+                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[2][1]},{line[2][2]},{line[2][3]},{line[2][4]},{line[3]}\n")
 
     def run(self):
         """
@@ -357,3 +362,4 @@ if __name__ == "__main__":
                                                 num_episodes=4,
                                                 gui=0) 
         pipeline.run()
+        pipeline.env.close()

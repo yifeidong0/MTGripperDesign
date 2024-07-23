@@ -32,7 +32,8 @@ def main():
     eval_callback = EvalCallback(eval_env, 
                                  best_model_save_path=f'./results/models/best_model_{env_id}_{curr_time}/', # best model
                                  log_path=f'./results/logs/eval_logs_{env_id}_{curr_time}/',
-                                 eval_freq=10000,
+                                 eval_freq=50000,
+                                 n_eval_episodes=100,
                                  deterministic=True,
                                  render=False)
     

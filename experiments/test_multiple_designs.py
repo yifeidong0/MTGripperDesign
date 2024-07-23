@@ -71,7 +71,8 @@ def read_designs(file_path):
         designs = []
         for row in reader:
             # Evaluate the string as a list
-            design = ast.literal_eval(row[2])
+            # design = ast.literal_eval(row[2])
+            design = float(row[2])
             designs.append(design)
     return designs
 

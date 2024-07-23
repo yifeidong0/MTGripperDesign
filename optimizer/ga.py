@@ -47,7 +47,7 @@ class GeneticAlgorithmPipeline:
             self.num_outputs = 2
             self.robustness_score_weight = 0.1
             self.env_id = 'UCatchSimulationEnv-v0'
-            self.model_path = "results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip"
+            self.model_path = "results/models/best_model_ucatch_w_robustness_reward.zip"
 
         if self.policy == "heuristic":
             if self.env_type == "vpush":
@@ -125,7 +125,7 @@ class GeneticAlgorithmPipeline:
                         num_robustness_step += 1
                         avg_robustness += info['robustness'] * self.robustness_score_weight
                     self.env.render()
-                success_score = 1 if done else 0
+                success_score = 0.5 if done else 0.1
                 robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
                 # print(f"Success: {success_score}, Robustness: {robustness_score}")
                 score = success_score + robustness_score
@@ -133,7 +133,7 @@ class GeneticAlgorithmPipeline:
                 print("Done!" if done else "Truncated.")
                 # print(f"Episode {episode + 1} finished")
             score = avg_score / self.num_episodes
-            time.sleep(1)
+            # time.sleep(1)
             # self.env.close()
 
         return score
@@ -202,6 +202,21 @@ class GeneticAlgorithmPipeline:
                 individual[i] = random.uniform(*bound)
         return individual
 
+    def save_to_csv(self, filename, csv_buffer):
+        """
+        Save the results of num_iter, best_design, best_score to a csv file.
+        """
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'w') as f:
+            if self.env_type in ["vpush"]:
+                f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
+                for line in csv_buffer:
+                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[3]}\n")
+            elif self.env_type in ["ucatch",]:
+                f.write("num_iter,num_episodes_so_far,best_design_0,best_design_1,best_design_2,best_design_3,best_design_4,best_score_estimated\n")
+                for line in csv_buffer:
+                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[2][1]},{line[2][2]},{line[2][3]},{line[2][4]},{line[3]}\n")
+
     def find_optimal_design(self):
         """
         Run the genetic algorithm to find the optimal design.
@@ -212,6 +227,16 @@ class GeneticAlgorithmPipeline:
         best_design = None
         best_score = -np.inf
 
+        # Create a file with unique name
+        k = 0
+        while True:     
+            csv_filename = f"results/csv/{self.env_type}_ga_results_{k}.csv"
+            if os.path.exists(csv_filename):
+                k += 1
+            else:
+                break
+
+        csv_buffer = []
         for generation in range(self.generations):
             fitness = np.array([self.evaluate_fitness(individual) for individual in self.population])
             best_gen_design = self.population[np.argmax(fitness)]
@@ -234,6 +259,13 @@ class GeneticAlgorithmPipeline:
 
             self.population = np.array(next_population)
 
+            # Write to CSV file
+            num_episodes_so_far = self.population_size * self.num_episodes * self.num_outputs * (generation + 1)
+            csv_buffer.append([i, num_episodes_so_far, best_design, best_score])
+
+        # Save intermediate designs to a csv file
+        self.save_to_csv(csv_filename, csv_buffer)
+
         return best_design, best_score
 
     def run(self):
@@ -245,11 +277,14 @@ class GeneticAlgorithmPipeline:
 
 
 if __name__ == "__main__":
-    pipeline = GeneticAlgorithmPipeline(env_type="vpush",  # ucatch, vpush
-                                        population_size=2, # has to be even
-                                        generations=5, 
-                                        mutation_rate=0.1, 
-                                        num_episodes=2, 
-                                        gui=1,
-                                        policy="rl")  # heuristic, rl
-    pipeline.run()
+    num_run = 10
+    for r in range(num_run):
+        pipeline = GeneticAlgorithmPipeline(env_type="vpush",  # ucatch, vpush
+                                            population_size=8, # has to be even
+                                            generations=20, 
+                                            mutation_rate=0.1, 
+                                            num_episodes=4, 
+                                            gui=0,
+                                            policy="rl")  # heuristic, rl
+        pipeline.run()
+        pipeline.env.close()
