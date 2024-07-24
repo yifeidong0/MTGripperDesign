@@ -226,7 +226,7 @@ class BayesianOptimization:
 if __name__ == "__main__":
     num_run = 10
     for r in range(num_run):
-        pipeline = BayesianOptimization(env_type="ucatch", # vpush, ucatch
+        pipeline = BayesianOptimization(env_type="vpush", # vpush, ucatch
                                         initial_iter=1, 
                                         max_iter=50, 
                                         policy='rl', 
