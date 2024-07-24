@@ -6,8 +6,8 @@ import GPy
 import GPyOpt
 import os
 import sys
-from utils.plot_bo import *
-from utils.plot_bo_multi import *
+from utils.plot_mtbo import *
+from utils.plot_mtbo_multi import *
 import gymnasium as gym
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import PPO
@@ -94,7 +94,9 @@ class BayesianOptimizationMultiTask:
             GPy.kern: The basic kernel for GP.
         """
         # return GPy.kern.Matern52(input_dim, ARD=1) + GPy.kern.Bias(input_dim)
-        return GPy.kern.Matern52(input_dim, ARD=1, lengthscale=10.0) + GPy.kern.White(input_dim, variance=1.0)
+
+        # length scale helps to smooth the function and avoid overfitting
+        return GPy.kern.Matern52(input_dim, ARD=1, lengthscale=10.0) + GPy.kern.White(input_dim, variance=1.0) 
 
     def get_kernel_mt(self, input_dim=1, num_outputs=2):
         """
@@ -200,7 +202,7 @@ class BayesianOptimizationMultiTask:
         Set up the Bayesian Optimization pipeline.
         """
         self.objective = GPyOpt.core.task.SingleObjective(self.mt_objective)
-        self.model = GPyOpt.models.GPModel(optimize_restarts=5, verbose=False, kernel=self.kernel, noise_var=1e-1)
+        self.model = GPyOpt.models.GPModel(optimize_restarts=5, verbose=False, kernel=self.kernel, noise_var=1e-1) # noise helps to avoid overfitting
         self.space = GPyOpt.Design_space(space=self.bounds)
         self.acquisition_optimizer = GPyOpt.optimization.AcquisitionOptimizer(self.space)
         self.initial_design = GPyOpt.experiment_design.initial_design('random', self.space, self.initial_iter)
@@ -333,10 +335,10 @@ class BayesianOptimizationMultiTask:
         csv_buffer = []
         for i in range(1, self.max_iter + 1):
             print("-------------- Iteration: --------------", i)
-            self.bo.run_optimization(1) # TODO: slow..2-8 sec (plotting)
+            self.bo.run_optimization(1, eps=-1) # TODO: slow..2-8 sec (plotting)
             print('next_locations: ', self.bo.suggest_next_locations()) # 1-4 sec
             if self.env_type in ["push", "vpush"]:
-                plot_bo(self.bo, self.x_scale, i, id_run=k)
+                plot_mtbo(self.bo, self.x_scale, i, id_run=k)
 
             # Find the optimal design after the optimization loop
             best_design, best_score, grid_points, means, vars = self.find_optimal_design()

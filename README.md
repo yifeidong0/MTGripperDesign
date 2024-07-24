@@ -79,8 +79,8 @@ Contains the visuomotor reinforcement learning modules in the gym environments:
 
 ### utils
 Contains utility functions for the project:
-- `plot_bo.py`: Contains the plotting function for Bayesian optimization results.
-- `plot_bo_multi.py`: Contains the plotting function for Bayesian optimization (multiple dimensional design space, i.e. >=2) results.
+- `plot_mtbo.py`: Contains the plotting function for Bayesian optimization results.
+- `plot_mtbo_multi.py`: Contains the plotting function for Bayesian optimization (multiple dimensional design space, i.e. >=2) results.
 
 ### main.py
 The main script to run the optimization algorithms. (TODO)
