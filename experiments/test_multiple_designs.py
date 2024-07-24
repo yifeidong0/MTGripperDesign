@@ -205,14 +205,68 @@ def main_plot(env_name, optimizer, num_runs, plot_type='test_score_composition')
         plt.title(f'Test scores of the best design in {env_name} with {optimizer}')
         plt.legend()
         plt.savefig(f"results/plots/{env_name}_{optimizer}_test_scores_composition.png")
+    
+def plot_multi_task_sample_efficiency(env_name, optimizers, num_runs):
+    score_test_mean_all = []
+    score_test_std_all = []
+    num_episodes_so_far_all = []
+    for optimizer in optimizers:
+        # Load data from CSV files
+        file_paths = []
+        for r in range(num_runs):
+            file_path = f"results/csv/{env_name}_{optimizer}_results_{r}.csv"
+            file_paths.append(file_path)
+
+        score_test_runs = []
+        for file_path in file_paths:
+            with open(file_path, 'r') as f:
+                reader = csv.reader(f)
+                next(reader)
+                num_episodes_so_far = []
+                score_test = []
+                for row in reader:
+                    # Evaluate the string as a list
+                    epi = float(row[1])
+                    if env_name == 'vpush':
+                        score = float(row[4])
+                    elif env_name == 'ucatch':
+                        score = float(row[8])
+                    num_episodes_so_far.append(epi)
+                    score_test.append(score)
+
+                score_test_runs.append(score_test) # num_runs * num_mtbo_iter
+
+        # Compute mean and std of scores using np
+        score_test_mean = np.mean(score_test_runs, axis=0)
+        score_test_std = np.std(score_test_runs, axis=0)
+        score_test_mean_all.append(score_test_mean)
+        score_test_std_all.append(score_test_std)
+        num_episodes_so_far_all.append(num_episodes_so_far)
+
+    # Plot scores (x-log scale)
+    plt.figure()
+    for i in range(len(optimizers)):
+        plt.plot(num_episodes_so_far_all[i], score_test_mean_all[i], label=f'{optimizers[i]}')
+        plt.fill_between(num_episodes_so_far_all[i], score_test_mean_all[i] - score_test_std_all[i], 
+                         score_test_mean_all[i] + score_test_std_all[i], alpha=0.2)
+    plt.yscale('linear')
+    plt.xscale('log')
+    plt.xlabel('Number of episodes')
+    plt.ylabel('Total score')
+    plt.title(f'Multi-task sample efficiency of {env_name} over algorithms')
+    plt.legend()
+    plt.savefig(f"results/plots/{env_name}_multi_task_sample_efficiency.png")
+
 
 if __name__ == "__main__":
     num_runs = 10
     num_episodes = 10
     env_name = 'ucatch' # 'vpush', 'ucatch'
-    optimizer = 'mtbo' # 'mtbo', 'ga', 'bo
+    optimizer = 'bo' # 'mtbo', 'ga', 'bo'
     plot_type = 'test_score_composition' # 'estimation_accuracy', 'test_score_composition'
 
     # main(env_name, optimizer, num_runs, num_episodes)
 
-    main_plot(env_name, optimizer, num_runs, plot_type)
+    # main_plot(env_name, optimizer, num_runs, plot_type)
+
+    plot_multi_task_sample_efficiency(env_name, ['mtbo', 'ga', 'bo'], num_runs)
