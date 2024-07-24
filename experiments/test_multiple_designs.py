@@ -210,9 +210,9 @@ if __name__ == "__main__":
     num_runs = 10
     num_episodes = 10
     env_name = 'ucatch' # 'vpush', 'ucatch'
-    optimizer = 'mtbo' # 'mtbo', 'ga', 'bo
+    optimizer = 'bo' # 'mtbo', 'ga', 'bo
     plot_type = 'test_score_composition' # 'estimation_accuracy', 'test_score_composition'
 
-    # main(env_name, optimizer, num_runs, num_episodes)
+    main(env_name, optimizer, num_runs, num_episodes)
 
-    main_plot(env_name, optimizer, num_runs, plot_type)
+    # main_plot(env_name, optimizer, num_runs, plot_type)

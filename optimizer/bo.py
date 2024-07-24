@@ -224,13 +224,13 @@ class BayesianOptimization:
         #     plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_tasks)), optimizer='bo')
 
 if __name__ == "__main__":
-    num_run = 1
+    num_run = 10
     for r in range(num_run):
         pipeline = BayesianOptimization(env_type="ucatch", # vpush, ucatch
-                                        initial_iter=2, 
-                                        max_iter=20, 
+                                        initial_iter=1, 
+                                        max_iter=50, 
                                         policy='rl', 
-                                        num_episodes=2, 
+                                        num_episodes=4, 
                                         gui=0)
         pipeline.run()
         pipeline.env.close()

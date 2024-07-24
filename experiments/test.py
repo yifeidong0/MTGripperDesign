@@ -6,13 +6,18 @@ import gymnasium as gym
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import PPO
 import envs
+import time
 
-def main():    
-    env_id = 'UCatchSimulationEnv-v0' # VPushSimulationEnv-v0, VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
+def main():
+    env_name = 'vpush' # 'vpush', 'ucatch'
+    if env_name == 'ucatch':
+        model = PPO.load("results/models/best_model_ucatch_w_robustness_reward.zip")
+        env_id = 'UCatchSimulationEnv-v0' # VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
+    elif env_name == 'vpush':
+        model = PPO.load("results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip")
+        env_id = "VPushPbSimulationEnv-v0"
     env = gym.make(env_id, gui=True, obs_type='pose')
-    model = PPO.load("results/models/ppo_UCatchSimulationEnv-v0_1000000_2024-07-16-14-51-42.zip")
-
-    for episode in range(1):
+    for episode in range(10):
         obs, _ = env.reset(seed=0)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
@@ -23,6 +28,7 @@ def main():
 
         print("Done!" if done else "Truncated.")
         print(f"Episode {episode + 1} finished")
+        time.sleep(1)
 
     env.close()
 
