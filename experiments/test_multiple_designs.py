@@ -10,13 +10,20 @@ import csv
 import ast
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+import imageio
+from stable_baselines3 import PPO
+import pygame
 
-def evaluate_design(env_name, design=[1,], num_episodes=10):
+def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0, 
+                    create_new_env=1, close_env=1, env=None, writer=None, video_write_freq=4):
     if env_name == 'vpush':
         env_id = 'VPushPbSimulationEnv-v0'
     elif env_name == 'ucatch':
         env_id = 'UCatchSimulationEnv-v0'
-    env = gym.make(env_id, gui=0, obs_type='pose')
+    if create_new_env:
+        env = gym.make(env_id, gui=gui, obs_type='pose')
+
     if env_id == 'UCatchSimulationEnv-v0':
         model = PPO.load("results/models/best_model_ucatch_w_robustness_reward.zip")
         robustness_score_weight = 0.1
@@ -30,31 +37,40 @@ def evaluate_design(env_name, design=[1,], num_episodes=10):
     avg_success_score = 0
     avg_robustness_score = 0
     obs, _ = env.reset(seed=0)
+
     for task in range(num_task):
         for episode in range(num_episodes):
             obs, _ = env.reset_task_and_design(task, design, seed=0) # design: a list of coefficients
-            # print(f"Episode {episode + 1} begins")
             done, truncated = False, False
             avg_robustness = 0
             num_robustness_step = 0
+            step_count = 0
             while not (done or truncated):
                 action = model.predict(obs)[0]
                 obs, reward, done, truncated, info = env.step(action)
                 if info['robustness'] is not None and info['robustness'] > 0:
                     num_robustness_step += 1
                     avg_robustness += info['robustness'] * robustness_score_weight
+                
+                # Render the environment and capture the frame
                 env.render()
+                if writer is not None and step_count % video_write_freq == 0:
+                    frame = pygame.surfarray.array3d(pygame.display.get_surface())
+                    frame = frame.swapaxes(0, 1)
+                    writer.append_data(frame)
+                step_count += 1
+
             success_score = 0.5 if done else 0.1
             robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
-            # print(f"Success: {success_score}, Robustness: {robustness_score}")
             score = success_score + robustness_score
             avg_score += score
             avg_success_score += success_score
             avg_robustness_score += robustness_score
             print("Done!" if done else "Truncated.")
-            # print(f"Episode {episode + 1} finished")
-    env.close()
-
+    
+    if close_env:
+        env.close() 
+    
     avg_score /= (num_episodes * num_task)
     avg_success_score /= (num_episodes * num_task)
     avg_robustness_score /= (num_episodes * num_task)
@@ -62,7 +78,8 @@ def evaluate_design(env_name, design=[1,], num_episodes=10):
           f"Average success score: {avg_success_score}", 
           f"Average robustness score: {avg_robustness_score}", 
           sep='\n')
-    return avg_score, avg_success_score, avg_robustness_score
+    return avg_score, avg_success_score, avg_robustness_score, env
+
 
 def read_designs(file_path, env_name):
     """
@@ -98,7 +115,6 @@ def write_scores(file_path, scores):
         for i, row in enumerate(rows):
             writer.writerow(row + list(scores[i]))
     
-
 def main(env_name, optimizer, num_runs, num_episodes):
     # Load designs from CSV files
     file_paths = []
@@ -112,11 +128,37 @@ def main(env_name, optimizer, num_runs, num_episodes):
         print("Designs:", designs)
         scores = []
         for design in designs:
-            scores.append(evaluate_design(env_name, design, num_episodes=num_episodes))
+            scores.append(evaluate_design(env_name, design, num_episodes=num_episodes)[:-1])
         print("scores:", scores)
 
         # Write scores to a CSV file
         write_scores(file_path, scores)
+
+def qualitative_design_iteration_demo(env_name, optimizer, num_episodes=1, save_video=1):
+    # Load designs from CSV files
+    id_run = 0
+    file_path = f"results/csv/{env_name}_{optimizer}_results_{id_run}.csv"
+    
+    # Evaluate designs
+    designs = read_designs(file_path, env_name)
+    create_new_env = 1
+    close_env = 0
+    env = None
+
+    writer = None
+    if save_video:
+        writer = imageio.get_writer('simulation.mp4', fps=30)
+
+    for i, design in enumerate(designs):
+        if i == len(designs) - 1:
+            close_env = 1
+        _, _, _, env = evaluate_design(env_name, design, num_episodes=num_episodes, gui=1, 
+                                       create_new_env=create_new_env, close_env=close_env, env=env, writer=writer)
+        create_new_env = 0
+        # time.sleep(1)
+
+    if save_video:
+        writer.close()
 
 def main_plot(env_name, optimizer, num_runs, plot_type='test_score_composition'):
     """
@@ -265,8 +307,11 @@ if __name__ == "__main__":
     optimizer = 'bo' # 'mtbo', 'ga', 'bo'
     plot_type = 'test_score_composition' # 'estimation_accuracy', 'test_score_composition'
 
-    main(env_name, optimizer, num_runs, num_episodes)
+    # main(env_name, optimizer, num_runs, num_episodes)
 
     # main_plot(env_name, optimizer, num_runs, plot_type)
 
-    plot_multi_task_sample_efficiency(env_name, ['mtbo', 'ga', 'bo'], num_runs)
+    # plot_multi_task_sample_efficiency(env_name, ['mtbo', 'ga', 'bo'], num_runs)
+
+    num_episodes = 1
+    qualitative_design_iteration_demo(env_name, optimizer, num_episodes)
