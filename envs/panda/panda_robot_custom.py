@@ -2,10 +2,13 @@ from typing import Optional
 
 import numpy as np
 from gymnasium import spaces
-
+import pybullet as p
 from panda_gym.envs.core import PyBulletRobot
 from panda_gym.pybullet import PyBullet
 
+import os
+from utils.generate_vpush import generate_v_shape_pusher
+from utils.vhacd import decompose_mesh
 
 class PandaCustom(PyBulletRobot):
     """Panda robot in PyBullet.
@@ -25,18 +28,35 @@ class PandaCustom(PyBulletRobot):
         base_position: Optional[np.ndarray] = None,
         control_type: str = "ee",
     ) -> None:
-        base_position = base_position if base_position is not None else np.zeros(3)
+        self.base_position = base_position if base_position is not None else np.zeros(3)
         self.block_gripper = block_gripper
         self.control_type = control_type
         n_action = 3 if self.control_type == "ee" else 7  # control (x, y z) if "ee", else, control the 7 joints
         n_action += 0 if self.block_gripper else 1
         action_space = spaces.Box(-1.0, 1.0, shape=(n_action,), dtype=np.float32)
+
+        self.template_file_name = "asset/franka_panda_custom/panda_template.urdf"
+        self.modified_file_path = "asset/franka_panda_custom/panda_modified.urdf"
+        self.finger_length = 0.2
+        self.v_angle = 0.5
+        self.finger_thickness = 0.01
+        self.body_height = 0.01
+        os.system("rm -rf asset/vpusher/*")
+        unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
+        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+        with open(self.template_file_name, 'r') as file:
+            self.urdf_content = file.read()
+        self.urdf_content = self.urdf_content.replace('{v_pusher_name}', f"asset/vpusher/{unique_obj_filename}")
+        with open(self.modified_file_path, 'w') as file:
+            file.write(self.urdf_content)
+            
         super().__init__(
             sim,
             body_name="panda",
-            file_name="franka_panda/panda.urdf",
-            # file_name="./franka_panda_custom/panda.urdf",
-            base_position=base_position,
+            # file_name="franka_panda/panda.urdf",
+            file_name=self.modified_file_path,
+            base_position=self.base_position,
             action_space=action_space,
             joint_indices=np.array([0, 1, 2, 3, 4, 5, 6, 9, 10]),
             joint_forces=np.array([87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0]),
@@ -120,8 +140,22 @@ class PandaCustom(PyBulletRobot):
         return observation
 
     def reset(self) -> None:
+        self._reload_robot()
         self.set_joint_neutral()
-
+        
+    def _reload_robot(self) -> None:
+        print("INFO: Recreating the robot")
+        os.system("rm -rf asset/vpusher/*")
+        unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
+        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+        with open(self.modified_file_path, 'w') as file:
+            file.write(self.urdf_content)
+        with self.sim.no_rendering():
+            p.removeBody(self.sim._bodies_idx[self.body_name])
+            self._load_robot(self.modified_file_path, self.base_position)
+            self.setup()
+    
     def set_joint_neutral(self) -> None:
         """Set the robot to its neutral pose."""
         self.set_joint_angles(self.neutral_joint_values)

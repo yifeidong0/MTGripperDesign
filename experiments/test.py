@@ -28,6 +28,7 @@ def main():
             action = env.action_space.sample()
             obs, reward, done, truncated, _ = env.step(action)
             env.render()
+            time.sleep(1/500)
 
         print("Done!" if done else "Truncated.")
         print(f"Episode {episode + 1} finished")
