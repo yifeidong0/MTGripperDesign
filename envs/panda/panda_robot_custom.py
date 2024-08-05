@@ -75,6 +75,7 @@ class PandaCustom(PyBulletRobot):
         action = np.clip(action, self.action_space.low, self.action_space.high)
         if self.control_type == "ee":
             ee_displacement = action[:3]
+            ee_displacement[-1] = 0  # ignore z displacement
             target_arm_angles = self.ee_displacement_to_target_arm_angles(ee_displacement)
         else:
             arm_joint_ctrl = action[:7]

@@ -19,16 +19,16 @@ class VPush(Task):
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.04
-        self.goal_range_low = np.array([-goal_xy_range / 2, -goal_xy_range / 2, 0])
-        self.goal_range_high = np.array([goal_xy_range / 2, goal_xy_range / 2, 0])
-        self.obj_range_low = np.array([-obj_xy_range / 2, -obj_xy_range / 2, 0])
-        self.obj_range_high = np.array([obj_xy_range / 2, obj_xy_range / 2, 0])
+        self.goal_range_low = np.array([0.6, -0.2, 0])
+        self.goal_range_high = np.array([0.8, 0.2, 0])
+        self.obj_range_low = np.array([0.4, -0.1, 0])
+        self.obj_range_high = np.array([0.5, 0.1, 0])
         with self.sim.no_rendering():
             self._create_scene()
 
     def _create_scene(self) -> None:
         self.sim.create_plane(z_offset=-0.4)
-        self.sim.create_table(length=1.1, width=0.7, height=0.4, x_offset=-0.3)
+        self.sim.create_table(length=4, width=2, height=0.4, x_offset=0)
         self.sim.create_box(
             body_name="object",
             half_extents=np.ones(3) * self.object_size / 2,

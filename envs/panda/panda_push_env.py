@@ -48,7 +48,7 @@ class PandaPushEnv(RobotTaskEnv):
         else:
             render_mode: str = "human"
         sim = PyBullet(render_mode=render_mode, renderer=renderer)
-        robot = PandaCustom(sim, block_gripper=True, base_position=np.array([-0.6, 0.0, 0.0]), control_type=control_type)
+        robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
         task = VPush(sim, reward_type=reward_type)
         super().__init__(
             robot,

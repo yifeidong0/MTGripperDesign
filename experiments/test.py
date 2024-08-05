@@ -22,8 +22,12 @@ def main():
     for episode in range(10):
         obs, _ = env.reset(seed=0)
         print(f"Episode {episode + 1} begins")
+        i = 0
         done, truncated = False, False
         while not (done or truncated):
+            i += 1
+            if i > 20:
+                break
             # action = model.predict(obs)[0]
             action = env.action_space.sample()
             obs, reward, done, truncated, _ = env.step(action)
