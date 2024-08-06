@@ -10,4 +10,4 @@ asset/poly_scoop/*
 results/*
 
 log.txt
-asset/franka_panda_custom/panda_modified.urdf
+asset/franka_panda_custom/panda_modified*

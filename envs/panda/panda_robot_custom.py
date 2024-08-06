@@ -37,13 +37,12 @@ class PandaCustom(PyBulletRobot):
         self.control_type = control_type
         n_action = 3 if self.control_type == "ee" else 7  # control (x, y z) if "ee", else, control the 7 joints
         n_action += 0 if self.block_gripper else 1
-        # action_space = spaces.Box(-1.0, 1.0, shape=(n_action,), dtype=np.float32)
         action_space = spaces.Box(low=np.array([-.3,]*2+[-0.1,]), high=np.array([.3,]*2+[0.1,]), dtype=np.float32)
         
-        self.template_file_name = "asset/franka_panda_custom/panda_template.urdf"
-        self.modified_file_path = "asset/franka_panda_custom/panda_modified.urdf"
-        self.finger_length = 0.2
         self.v_angle = 0.5 # TODO: randomize
+        self.template_file_name = "asset/franka_panda_custom/panda_template.urdf"
+        self.modified_file_path = f"asset/franka_panda_custom/panda_modified_{self.v_angle:.3f}.urdf"
+        self.finger_length = 0.2
         self.finger_thickness = 0.01
         self.body_height = 0.01
         os.system("rm -rf asset/vpusher/*")
@@ -69,7 +68,7 @@ class PandaCustom(PyBulletRobot):
 
         self.fingers_indices = np.array([9, 10])
         self.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
-        self.ee_link = 11
+        self.ee_link = 11 # vpush
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[0], lateral_friction=1.0)
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[1], lateral_friction=1.0)
         self.sim.set_spinning_friction(self.body_name, self.fingers_indices[0], spinning_friction=0.001)
@@ -112,7 +111,7 @@ class PandaCustom(PyBulletRobot):
         # Set target end-effector position
         ee_displacement = ee_displacement[:3] * 0.05  # limit maximum change in position
         ee_position = self.get_ee_position() # get the current position and the target position
-        time.sleep(.1)
+        # time.sleep(.1)
         target_ee_position = ee_position + ee_displacement
         target_ee_position[2] = 0.01 + 0.01 # the first part corresponds to the liftup in urdf (leave space for handle in real world)
 
@@ -120,16 +119,13 @@ class PandaCustom(PyBulletRobot):
         ee_quaternion = self.get_ee_orientation()
         ee_euler = list(p.getEulerFromQuaternion(ee_quaternion)) # tuple
         target_ee_euler = ee_euler
-        # target_ee_euler[2] += ee_orientation_change[0]
         target_ee_euler = [-np.pi, 0, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
-        # target_ee_euler = [0, np.pi, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
         target_ee_quaternion = np.array(list(p.getQuaternionFromEuler(target_ee_euler)))
 
         # Clip the height target. For some reason, it has a great impact on learning
         # target_ee_position[2] = np.max((0, target_ee_position[2]))
         # compute the new joint angles
         target_arm_angles = self.inverse_kinematics(
-            # link=self.ee_link, position=target_ee_position, orientation=np.array([1.0, 0.0, 0.0, 0.0])
             link=self.ee_link, position=target_ee_position, orientation=target_ee_quaternion
         )
         target_arm_angles = target_arm_angles[:7]  # remove fingers angles
@@ -173,6 +169,13 @@ class PandaCustom(PyBulletRobot):
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
         generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
         decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+        with open(self.template_file_name, 'r') as file:
+            self.urdf_content = file.read()
+        self.urdf_content = self.urdf_content.replace('{v_pusher_name}', f"asset/vpusher/{unique_obj_filename}")
+
+        if os.path.exists(self.modified_file_path):
+            os.remove(self.modified_file_path)
+        self.modified_file_path = f"asset/franka_panda_custom/panda_modified_{self.v_angle:.3f}.urdf"
         with open(self.modified_file_path, 'w') as file:
             file.write(self.urdf_content)
         with self.sim.no_rendering():

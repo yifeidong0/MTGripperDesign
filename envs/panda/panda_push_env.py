@@ -1,7 +1,7 @@
 from typing import Optional, Any, Dict, Optional, Tuple
 
 import numpy as np
-
+import random
 from panda_gym.envs.core import RobotTaskEnv
 from panda_gym.pybullet import PyBullet
 from typing import Any, Dict, Optional, Tuple
@@ -49,12 +49,12 @@ class PandaPushEnv(RobotTaskEnv):
             render_mode: str = "rgb_array"
         else:
             render_mode: str = "human"
-        sim = PyBullet(render_mode=render_mode, renderer=renderer)
-        robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
-        task = VPush(sim, reward_type=reward_type)
+        self.sim = PyBullet(render_mode=render_mode, renderer=renderer)
+        self.robot = PandaCustom(self.sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
+        self.task = VPush(self.sim, reward_type=reward_type)
         super().__init__(
-            robot,
-            task,
+            self.robot,
+            self.task,
             render_width=render_width,
             render_height=render_height,
             render_target_position=render_target_position,
@@ -64,6 +64,9 @@ class PandaPushEnv(RobotTaskEnv):
             render_roll=render_roll,
         )
         self.step_count = 0
+        # self.task_object_name = 'circle' 
+        # self.task_int = 0 if self.task_object_name == 'circle' else 1
+        # self.v_angle = np.pi/3
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
         observation, reward, terminated, truncated, info = super().step(action)
@@ -75,9 +78,12 @@ class PandaPushEnv(RobotTaskEnv):
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         self.step_count = 0
+        # self.task_object_name = random.choice(['circle', 'polygon']) # TODO: randomize
+        # self.task_int = 0 if self.task_object_name == 'circle' else 1
+        self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12)
         return super().reset(seed=seed, options=options)
     
     def _is_truncated(self):
         truncated = False
-        truncated = (self.step_count > 10000)
+        truncated = (self.step_count > 200)
         return truncated
