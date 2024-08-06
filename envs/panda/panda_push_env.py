@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -61,3 +61,21 @@ class PandaPushEnv(RobotTaskEnv):
             render_pitch=render_pitch,
             render_roll=render_roll,
         )
+        self.step_count = 0
+    
+    def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
+        observation, reward, terminated, truncated, info = super().step(action)
+        self.step_count += 1
+        truncated = self._is_truncated()
+        return observation, reward, terminated, truncated, info
+    
+    def reset(
+        self, seed: Optional[int] = None, options: Optional[dict] = None
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+        self.step_count = 0
+        return super().reset(seed=seed, options=options)
+    
+    def _is_truncated(self):
+        truncated = False
+        truncated = (self.step_count > 10000)
+        return truncated
