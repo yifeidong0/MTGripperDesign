@@ -5,6 +5,7 @@ import math
 
 from panda_gym.envs.core import Task
 from panda_gym.utils import distance
+import pybullet as p
 
 def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
@@ -26,27 +27,51 @@ class VPush(Task):
         self.goal_range_high = np.array([0.6, -0.4, 0])
         self.obj_range_low = np.array([0.5, 0.1, 0])
         self.obj_range_high = np.array([0.6, 0.2, 0])
+        self.task_object_name = 'circle' # 'circle', 'polygon'
+        self.task_int = 0 if self.task_object_name == 'circle' else 1
         with self.sim.no_rendering():
             self._create_scene()
-
+            
     def _create_scene(self) -> None:
         self.sim.create_plane(z_offset=-0.4)
         self.sim.create_table(length=4, width=2, height=0.4, x_offset=0)
-        self.sim.create_box(
-            body_name="object",
-            half_extents=np.ones(3) * self.object_size / 2,
-            mass=1.0,
-            position=np.array([0.0, 0.0, self.object_size / 2]),
-            rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
-        )
-        self.sim.create_box(
-            body_name="target",
-            half_extents=np.ones(3) * self.object_size / 2,
-            mass=0.0,
-            ghost=True,
-            position=np.array([0.0, 0.0, self.object_size / 2]),
-            rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
-        )
+        self._create_task_object()
+
+    def _create_task_object(self) -> None:
+        if self.task_object_name == 'circle':
+            self.sim.create_cylinder(
+                body_name="object",
+                radius=self.object_size/2,
+                height=self.object_size/2,
+                mass=1.0,
+                position=np.array([0.0, 0.0, self.object_size/4]),
+                rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
+            )
+            self.sim.create_cylinder(
+                body_name="target",
+                radius=self.object_size/2,
+                height=self.object_size/2,
+                mass=0.0,
+                ghost=True,
+                position=np.array([0.0, 0.0, self.object_size/4]),
+                rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
+            )
+        elif self.task_object_name == 'polygon':
+            self.sim.create_box(
+                body_name="object",
+                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
+                mass=1.0,
+                position=np.array([0.0, 0.0, self.object_size / 4]),
+                rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
+            )
+            self.sim.create_box(
+                body_name="target",
+                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
+                mass=0.0,
+                ghost=True,
+                position=np.array([0.0, 0.0, self.object_size / 4]),
+                rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
+            )
 
     def get_obs(self) -> np.ndarray:
         # position, rotation of the object
@@ -71,6 +96,12 @@ class VPush(Task):
         return object_position
 
     def reset(self) -> None:
+        # Reset task object
+        p.removeBody(self.sim._bodies_idx["target"])
+        p.removeBody(self.sim._bodies_idx["object"])
+        self._create_task_object()
+
+        # Reset the object and goal position
         self.goal = self._sample_goal()
         object_position = self._sample_object()
         self.sim.set_base_pose("target", self.goal, np.array([0.0, 0.0, 0.0, 1.0]))

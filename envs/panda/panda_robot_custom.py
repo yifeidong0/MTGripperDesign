@@ -39,7 +39,7 @@ class PandaCustom(PyBulletRobot):
         n_action += 0 if self.block_gripper else 1
         action_space = spaces.Box(low=np.array([-.3,]*2+[-0.1,]), high=np.array([.3,]*2+[0.1,]), dtype=np.float32)
         
-        self.v_angle = 0.5 # TODO: randomize
+        self.v_angle = 0.5
         self.template_file_name = "asset/franka_panda_custom/panda_template.urdf"
         self.modified_file_path = f"asset/franka_panda_custom/panda_modified_{self.v_angle:.3f}.urdf"
         self.finger_length = 0.2
