@@ -1,17 +1,20 @@
 from typing import Any, Dict
 
 import numpy as np
+import math
 
 from panda_gym.envs.core import Task
 from panda_gym.utils import distance
 
+def pi_2_pi(angle):
+    return (angle + np.pi) % (2 * np.pi) - np.pi
 
 class VPush(Task):
     def __init__(
         self,
         sim,
-        reward_type="sparse",
-        distance_threshold=0.05,
+        reward_type=None,
+        distance_threshold=0.1,
         goal_xy_range=0.3,
         obj_xy_range=0.3,
     ) -> None:
@@ -19,10 +22,10 @@ class VPush(Task):
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.04
-        self.goal_range_low = np.array([0.6, -0.2, 0])
-        self.goal_range_high = np.array([0.8, 0.2, 0])
-        self.obj_range_low = np.array([0.4, -0.1, 0])
-        self.obj_range_high = np.array([0.5, 0.1, 0])
+        self.goal_range_low = np.array([0.5, -0.6, 0])
+        self.goal_range_high = np.array([0.6, -0.4, 0])
+        self.obj_range_low = np.array([0.5, 0.1, 0])
+        self.obj_range_high = np.array([0.6, 0.2, 0])
         with self.sim.no_rendering():
             self._create_scene()
 
@@ -51,12 +54,14 @@ class VPush(Task):
         object_rotation = np.array(self.sim.get_base_rotation("object"))
         object_velocity = np.array(self.sim.get_base_velocity("object"))
         object_angular_velocity = np.array(self.sim.get_base_angular_velocity("object"))
+        target_position = np.array(self.sim.get_base_position("target"))
         observation = np.concatenate(
             [
                 object_position,
                 object_rotation,
                 object_velocity,
                 object_angular_velocity,
+                target_position,
             ]
         )
         return observation
@@ -89,9 +94,33 @@ class VPush(Task):
         d = distance(achieved_goal, desired_goal)
         return np.array(d < self.distance_threshold, dtype=bool)
 
-    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
-        d = distance(achieved_goal, desired_goal)
-        if self.reward_type == "sparse":
-            return -np.array(d > self.distance_threshold, dtype=np.float32)
-        else:
-            return -d.astype(np.float32)
+    def compute_reward(self, observation_dict, info) -> np.ndarray:
+
+        observation = observation_dict["observation"]
+        achieved_goal = observation_dict["achieved_goal"]
+        desired_goal = observation_dict["desired_goal"]
+
+        assert observation.shape == (23,)
+        ee_position = observation[:3]
+        ee_velocity = observation[3:6]
+        ee_yaw = observation[6:7]
+        v_angle = observation[7:8]
+        object_position = observation[8:11]
+        object_rotation = observation[11:14]
+        object_velocity = observation[14:17]
+        object_angular_velocity = observation[17:20]
+        target_position = observation[20:23]
+        
+        reward = 0
+        ee_object_distance = distance(ee_position, object_position)
+        object_target_distance = distance(object_position, target_position) 
+        object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
+        yaw_difference = abs(pi_2_pi(object_rotation[2] - object_target_yaw))
+        
+        weight_ee_object_distance = 1.0
+        weight_object_target_distance = 1.0
+        weight_yaw = 0.5
+        
+        reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
+        return reward
+    

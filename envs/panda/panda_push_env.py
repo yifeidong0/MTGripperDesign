@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 from gymnasium.utils import seeding
 
 from .panda_robot_custom import PandaCustom
-from .push_task import VPush
+from .panda_push_task import VPush
 
 class PandaPushEnv(RobotTaskEnv):
     """Push task wih Panda robot.
@@ -49,12 +49,12 @@ class PandaPushEnv(RobotTaskEnv):
             render_mode: str = "rgb_array"
         else:
             render_mode: str = "human"
-        self.sim = PyBullet(render_mode=render_mode, renderer=renderer)
-        self.robot = PandaCustom(self.sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
-        self.task = VPush(self.sim, reward_type=reward_type)
+        sim = PyBullet(render_mode=render_mode, renderer=renderer)
+        robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
+        task = VPush(sim, reward_type=reward_type)
         super().__init__(
-            self.robot,
-            self.task,
+            robot,
+            task,
             render_width=render_width,
             render_height=render_height,
             render_target_position=render_target_position,
@@ -66,14 +66,18 @@ class PandaPushEnv(RobotTaskEnv):
         self.step_count = 0
         # self.task_object_name = 'circle' 
         # self.task_int = 0 if self.task_object_name == 'circle' else 1
-        # self.v_angle = np.pi/3
     
-    def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
-        observation, reward, terminated, truncated, info = super().step(action)
+    def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1
+        self.robot.set_action(action)
+        self.sim.step()
+        observation = self._get_obs()
+        terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
+        info = {"is_success": terminated}
         truncated = self._is_truncated()
+        reward = float(self.task.compute_reward(observation, info))
         return observation, reward, terminated, truncated, info
-    
+        
     def reset(
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
@@ -85,5 +89,6 @@ class PandaPushEnv(RobotTaskEnv):
     
     def _is_truncated(self):
         truncated = False
-        truncated = (self.step_count > 200)
+        duration = 2000
+        truncated = (self.step_count > duration) # 1/25 * duration = 80s
         return truncated

@@ -35,7 +35,7 @@ class PandaCustom(PyBulletRobot):
         self.base_position = base_position if base_position is not None else np.zeros(3)
         self.block_gripper = block_gripper
         self.control_type = control_type
-        n_action = 3 if self.control_type == "ee" else 7  # control (x, y z) if "ee", else, control the 7 joints
+        n_action = 3 if self.control_type == "ee" else 7  # control (x, y, yaw) if "ee", else, control the 7 joints
         n_action += 0 if self.block_gripper else 1
         action_space = spaces.Box(low=np.array([-.3,]*2+[-0.1,]), high=np.array([.3,]*2+[0.1,]), dtype=np.float32)
         
@@ -73,6 +73,7 @@ class PandaCustom(PyBulletRobot):
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[1], lateral_friction=1.0)
         self.sim.set_spinning_friction(self.body_name, self.fingers_indices[0], spinning_friction=0.001)
         self.sim.set_spinning_friction(self.body_name, self.fingers_indices[1], spinning_friction=0.001)
+        
 
     def set_action(self, action: np.ndarray) -> None:
         action = action.copy()  # ensure action don't change
@@ -114,7 +115,6 @@ class PandaCustom(PyBulletRobot):
         # time.sleep(.1)
         target_ee_position = ee_position + ee_displacement
         target_ee_position[2] = 0.01 + 0.01 # the first part corresponds to the liftup in urdf (leave space for handle in real world)
-
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
         ee_euler = list(p.getEulerFromQuaternion(ee_quaternion)) # tuple
@@ -150,18 +150,30 @@ class PandaCustom(PyBulletRobot):
         # end-effector position and velocity
         ee_position = np.array(self.get_ee_position())
         ee_velocity = np.array(self.get_ee_velocity())
+        ee_yaw = list(p.getEulerFromQuaternion(self.get_ee_orientation()))[-1]
 
         # fingers opening
         if not self.block_gripper:
             fingers_width = self.get_fingers_width()
             observation = np.concatenate((ee_position, ee_velocity, [fingers_width]))
         else:
-            observation = np.concatenate((ee_position, ee_velocity))
+            observation = np.concatenate((ee_position, ee_velocity, [ee_yaw, self.v_angle]))
         return observation
 
     def reset(self) -> None:
+        self.v_angle = np.random.uniform(np.pi/12, np.pi*11/12)
         self._reload_robot()
-        self.set_joint_neutral()
+        init_ee_position = np.array([0.0, 0.0, 0.02])
+        init_ee_position[0] = np.random.uniform(0.4, 0.5)
+        init_ee_position[1] = np.random.uniform(0.5, 0.5)
+        init_ee_euler = [-np.pi, 0,  0]
+        init_ee_quaternion = np.array(list(p.getQuaternionFromEuler(init_ee_euler)))
+        init_arm_angles = self.inverse_kinematics(
+            link=self.ee_link, position=init_ee_position, orientation=init_ee_quaternion
+        )
+        init_arm_angles = init_arm_angles[:7]  # remove fingers angles
+        init_arm_angles = np.concatenate((init_arm_angles, [0.0, 0.0])) 
+        self.set_joint_angles(init_arm_angles)
         
     def _reload_robot(self) -> None:
         print("INFO: Recreating the robot")
