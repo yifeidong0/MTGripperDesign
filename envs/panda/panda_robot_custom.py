@@ -114,14 +114,14 @@ class PandaCustom(PyBulletRobot):
         ee_position = self.get_ee_position() # get the current position and the target position
         time.sleep(.1)
         target_ee_position = ee_position + ee_displacement
-        target_ee_position[2] = 0.02 + 0.01
+        target_ee_position[2] = 0.01 + 0.01 # the first part corresponds to the liftup in urdf (leave space for handle in real world)
 
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
         ee_euler = list(p.getEulerFromQuaternion(ee_quaternion)) # tuple
         target_ee_euler = ee_euler
         # target_ee_euler[2] += ee_orientation_change[0]
-        target_ee_euler = [0, np.pi, np.random.uniform(-np.pi/6, np.pi/6)] # TODO: set rotation action around z
+        target_ee_euler = [-np.pi, 0, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
         # target_ee_euler = [0, np.pi, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
         target_ee_quaternion = np.array(list(p.getQuaternionFromEuler(target_ee_euler)))
 
