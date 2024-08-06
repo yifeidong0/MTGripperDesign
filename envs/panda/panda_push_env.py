@@ -1,9 +1,10 @@
 from typing import Optional
-
 import numpy as np
 
 from panda_gym.envs.core import RobotTaskEnv
 from panda_gym.pybullet import PyBullet
+from typing import Any, Dict, Optional, Tuple
+from gymnasium.utils import seeding
 
 from .panda_robot_custom import PandaCustom
 from .push_task import VPush
@@ -44,7 +45,7 @@ class PandaPushEnv(RobotTaskEnv):
         render_roll: float = 0,
     ) -> None:
         if gui == False:
-            render_mode: str = "rgb_array",
+            render_mode: str = "rgb_array"
         else:
             render_mode: str = "human"
         sim = PyBullet(render_mode=render_mode, renderer=renderer)
@@ -61,3 +62,18 @@ class PandaPushEnv(RobotTaskEnv):
             render_pitch=render_pitch,
             render_roll=render_roll,
         )
+
+    def reset(
+        self, seed: Optional[int] = None, options: Optional[dict] = None
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+        # TODO: truncation if object out of bounds
+        # TODO: reset robot joint angles
+        super().reset(seed=seed, options=options)
+        self.task.np_random, seed = seeding.np_random(seed)
+        with self.sim.no_rendering():
+            self.robot.reset()
+            self.task.reset()
+        observation = self._get_obs()
+        info = {"is_success": self.task.is_success(observation["achieved_goal"], self.task.get_goal())}
+        return observation, info
+    

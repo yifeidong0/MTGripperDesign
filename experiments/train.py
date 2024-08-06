@@ -15,7 +15,7 @@ def main():
     env_id = "PandaPushEnv-v0"
     device = 'cuda' # 'cpu', 'cuda', 'auto'
     obs_type = 'pose' # image, pose
-    env = gym.make(env_id, gui=0, obs_type=obs_type)
+    env = gym.make(env_id, gui=1, obs_type=obs_type)
     check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
