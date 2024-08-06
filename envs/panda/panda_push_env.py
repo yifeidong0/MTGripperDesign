@@ -64,9 +64,6 @@ class PandaPushEnv(RobotTaskEnv):
             render_roll=render_roll,
         )
         self.step_count = 0
-        # self.task_object_name = 'circle' 
-        # self.task_int = 0 if self.task_object_name == 'circle' else 1
-        # self.v_angle = np.pi/3
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
         observation, reward, terminated, truncated, info = super().step(action)
@@ -77,13 +74,14 @@ class PandaPushEnv(RobotTaskEnv):
     def reset(
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+        # TODO: panda/object cannot be loaded in gui after about 7 episodes
         self.step_count = 0
-        # self.task_object_name = random.choice(['circle', 'polygon']) # TODO: randomize
-        # self.task_int = 0 if self.task_object_name == 'circle' else 1
+        self.task.task_object_name = random.choice(['circle', 'polygon'])
+        self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
         self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12)
         return super().reset(seed=seed, options=options)
     
     def _is_truncated(self):
         truncated = False
-        truncated = (self.step_count > 200)
+        truncated = (self.step_count > 1000)
         return truncated
