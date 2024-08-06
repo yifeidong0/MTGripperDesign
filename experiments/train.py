@@ -16,7 +16,7 @@ def main():
     device = 'cuda' # 'cpu', 'cuda', 'auto'
     obs_type = 'pose' # image, pose
     env = gym.make(env_id, gui=1, obs_type=obs_type)
-    check_env(env)
+    # check_env(env)
     # env = make_vec_env(env_id, n_envs=4)    
     
     total_timesteps = int(1e6)

@@ -91,5 +91,5 @@ class PandaPushEnv(RobotTaskEnv):
     
     def _is_truncated(self):
         truncated = False
-        truncated = (self.step_count > 200)
+        truncated = (self.step_count > 2000)
         return truncated
