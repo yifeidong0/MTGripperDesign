@@ -8,7 +8,7 @@ from panda_gym.pybullet import PyBullet
 from typing import Any, Dict, Optional, Tuple
 from gymnasium.utils import seeding
 
-from .panda_robot_custom import PandaCustom
+from .panda_push_robot import PandaCustom
 from .panda_push_task import VPush
 
 class PandaPushEnv(RobotTaskEnv):
@@ -65,9 +65,10 @@ class PandaPushEnv(RobotTaskEnv):
             render_roll=render_roll,
         )
         self.step_count = 0
-        # self.task_object_name = 'circle' 
-        # self.task_int = 0 if self.task_object_name == 'circle' else 1
-        # self.v_angle = np.pi/3
+        self.canvas_min_x = 0.1
+        self.canvas_max_x = 0.9
+        self.canvas_min_y = -1
+        self.canvas_max_y = 1
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1
@@ -78,7 +79,7 @@ class PandaPushEnv(RobotTaskEnv):
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation, info))
-        time.sleep(30./240.)
+        # time.sleep(30./240.)
         # print( self.robot.get_ee_position())
         # print( self.robot.get_arm_joint_angles())
         return observation, reward, terminated, truncated, info
@@ -95,5 +96,15 @@ class PandaPushEnv(RobotTaskEnv):
     
     def _is_truncated(self):
         truncated = False
-        truncated = (self.step_count > 300)
+
+        ee_position = self.robot.get_ee_position()
+        object_position = self.task.get_achieved_goal()
+        
+        gripper_out_of_canvas = not (self.canvas_min_x <= ee_position[0] <= self.canvas_max_x 
+                                     and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
+        object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
+                                    and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
+        time_ended = self.step_count > 2000
+    
+        truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         return truncated
