@@ -1,6 +1,7 @@
 from typing import Optional, Any, Dict, Optional, Tuple
 
 import numpy as np
+import time
 import random
 from panda_gym.envs.core import RobotTaskEnv
 from panda_gym.pybullet import PyBullet
@@ -77,6 +78,9 @@ class PandaPushEnv(RobotTaskEnv):
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation, info))
+        time.sleep(30./240.)
+        # print( self.robot.get_ee_position())
+        # print( self.robot.get_arm_joint_angles())
         return observation, reward, terminated, truncated, info
         
     def reset(
@@ -86,10 +90,10 @@ class PandaPushEnv(RobotTaskEnv):
         self.step_count = 0
         self.task.task_object_name = random.choice(['circle', 'polygon'])
         self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
-        self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12)
+        self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12) # TODO: add vpusher finger length to design space
         return super().reset(seed=seed, options=options)
     
     def _is_truncated(self):
         truncated = False
-        truncated = (self.step_count > 2000)
+        truncated = (self.step_count > 300)
         return truncated

@@ -80,6 +80,7 @@ class VPush(Task):
         object_velocity = np.array(self.sim.get_base_velocity("object"))
         object_angular_velocity = np.array(self.sim.get_base_angular_velocity("object"))
         target_position = np.array(self.sim.get_base_position("target"))
+        task_int = np.array([self.task_int,])
         observation = np.concatenate(
             [
                 object_position,
@@ -87,6 +88,7 @@ class VPush(Task):
                 object_velocity,
                 object_angular_velocity,
                 target_position,
+                task_int,
             ]
         )
         return observation
@@ -126,12 +128,12 @@ class VPush(Task):
         return np.array(d < self.distance_threshold, dtype=bool)
 
     def compute_reward(self, observation_dict, info) -> np.ndarray:
-
         observation = observation_dict["observation"]
         achieved_goal = observation_dict["achieved_goal"]
         desired_goal = observation_dict["desired_goal"]
 
-        assert observation.shape == (23,)
+        # Unpack the observation
+        assert observation.shape == (24,)
         ee_position = observation[:3]
         ee_velocity = observation[3:6]
         ee_yaw = observation[6:7]
@@ -141,6 +143,7 @@ class VPush(Task):
         object_velocity = observation[14:17]
         object_angular_velocity = observation[17:20]
         target_position = observation[20:23]
+        task_int = observation[23:24]
         
         reward = 0
         ee_object_distance = distance(ee_position, object_position)
