@@ -46,21 +46,23 @@ class PandaCustom(PyBulletRobot):
         self.finger_length = 0.2
         self.finger_thickness = 0.01
         self.body_height = 0.01
-        os.system("rm -rf asset/vpusher/*")
-        unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
-        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
-        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
-        with open(self.template_file_name, 'r') as file:
-            self.urdf_content = file.read()
-        self.urdf_content = self.urdf_content.replace('{v_pusher_name}', f"asset/vpusher/{unique_obj_filename}")
-        with open(self.modified_file_path, 'w') as file:
-            file.write(self.urdf_content)
+        self.num_episodes = 0
+
+        # os.system("rm -rf asset/vpusher/*")
+        # unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
+        # generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
+        # decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+        # with open(self.template_file_name, 'r') as file:
+        #     self.urdf_content = file.read()
+        # self.urdf_content = self.urdf_content.replace('{v_pusher_name}', f"asset/vpusher/{unique_obj_filename}")
+        # with open(self.modified_file_path, 'w') as file:
+        #     file.write(self.urdf_content)
             
         super().__init__(
             sim,
             body_name="panda",
             # file_name="franka_panda/panda.urdf",
-            file_name=self.modified_file_path,
+            file_name=self.template_file_name,
             base_position=self.base_position,
             action_space=action_space,
             joint_indices=np.array([0, 1, 2, 3, 4, 5, 6, 9, 10]),
@@ -70,8 +72,10 @@ class PandaCustom(PyBulletRobot):
         self.fingers_indices = np.array([9, 10])
         # self.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
         self.neutral_joint_values = np.array([0.000, 0.146, 0.000, -3.041, 0.000, 3.182, 0.790, 0.000, 0.000])
+        self.neutral_joint_zeros = np.array([0.000,]*9)
         
-        self.ee_link = 11 # vpush
+        # self.ee_link = 11 # vpush
+        self.ee_link = 10
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[0], lateral_friction=1.0)
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[1], lateral_friction=1.0)
         self.sim.set_spinning_friction(self.body_name, self.fingers_indices[0], spinning_friction=0.001)
@@ -82,7 +86,7 @@ class PandaCustom(PyBulletRobot):
         action = action.copy()  # ensure action don't change
         action = np.clip(action, self.action_space.low, self.action_space.high)
         if self.control_type == "ee":
-            ee_displacement = np.array([action[0], action[1], 0.2])
+            ee_displacement = np.array([action[0], action[1], 0])
             ee_orientation_change = np.array([action[2],])
             target_arm_angles = self.ee_displacement_to_target_arm_angles(ee_displacement, ee_orientation_change)
         else:
@@ -114,7 +118,7 @@ class PandaCustom(PyBulletRobot):
         ee_displacement = ee_displacement[:3] * 0.05  # limit maximum change in position
         ee_position = self.get_ee_position() # get the current position and the target position
         target_ee_position = ee_position + ee_displacement
-        target_ee_position[2] = 0.02 + 0.02 # the first part corresponds to the liftup in urdf (leave space for handle in real world)
+        target_ee_position[2] = 0.06 # corresponds to the liftup in urdf
 
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
@@ -160,17 +164,31 @@ class PandaCustom(PyBulletRobot):
         return observation
 
     def reset(self) -> None:
-        self._reload_robot()
-        self.set_joint_neutral() # set neutral first to avoid singularities 
-        init_ee_position = np.array([0.0, 0.0, 0.1])
+        # self._reload_robot()
+        self.num_episodes += 1
+        print(f"INFO: episode {self.num_episodes}")
+
+        self._set_random_ee_pose()
+        self._attach_tool_to_ee()
+        # self.set_joint_zero()
+        # print(self.get_arm_joint_angles())
+        # time.sleep(3)
+
+    def _set_random_ee_pose(self) -> None:
+        self.set_joint_neutral() # set neutral first to avoid singularities
+        init_ee_position = np.array([0.0, 0.0, 0.2])
         # push forward
-        init_ee_position[0] = np.random.uniform(0.25, 0.35) 
-        init_ee_position[1] = np.random.uniform(-0.2, 0.2)
-        init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/6, np.pi/6)]
+        # init_ee_position[0] = np.random.uniform(0.25, 0.35) 
+        # init_ee_position[1] = np.random.uniform(-0.2, 0.2)
+        # init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/6, np.pi/6)]
         # # push from left side (larger workspace length sideways than upfront. but not wide enough table in robot lab?)
         # init_ee_position[0] = np.random.uniform(0.4, 0.5) 
         # init_ee_position[1] = np.random.uniform(0.5, 0.6)
         # init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/3, -2*np.pi/3)]
+        init_ee_position[0] = np.random.uniform(0.3, 0.3) 
+        init_ee_position[1] = np.random.uniform(-0.0, 0.0)
+        init_ee_euler = [-np.pi, 0,  np.random.uniform(-0*np.pi/6, 0*np.pi/6)]
+
         init_ee_quaternion = np.array(list(p.getQuaternionFromEuler(init_ee_euler)))
         init_arm_angles = self.inverse_kinematics(
             link=self.ee_link, position=init_ee_position, orientation=init_ee_quaternion
@@ -179,28 +197,77 @@ class PandaCustom(PyBulletRobot):
         init_arm_angles = np.concatenate((init_arm_angles, [0.0, 0.0])) 
         self.set_joint_angles(init_arm_angles)
 
-    def _reload_robot(self) -> None:
-        print("INFO: Recreating the robot")
+    def _attach_tool_to_ee(self) -> None:
         os.system("rm -rf asset/vpusher/*")
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
-        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
-        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
-        with open(self.template_file_name, 'r') as file:
+        tool_obj_path = f"asset/vpusher/{unique_obj_filename}"
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, tool_obj_path)
+        decompose_mesh(pb_connected=True, input_file=tool_obj_path)
+        with open("asset/franka_panda_custom/vpusher_template.urdf", 'r') as file:
             self.urdf_content = file.read()
-        self.urdf_content = self.urdf_content.replace('{v_pusher_name}', f"asset/vpusher/{unique_obj_filename}")
+        self.urdf_content = self.urdf_content.replace('{v_pusher_name}', tool_obj_path)
 
-        os.system(f"rm -rf asset/franka_panda_custom/panda_modified_*")
-        self.modified_file_path = f"asset/franka_panda_custom/panda_modified_{self.v_angle:.3f}.urdf"
-        with open(self.modified_file_path, 'w') as file:
+        os.system(f"rm -rf asset/franka_panda_custom/vpusher_modified_*")
+        self.modified_vpusher_path = f"asset/franka_panda_custom/vpusher_modified_{self.v_angle:.3f}.urdf"
+        with open(self.modified_vpusher_path, 'w') as file:
             file.write(self.urdf_content)
-        with self.sim.no_rendering():
-            p.removeBody(self.sim._bodies_idx[self.body_name])
-            self._load_robot(self.modified_file_path, self.base_position)
-            self.setup()
+
+        # Load the tool
+        if "tool" in self.sim._bodies_idx:
+            p.removeBody(self.sim._bodies_idx["tool"])
+        ee_position_center = (self.get_ee_position() + self.get_link_position(self.ee_link-1)) / 2
+        ee_position_center[2] -= 0.1
+        self.sim.loadURDF(
+            body_name="tool",
+            fileName=self.modified_vpusher_path,
+            basePosition=ee_position_center,
+            useFixedBase=0,
+        )
+        print('ee_position_center',ee_position_center)
+        # tool_id = p.loadURDF(self.modified_vpusher_path, basePosition=[0, 0, 0])
+
+        # Set the initial position and orientation of the tool to match the end-effector
+        # p.resetBasePositionAndOrientation(tool_id, [0,0,0], [0,0,0,1])
+
+        # Create a fixed constraint to attach the tool to the end-effector
+        end_effector_index = 10
+        p.createConstraint( # TODO: constraint causes singularity
+            parentBodyUniqueId=self.sim._bodies_idx[self.body_name],
+            parentLinkIndex=end_effector_index,
+            childBodyUniqueId=self.sim._bodies_idx["tool"],
+            childLinkIndex=-1,  # -1 means we are attaching to the base of the tool
+            jointType=p.JOINT_FIXED,
+            jointAxis=[0, 0, 0],
+            parentFramePosition=[0, 0, 0],
+            childFramePosition=[0.0, -0.01, -0.015] # align with center of two parallel jaw fingers (z: leave space for handle in real world)
+        )
+
+    # def _reload_robot(self) -> None:
+    #     print("INFO: Recreating the robot")
+    #     os.system("rm -rf asset/vpusher/*")
+    #     unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
+    #     generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
+    #     decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+    #     with open(self.template_file_name, 'r') as file:
+    #         self.urdf_content = file.read()
+    #     self.urdf_content = self.urdf_content.replace('{v_pusher_name}', f"asset/vpusher/{unique_obj_filename}")
+
+    #     os.system(f"rm -rf asset/franka_panda_custom/panda_modified_*")
+    #     self.modified_file_path = f"asset/franka_panda_custom/panda_modified_{self.v_angle:.3f}.urdf"
+    #     with open(self.modified_file_path, 'w') as file:
+    #         file.write(self.urdf_content)
+    #     with self.sim.no_rendering():
+    #         p.removeBody(self.sim._bodies_idx[self.body_name])
+    #         self._load_robot(self.modified_file_path, self.base_position)
+    #         self.setup()
     
     def set_joint_neutral(self) -> None:
         """Set the robot to its neutral pose."""
         self.set_joint_angles(self.neutral_joint_values)
+
+    def set_joint_zero(self) -> None:
+        """Set the robot to its neutral pose."""
+        self.set_joint_angles(self.neutral_joint_zeros)
 
     def get_fingers_width(self) -> float:
         """Get the distance between the fingers."""

@@ -25,7 +25,7 @@ class VPush(Task):
         self.object_size = 0.04
         self.goal_range_low = np.array([0.7, -0.1, 0])
         self.goal_range_high = np.array([0.8, 0.1, 0])
-        self.obj_range_low = np.array([0.4, -0.1, 0])
+        self.obj_range_low = np.array([0.5, -0.1, 0])
         self.obj_range_high = np.array([0.5, 0.1, 0])
         self.task_object_name = 'circle' # 'circle', 'polygon'
         self.task_int = 0 if self.task_object_name == 'circle' else 1
@@ -102,6 +102,8 @@ class VPush(Task):
         p.removeBody(self.sim._bodies_idx["target"])
         p.removeBody(self.sim._bodies_idx["object"])
         self._create_task_object()
+        # print(p.getNumBodies())
+        # print(self.sim._bodies_idx)
 
         # Reset the object and goal position
         self.goal = self._sample_goal()

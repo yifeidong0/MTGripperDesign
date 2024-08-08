@@ -3,6 +3,7 @@ from typing import Optional, Any, Dict, Optional, Tuple
 import numpy as np
 import time
 import random
+import pybullet as p
 from panda_gym.envs.core import RobotTaskEnv
 from panda_gym.pybullet import PyBullet
 from typing import Any, Dict, Optional, Tuple
@@ -10,6 +11,9 @@ from gymnasium.utils import seeding
 
 from .panda_push_robot import PandaCustom
 from .panda_push_task import VPush
+import os
+import cv2
+import gc
 
 class PandaPushEnv(RobotTaskEnv):
     """Push task wih Panda robot.
@@ -79,9 +83,20 @@ class PandaPushEnv(RobotTaskEnv):
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation, info))
-        # time.sleep(30./240.)
+        time.sleep(30./240.)
         # print( self.robot.get_ee_position())
         # print( self.robot.get_arm_joint_angles())
+
+        # # pybullet take image
+        # width, height, rgbPixels, _, _ = p.getCameraImage(256, 256, 
+        #                                                     viewMatrix=[-0.5, 0.5, -0.5, 0.5, -0.5, 0.5],
+        #                                                     projectionMatrix=[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0])
+        # # save image to path
+        # frame = np.reshape(rgbPixels, (height, width, 4))[:, :, :3]
+        # self.frame = np.uint8(frame)
+        # os.makedirs('images', exist_ok=True)
+        # cv2.imwrite(f'images/{self.step_count}.png', self.frame)
+
         return observation, reward, terminated, truncated, info
         
     def reset(
@@ -89,7 +104,7 @@ class PandaPushEnv(RobotTaskEnv):
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         # TODO: panda/object cannot be loaded in gui after about 7 episodes
         self.step_count = 0
-        self.task.task_object_name = random.choice(['circle', 'polygon'])
+        self.task.task_object_name = random.choice(['circle', 'polygon']) # TODO: variate task space, e.g. randomly shaped polygons
         self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
         self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12) # TODO: add vpusher finger length to design space
         return super().reset(seed=seed, options=options)
@@ -104,7 +119,7 @@ class PandaPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 2000
+        time_ended = self.step_count > 50
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         return truncated
