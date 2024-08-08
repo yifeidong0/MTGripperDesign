@@ -22,11 +22,11 @@ class VPush(Task):
         super().__init__(sim)
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
-        self.object_size = 0.04
-        self.goal_range_low = np.array([0.7, -0.1, 0])
-        self.goal_range_high = np.array([0.8, 0.1, 0])
+        self.object_size = 0.08
+        self.goal_range_low = np.array([0.8, -0.1, 0])
+        self.goal_range_high = np.array([0.85, 0.1, 0])
         self.obj_range_low = np.array([0.5, -0.1, 0])
-        self.obj_range_high = np.array([0.5, 0.1, 0])
+        self.obj_range_high = np.array([0.55, 0.1, 0])
         self.task_object_name = 'circle' # 'circle', 'polygon'
         self.task_int = 0 if self.task_object_name == 'circle' else 1
         with self.sim.no_rendering():
@@ -42,7 +42,7 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="object",
                 radius=self.object_size/2,
-                height=self.object_size/2,
+                height=self.object_size,
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size/4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
@@ -50,7 +50,7 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="target",
                 radius=self.object_size/2,
-                height=self.object_size/2,
+                height=self.object_size,
                 mass=0.0,
                 ghost=True,
                 position=np.array([0.0, 0.0, self.object_size/4]),
@@ -59,14 +59,14 @@ class VPush(Task):
         elif self.task_object_name == 'polygon':
             self.sim.create_box(
                 body_name="object",
-                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
+                half_extents=np.array([1,1,1]) * self.object_size / 2,
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size / 4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
             )
             self.sim.create_box(
                 body_name="target",
-                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
+                half_extents=np.array([1,1,1]) * self.object_size / 2,
                 mass=0.0,
                 ghost=True,
                 position=np.array([0.0, 0.0, self.object_size / 4]),
