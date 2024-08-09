@@ -10,25 +10,28 @@ import pybullet as p
 def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
+
 class VPush(Task):
     def __init__(
         self,
         sim,
         reward_type=None,
-        distance_threshold=0.1,
+        distance_threshold=0.03,
         goal_xy_range=0.3,
         obj_xy_range=0.3,
     ) -> None:
         super().__init__(sim)
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
-        self.object_size = 0.04
-        self.goal_range_low = np.array([0.7, -0.1, 0])
-        self.goal_range_high = np.array([0.8, 0.1, 0])
-        self.obj_range_low = np.array([0.4, -0.1, 0])
-        self.obj_range_high = np.array([0.5, 0.1, 0])
+        self.object_size = 0.08
+        self.goal_range_low = np.array([0.6, 0.25, 0])
+        self.goal_range_high = np.array([0.7, 0.35, 0])
+        self.obj_range_low = np.array([0.4, 0.25, 0])
+        self.obj_range_high = np.array([0.5, 0.35, 0])
         self.task_object_name = 'circle' # 'circle', 'polygon'
         self.task_int = 0 if self.task_object_name == 'circle' else 1
+        self.last_ee_object_distance = 0
+        self.last_object_target_distance = 0
         with self.sim.no_rendering():
             self._create_scene()
             
@@ -112,14 +115,14 @@ class VPush(Task):
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
         goal = np.array([0.0, 0.0, self.object_size / 2])  # z offset for the cube center
-        noise = self.np_random.uniform(self.goal_range_low, self.goal_range_high)
+        noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
         goal += noise
         return goal
 
     def _sample_object(self) -> np.ndarray:
         """Randomize start position of object."""
         object_position = np.array([0.0, 0.0, self.object_size / 2])
-        noise = self.np_random.uniform(self.obj_range_low, self.obj_range_high)
+        noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
         object_position += noise
         return object_position
 
@@ -147,14 +150,23 @@ class VPush(Task):
         
         reward = 0
         ee_object_distance = distance(ee_position, object_position)
+        diff_ee_object_distance = ee_object_distance - self.last_ee_object_distance
+        self.last_ee_object_distance = ee_object_distance
         object_target_distance = distance(object_position, target_position) 
+        diff_object_target_distance = object_target_distance - self.last_object_target_distance
+        self.last_object_target_distance = object_target_distance
         object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
         yaw_difference = abs(pi_2_pi(object_rotation[2] - object_target_yaw))
         
         weight_ee_object_distance = 1.0
         weight_object_target_distance = 1.0
-        weight_yaw = 0.5
+        weight_yaw = 0.1
         
-        reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
+        reward += -weight_ee_object_distance * diff_ee_object_distance - weight_object_target_distance * diff_object_target_distance - weight_yaw * yaw_difference
+        if self.is_success(achieved_goal, desired_goal):
+            reward += 100
+        
+        # reward -= distance(object_position, target_position)
+        
         return reward
     
