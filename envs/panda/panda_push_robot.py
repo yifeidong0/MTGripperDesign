@@ -169,8 +169,8 @@ class PandaCustom(PyBulletRobot):
         self.set_joint_neutral() # set neutral first to avoid singularities
         init_ee_position = np.array([0.0, 0.0, 0.1])
         # push forward
-        init_ee_position[0] = np.random.uniform(0.25, 0.35) 
-        init_ee_position[1] = np.random.uniform(-0.2, 0.2)
+        init_ee_position[0] = np.random.uniform(0.1, 0.2) 
+        init_ee_position[1] = np.random.uniform(0, 0.1)
         init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/6, np.pi/6)]
         # # push from left side (larger workspace length sideways than upfront. but not wide enough table in robot lab?)
         # init_ee_position[0] = np.random.uniform(0.4, 0.5) 

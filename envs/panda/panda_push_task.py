@@ -23,11 +23,11 @@ class VPush(Task):
         super().__init__(sim)
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
-        self.object_size = 0.08
-        self.goal_range_low = np.array([0.8, -0.1, 0])
-        self.goal_range_high = np.array([0.85, 0.1, 0])
-        self.obj_range_low = np.array([0.5, -0.1, 0])
-        self.obj_range_high = np.array([0.55, 0.1, 0])
+        self.object_size = 0.04
+        self.goal_range_low = np.array([0.7, 0, 0])
+        self.goal_range_high = np.array([0.75, 0.1, 0])
+        self.obj_range_low = np.array([0.4, 0, 0])
+        self.obj_range_high = np.array([0.5, 0.1, 0])
         self.task_object_name = 'circle' # 'circle', 'polygon'
         self.task_int = 0 if self.task_object_name == 'circle' else 1
         self.last_ee_object_distance = 0
