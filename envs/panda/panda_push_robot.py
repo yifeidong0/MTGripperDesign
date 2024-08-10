@@ -44,7 +44,9 @@ class PandaCustom(PyBulletRobot):
         self.panda_file_name = "asset/franka_panda_custom/panda_template.urdf"
         self.finger_length = 0.2
         self.finger_thickness = 0.01
-        self.body_height = 0.01
+        self.body_height = 0.02 # finger's height
+        self.design_params = np.array([self.v_angle, self.finger_length,])
+
         self.num_episodes = 0
         self.constraint_id = None
 
@@ -83,7 +85,7 @@ class PandaCustom(PyBulletRobot):
             target_arm_angles = self.arm_joint_ctrl_to_target_arm_angles(arm_joint_ctrl)
 
         if self.block_gripper:
-            target_fingers_width = 0.04
+            target_fingers_width = 0.02
         else:
             fingers_ctrl = action[-1] * 0.2  # limit maximum change in position
             fingers_width = self.get_fingers_width()
@@ -107,7 +109,7 @@ class PandaCustom(PyBulletRobot):
         ee_displacement = ee_displacement[:3] * 0.05  # limit maximum change in position
         ee_position = self.get_ee_position() # get the current position and the target position
         target_ee_position = ee_position + ee_displacement
-        target_ee_position[2] = 0.06 # corresponds to the liftup in urdf
+        target_ee_position[2] = 0.07 # corresponds to the liftup in urdf
 
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
@@ -149,7 +151,8 @@ class PandaCustom(PyBulletRobot):
             fingers_width = self.get_fingers_width()
             observation = np.concatenate((ee_position, ee_velocity, [fingers_width]))
         else:
-            observation = np.concatenate((ee_position, ee_velocity, [ee_yaw, self.v_angle]))
+            self.design_params = np.array([self.v_angle, self.finger_length,])
+            observation = np.concatenate((ee_position, ee_velocity, [ee_yaw,], self.design_params))
         return observation
 
     def reset(self) -> None:
@@ -166,6 +169,7 @@ class PandaCustom(PyBulletRobot):
         self._attach_tool_to_ee()
 
     def _set_random_ee_pose(self) -> None:
+        """Set the robot to a random end-effector initial pose after reset."""
         self.set_joint_neutral() # set neutral first to avoid singularities
         init_ee_position = np.array([0.0, 0.0, 0.1])
         # push forward
@@ -182,10 +186,11 @@ class PandaCustom(PyBulletRobot):
             link=self.ee_link, position=init_ee_position, orientation=init_ee_quaternion
         )
         init_arm_angles = init_arm_angles[:7]  # remove fingers angles
-        init_arm_angles = np.concatenate((init_arm_angles, [0.03, 0.03])) 
+        init_arm_angles = np.concatenate((init_arm_angles, [0.02, 0.02])) 
         self.set_joint_angles(init_arm_angles)
 
     def _attach_tool_to_ee(self) -> None:
+        """Attach the tool to the end-effector."""
         os.system("rm -rf asset/vpusher/*")
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
         tool_obj_path = f"asset/vpusher/{unique_obj_filename}"
@@ -210,6 +215,7 @@ class PandaCustom(PyBulletRobot):
             useFixedBase=0,
         )
 
+        # Create a constraint to attach the tool to the end-effector
         end_effector_index = 10
         self.constraint_id = p.createConstraint(
             parentBodyUniqueId=self.sim._bodies_idx[self.body_name],
@@ -218,8 +224,8 @@ class PandaCustom(PyBulletRobot):
             childLinkIndex=-1,  # -1 means we are attaching to the base of the tool
             jointType=p.JOINT_FIXED,
             jointAxis=[0, 0, 0],
-            parentFramePosition=[0.0, 0.03, 0.065],
-            childFramePosition=[0, 0, 0], # align with center of two parallel jaw fingers (z: leave space for handle in real world)
+            parentFramePosition=[0.0, 0.02, 0.075], # align with center of two parallel jaw fingers (z: leave space for handle in real world)
+            childFramePosition=[0, 0, 0],
             childFrameOrientation=p.getQuaternionFromEuler([3.14, 0, 0]), # important to avoid arm jerk when adding constraint
         )
     

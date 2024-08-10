@@ -83,7 +83,7 @@ class PandaPushEnv(RobotTaskEnv):
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation, info))
-        # time.sleep(10./240.)
+        time.sleep(30./240.)
         # print( self.robot.get_ee_position())
         # print( self.robot.get_arm_joint_angles())
 
@@ -103,9 +103,13 @@ class PandaPushEnv(RobotTaskEnv):
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         self.step_count = 0
-        self.task.task_object_name = random.choice(self.task.task_object_names) # TODO: variate task space, e.g. randomly shaped polygons
+
+        # Reset task and design parameters
+        self.task.task_object_name = random.choice(self.task.task_object_names)
         self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
         self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12) # TODO: add vpusher finger length to design space
+        self.robot.finger_length = random.uniform(0.08, 0.2)
+
         return super().reset(seed=seed, options=options)
     
     def _is_truncated(self):
