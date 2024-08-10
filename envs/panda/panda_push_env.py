@@ -102,9 +102,8 @@ class PandaPushEnv(RobotTaskEnv):
     def reset(
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
-        # TODO: panda/object cannot be loaded in gui after about 7 episodes
         self.step_count = 0
-        self.task.task_object_name = random.choice(['circle', 'polygon']) # TODO: variate task space, e.g. randomly shaped polygons
+        self.task.task_object_name = random.choice(self.task.task_object_names) # TODO: variate task space, e.g. randomly shaped polygons
         self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
         self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12) # TODO: add vpusher finger length to design space
         return super().reset(seed=seed, options=options)
@@ -119,7 +118,7 @@ class PandaPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 2000
+        time_ended = self.step_count > 200
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         return truncated

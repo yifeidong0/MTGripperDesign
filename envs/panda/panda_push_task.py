@@ -23,12 +23,13 @@ class VPush(Task):
         super().__init__(sim)
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
-        self.object_size = 0.04
+        self.object_size = 0.08 # if too smaller than the geometry of tool, the object geometry variation will not be demonstrated
         self.goal_range_low = np.array([0.7, 0, 0])
         self.goal_range_high = np.array([0.75, 0.1, 0])
         self.obj_range_low = np.array([0.4, 0, 0])
         self.obj_range_high = np.array([0.5, 0.1, 0])
-        self.task_object_name = 'circle' # 'circle', 'polygon'
+        self.task_object_name = 'circle' # 'circle', 'square', 'polygon0'
+        self.task_object_names = ['circle', 'square', 'polygon0']
         self.task_int = 0 if self.task_object_name == 'circle' else 1
         self.last_ee_object_distance = 0
         self.last_object_target_distance = 0
@@ -45,7 +46,7 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="object",
                 radius=self.object_size/2,
-                height=self.object_size,
+                height=self.object_size/2,
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size/4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
@@ -53,27 +54,62 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="target",
                 radius=self.object_size/2,
-                height=self.object_size,
+                height=self.object_size/2,
                 mass=0.0,
                 ghost=True,
                 position=np.array([0.0, 0.0, self.object_size/4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
             )
-        elif self.task_object_name == 'polygon':
+        elif self.task_object_name == 'square':
             self.sim.create_box(
                 body_name="object",
-                half_extents=np.array([1,1,1]) * self.object_size / 2,
+                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size / 4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
             )
             self.sim.create_box(
                 body_name="target",
-                half_extents=np.array([1,1,1]) * self.object_size / 2,
+                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
                 mass=0.0,
                 ghost=True,
                 position=np.array([0.0, 0.0, self.object_size / 4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
+            )
+        elif self.task_object_name == 'polygon0':
+            file_name = "asset/polygons/poly0.obj"
+            mesh_scale = [1,] * 3
+            height = self.object_size / 2 # make sure the height is right in obj file
+            self.sim._create_geometry(
+                body_name="object",
+                geom_type=self.sim.physics_client.GEOM_MESH,
+                mass=1.0,
+                position=np.array([0.0, 0.0, height/2]),
+                visual_kwargs={
+                        "fileName": file_name,
+                        "meshScale": mesh_scale,
+                        "rgbaColor": np.array([0.1, 0.9, 0.1, 1.0]),
+                    },
+                collision_kwargs={
+                        "fileName": file_name,
+                        "meshScale": mesh_scale,
+                    },
+            )
+            self.sim._create_geometry(
+                body_name="target",
+                geom_type=self.sim.physics_client.GEOM_MESH,
+                mass=0.0,
+                position=np.array([0.0, 0.0, height/2]),
+                ghost=True,
+                visual_kwargs={
+                        "fileName": file_name,
+                        "meshScale": mesh_scale,
+                        "rgbaColor": np.array([0.1, 0.9, 0.1, 0.3]),
+                    },
+                collision_kwargs={
+                        "fileName": file_name,
+                        "meshScale": mesh_scale,
+                    },
             )
 
     def get_obs(self) -> np.ndarray:
