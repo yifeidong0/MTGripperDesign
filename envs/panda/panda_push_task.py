@@ -28,8 +28,8 @@ class VPush(Task):
         self.goal_range_high = np.array([0.75, 0.1, 0])
         self.obj_range_low = np.array([0.4, 0, 0])
         self.obj_range_high = np.array([0.5, 0.1, 0])
-        self.task_object_name = 'circle' # 'circle', 'square', 'polygon0'
-        self.task_object_names = ['circle', 'square', 'polygon0']
+        self.task_object_name = 'circle' # initial choice
+        self.task_object_names = ['circle', 'square', 'polygon0', 'narrow', 'oval']
         self.task_int = 0 if self.task_object_name == 'circle' else 1
         self.last_ee_object_distance = 0
         self.last_object_target_distance = 0
@@ -80,6 +80,19 @@ class VPush(Task):
             file_name = "asset/polygons/poly0.obj"
             mesh_scale = [1,] * 3
             height = self.object_size / 2 # make sure the height is right in obj file
+            self._create_task_object_mesh(file_name, mesh_scale, height)
+        elif self.task_object_name == 'narrow':
+            file_name = "asset/polygons/narrow.obj"
+            mesh_scale = [1,] * 3
+            height = self.object_size / 2 # make sure the height is right in obj file
+            self._create_task_object_mesh(file_name, mesh_scale, height)
+        elif self.task_object_name == 'oval':
+            file_name = "asset/polygons/oval.obj"
+            mesh_scale = [1,] * 3
+            height = self.object_size / 2 # make sure the height is right in obj file
+            self._create_task_object_mesh(file_name, mesh_scale, height)
+
+    def _create_task_object_mesh(self, file_name, mesh_scale, height) -> None:
             self.sim._create_geometry(
                 body_name="object",
                 geom_type=self.sim.physics_client.GEOM_MESH,

@@ -6,7 +6,8 @@ asset/vpusher/*
 asset/cube/*
 
 asset/poly_scoop/*
-asset/polygons/polygon_obj_generator.blend
+asset/polygons/polygon_obj_generator*
+asset/polygons/*.mtl
 
 results/*
 
