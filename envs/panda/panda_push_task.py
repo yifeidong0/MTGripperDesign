@@ -187,17 +187,17 @@ class VPush(Task):
         desired_goal = observation_dict["desired_goal"]
 
         # Unpack the observation
-        assert observation.shape == (25,)
+        assert observation.shape == (27,)
         ee_position = observation[:3]
         ee_velocity = observation[3:6]
         ee_yaw = observation[6:7]
-        design_params = observation[7:9]
-        object_position = observation[9:12]
-        object_rotation = observation[12:15]
-        object_velocity = observation[15:18]
-        object_angular_velocity = observation[18:21]
-        target_position = observation[21:24]
-        task_int = observation[24:25]
+        design_params = observation[7:11]
+        object_position = observation[11:14]
+        object_rotation = observation[14:17]
+        object_velocity = observation[17:20]
+        object_angular_velocity = observation[20:23]
+        target_position = observation[23:26]
+        task_int = observation[26:27]
         
         reward = 0
         ee_object_distance = distance(ee_position, object_position)

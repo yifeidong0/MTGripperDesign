@@ -45,7 +45,9 @@ class PandaCustom(PyBulletRobot):
         self.finger_length = 0.2
         self.finger_thickness = 0.01
         self.body_height = 0.02 # finger's height
-        self.design_params = np.array([self.v_angle, self.finger_length,])
+        self.finger_angle = 0.0
+        self.distal_phalanx_length = 0.1
+        self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
 
         self.num_episodes = 0
         self.constraint_id = None
@@ -151,14 +153,15 @@ class PandaCustom(PyBulletRobot):
             fingers_width = self.get_fingers_width()
             observation = np.concatenate((ee_position, ee_velocity, [fingers_width]))
         else:
-            self.design_params = np.array([self.v_angle, self.finger_length,])
+            self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
             observation = np.concatenate((ee_position, ee_velocity, [ee_yaw,], self.design_params))
         return observation
 
     def reset(self) -> None:
         # self._reload_robot()
         self.num_episodes += 1
-        print(f"INFO: episode {self.num_episodes}")
+        if self.num_episodes % 5 == 0:
+            print(f"INFO: episode {self.num_episodes}")
 
         if "tool" in self.sim._bodies_idx:
             p.removeBody(self.sim._bodies_idx["tool"])
@@ -194,7 +197,8 @@ class PandaCustom(PyBulletRobot):
         os.system("rm -rf asset/vpusher/*")
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
         tool_obj_path = f"asset/vpusher/{unique_obj_filename}"
-        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, tool_obj_path)
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, 
+                                tool_obj_path, self.finger_angle, self.distal_phalanx_length)
         decompose_mesh(pb_connected=True, input_file=tool_obj_path)
         with open("asset/franka_panda_custom/vpusher_template.urdf", 'r') as file:
             self.urdf_content = file.read()

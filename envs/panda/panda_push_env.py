@@ -83,7 +83,7 @@ class PandaPushEnv(RobotTaskEnv):
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation, info))
-        time.sleep(30./240.)
+        # time.sleep(30./240.)
         # print( self.robot.get_ee_position())
         # print( self.robot.get_arm_joint_angles())
 
@@ -107,10 +107,24 @@ class PandaPushEnv(RobotTaskEnv):
         # Reset task and design parameters
         self.task.task_object_name = random.choice(self.task.task_object_names)
         self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
-        self.robot.v_angle = random.uniform(np.pi/12, np.pi*11/12) # TODO: add vpusher finger length to design space
-        self.robot.finger_length = random.uniform(0.08, 0.2)
+        self.robot.v_angle = random.uniform(np.pi/6, np.pi*5/6)
+        self.robot.finger_length = random.uniform(0.07, 0.15)
+        while True:
+            self.robot.finger_angle = random.uniform(-np.pi/3, np.pi/3)
+            self.robot.distal_phalanx_length = random.uniform(0.00, 0.10)
+            if self._pusher_forward_kinematics()[1] > 0.0:
+                break
 
         return super().reset(seed=seed, options=options)
+    
+    def _pusher_forward_kinematics(self):
+        l1 = self.robot.finger_length
+        l2 = self.robot.distal_phalanx_length
+        a1 = self.robot.v_angle / 2
+        a2 = self.robot.finger_angle
+        x = l1 * np.cos(a1) + l2 * np.cos(a2)
+        y = l1 * np.sin(a1) + l2 * np.sin(a2)
+        return (x, y)
     
     def _is_truncated(self):
         truncated = False
