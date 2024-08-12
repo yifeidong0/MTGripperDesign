@@ -83,7 +83,7 @@ class PandaPushEnv(RobotTaskEnv):
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation, info))
-        # time.sleep(30./240.)
+        # time.sleep(40./240.)
         # print( self.robot.get_ee_position())
         # print( self.robot.get_arm_joint_angles())
 
@@ -112,7 +112,7 @@ class PandaPushEnv(RobotTaskEnv):
         while True:
             self.robot.finger_angle = random.uniform(-np.pi/3, np.pi/3)
             self.robot.distal_phalanx_length = random.uniform(0.00, 0.10)
-            if self._pusher_forward_kinematics()[1] > 0.0:
+            if self._pusher_forward_kinematics()[1] > 0.02:
                 break
 
         return super().reset(seed=seed, options=options)
@@ -136,7 +136,7 @@ class PandaPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 200
+        time_ended = self.step_count > 2000
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         return truncated
