@@ -1,0 +1,239 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+	<world name="world">
+		<model name="lc_soft_enable_wide_grip">
+			<link name="right_finger_link">
+				<collision name="lc_soft_enable_wide_grip_Right_Base_RIGHT_BASE_collision.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Right_Base_RIGHT_BASE_collision.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+				</collision>
+				<visual name="lc_soft_enable_wide_grip_Right_Base_RIGHT_BASE.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Right_Base_RIGHT_BASE.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+					<material>
+						<ambient>0.4891 0.5125 0.5281 1.0</ambient>
+						<diffuse>0.4891 0.5125 0.5281 1.0</diffuse>
+						<specular>0.0 0.0 0.0 1.0</specular>
+						<emissive>0.0 0.0 0.0 1.0</emissive>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<self_collide>1</self_collide>
+				<kinematic>0</kinematic>
+				<inertial>
+					<inertia>
+						<ixx>1.1768394e-05</ixx>
+						<ixy>-6.2909428e-08</ixy>
+						<ixz>-3.6349539e-06</ixz>
+						<iyy>3.9431049e-05</iyy>
+						<iyz>-3.2865666e-07</iyz>
+						<izz>4.1707704e-05</izz>
+					</inertia>
+					<pose>0.020046839 -0.00032181022 -0.0055554777 0 0 0</pose>
+					<mass>0.071622239</mass>
+				</inertial>
+				<pose relative_to="right_finger">0 0 0 0 0 0</pose>
+			</link>
+			<link name="right_tip_link">
+				<collision name="lc_soft_enable_wide_grip_Right_Distal_RIGHT_DISTAL_collision.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Right_Distal_RIGHT_DISTAL_collision.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+				</collision>
+				<visual name="lc_soft_enable_wide_grip_Right_Distal_RIGHT_DISTAL.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Right_Distal_RIGHT_DISTAL.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+					<material>
+						<ambient>0.4891 0.5125 0.5281 1.0</ambient>
+						<diffuse>0.4891 0.5125 0.5281 1.0</diffuse>
+						<specular>0.0 0.0 0.0 1.0</specular>
+						<emissive>0.0 0.0 0.0 1.0</emissive>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<self_collide>1</self_collide>
+				<kinematic>0</kinematic>
+				<inertial>
+					<inertia>
+						<ixx>2.4290894e-06</ixx>
+						<ixy>2.7371321e-07</ixy>
+						<ixz>-4.0328611e-09</ixz>
+						<iyy>2.6146567e-06</iyy>
+						<iyz>9.9713504e-09</iyz>
+						<izz>6.7624098e-07</izz>
+					</inertia>
+					<pose>-0.0081993292 0.0060080724 0.00015047764 0 0 0</pose>
+					<mass>0.013727707</mass>
+				</inertial>
+				<pose relative_to="right_tip">0 0 0 0 0 0</pose>
+			</link>
+			<link name="left_finger">
+				<collision name="lc_soft_enable_wide_grip_Left_Base_left_base_collision.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Left_Base_left_base_collision.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+				</collision>
+				<visual name="lc_soft_enable_wide_grip_Left_Base_left_base.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Left_Base_left_base.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+					<material>
+						<ambient>0.4891 0.5125 0.5281 1.0</ambient>
+						<diffuse>0.4891 0.5125 0.5281 1.0</diffuse>
+						<specular>0.0 0.0 0.0 1.0</specular>
+						<emissive>0.0 0.0 0.0 1.0</emissive>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<self_collide>1</self_collide>
+				<kinematic>0</kinematic>
+				<inertial>
+					<inertia>
+						<ixx>1.1684398e-05</ixx>
+						<ixy>-1.3930447e-07</ixy>
+						<ixz>-3.4062422e-06</ixz>
+						<iyy>3.8446897e-05</iyy>
+						<iyz>-3.5507094e-07</iyz>
+						<izz>4.0761693e-05</izz>
+					</inertia>
+					<pose>0.019776202 -0.00030196559 -0.0056210743 0 0 0</pose>
+					<mass>0.071214922</mass>
+				</inertial>
+				<pose relative_to="left_base">0 0 0 0 0 0</pose>
+			</link>
+			<link name="left_tip_link">
+				<collision name="lc_soft_enable_wide_grip_Left_Distal_LEFT_DISTAL_collision.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Left_Distal_LEFT_DISTAL_collision.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+				</collision>
+				<visual name="lc_soft_enable_wide_grip_Left_Distal_LEFT_DISTAL.stl">
+					<geometry>
+						<mesh>
+							<uri>Z:/automatic-model-generation/meshes/lc_soft_enable_wide_grip_Left_Distal_LEFT_DISTAL.stl</uri>
+							<scale>1.0 1.0 1.0</scale>
+						</mesh>
+					</geometry>
+					<pose>0 0 0 0 0 0</pose>
+					<material>
+						<ambient>0.4891 0.5125 0.5281 1.0</ambient>
+						<diffuse>0.4891 0.5125 0.5281 1.0</diffuse>
+						<specular>0.0 0.0 0.0 1.0</specular>
+						<emissive>0.0 0.0 0.0 1.0</emissive>
+					</material>
+				</visual>
+				<gravity>1</gravity>
+				<self_collide>1</self_collide>
+				<kinematic>0</kinematic>
+				<inertial>
+					<inertia>
+						<ixx>2.4290894e-06</ixx>
+						<ixy>2.7371321e-07</ixy>
+						<ixz>-4.0328611e-09</ixz>
+						<iyy>2.6146567e-06</iyy>
+						<iyz>9.9713504e-09</iyz>
+						<izz>6.7624098e-07</izz>
+					</inertia>
+					<pose>-0.0081993292 0.0060080724 0.00015047764 0 0 0</pose>
+					<mass>0.013727707</mass>
+				</inertial>
+				<pose relative_to="left_tip">0 0 0 0 0 0</pose>
+			</link>
+			<joint name="right_finger" type="prismatic">
+				<parent>world</parent>
+				<child>right_finger_link</child>
+				<axis>
+					<limit>
+						<lower>0</lower>
+						<upper>0.0575</upper>
+						<effort>100000000000000000</effort>
+						<velocity>100000000000000000</velocity>
+						<stiffness>100000000</stiffness>
+						<dissipation>1</dissipation>
+					</limit>
+					<xyz>0 0 1</xyz>
+				</axis>
+				<pose relative_to="world">-0.07658 -4.689172593935216e-18 0.1335 -3.141592653589793 -1.5707963057214722 0</pose>
+			</joint>
+			<joint name="right_tip" type="revolute">
+				<parent>right_finger_link</parent>
+				<child>right_tip_link</child>
+				<axis>
+					<limit>
+						<lower>0</lower>
+						<upper>1.0471975511965976</upper>
+						<effort>100000000000000000</effort>
+						<velocity>100000000000000000</velocity>
+						<stiffness>100000000</stiffness>
+						<dissipation>1</dissipation>
+					</limit>
+					<xyz>0 0 1</xyz>
+				</axis>
+				<pose relative_to="right_finger_link">0.0695 3.288176655710644e-19 0.00537 -1.5707963267948963 0.87266404218453 3.141592653589793</pose>
+			</joint>
+			<joint name="left_base" type="prismatic">
+				<parent>world</parent>
+				<child>left_finger</child>
+				<axis>
+					<limit>
+						<lower>0</lower>
+						<upper>0.0575</upper>
+						<effort>100000000000000000</effort>
+						<velocity>100000000000000000</velocity>
+						<stiffness>100000000</stiffness>
+						<dissipation>1</dissipation>
+					</limit>
+					<xyz>0 0 1</xyz>
+				</axis>
+				<pose relative_to="world">0.07658 4.689172593935216e-18 0.1335 1.874699728327322e-33 -1.5707963057214722 0</pose>
+			</joint>
+			<joint name="left_tip" type="revolute">
+				<parent>left_finger</parent>
+				<child>left_tip_link</child>
+				<axis>
+					<limit>
+						<lower>0</lower>
+						<upper>1.0471975511965976</upper>
+						<effort>100000000000000000</effort>
+						<velocity>100000000000000000</velocity>
+						<stiffness>100000000</stiffness>
+						<dissipation>1</dissipation>
+					</limit>
+					<xyz>0 0 1</xyz>
+				</axis>
+				<pose relative_to="left_finger">0.0695 -3.288176655710644e-19 0.00537 -1.5707963267948968 0.8726640421845309 3.141592653589793</pose>
+			</joint>
+		</model>
+	</world>
+</sdf>

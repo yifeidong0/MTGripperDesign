@@ -1,0 +1,143 @@
+<robot name="lc_soft_enable_wide_grip">
+	<link name="base_link">
+		<collision>
+			<geometry>
+				<mesh filename="package://lc_soft_enable_wide_grip/meshes/lc_soft_enable_wide_grip_Base_SWA_collision.stl" scale="1.0 1.0 1.0" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+		</collision>
+		<visual>
+			<geometry>
+				<mesh filename="package://lc_soft_enable_wide_grip/meshes/lc_soft_enable_wide_grip_Base_SWA.stl" scale="1.0 1.0 1.0" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+			<material name="lc_soft_enable_wide_grip_Base_SWA.stl">
+				<color rgba="0.4891 0.5125 0.5281 1.0" />
+			</material>
+		</visual>
+		<inertial>
+			<inertia ixx="0.0025119065" ixy="6.6303825e-07" ixz="3.2623689e-07" iyy="0.0022695104" iyz="3.6003285e-05" izz="0.0011107062" />
+			<origin rpy="0 0 0" xyz="8.0969962e-06 0.0055754613 0.06269477" />
+			<mass value="1.088118" />
+		</inertial>
+	</link>
+	<link name="right_finger_link">
+		<collision>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_base_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+		</collision>
+		<visual>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_base_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+			<material name="lc_soft_enable_wide_grip_Right_Base_RIGHT_BASE.stl">
+				<color rgba="0.4891 0.5125 0.5281 1.0" />
+			</material>
+		</visual>
+		<inertial>
+			<inertia ixx="1.1768394e-05" ixy="-6.2909428e-08" ixz="-3.6349539e-06" iyy="3.9431049e-05" iyz="-3.2865666e-07" izz="4.1707704e-05" />
+			<origin rpy="0 0 0" xyz="0.020046839 -0.00032181022 -0.0055554777" />
+			<mass value="0.071622239" />
+		</inertial>
+	</link>
+	<link name="right_tip_link">
+		<collision>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_distal_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+		</collision>
+		<visual>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_distal_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+			<material name="lc_soft_enable_wide_grip_Right_Distal_RIGHT_DISTAL.stl">
+				<color rgba="0.4891 0.5125 0.5281 1.0" />
+			</material>
+		</visual>
+		<inertial>
+			<inertia ixx="2.4290894e-06" ixy="2.7371321e-07" ixz="-4.0328611e-09" iyy="2.6146567e-06" iyz="9.9713504e-09" izz="6.7624098e-07" />
+			<origin rpy="0 0 0" xyz="-0.0081993292 0.0060080724 0.00015047764" />
+			<mass value="0.013727707" />
+		</inertial>
+	</link>
+	<link name="left_finger_link">
+		<collision>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_base_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+		</collision>
+		<visual>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_base_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+			<material name="lc_soft_enable_wide_grip_Left_Base_left_base.stl">
+				<color rgba="0.4891 0.5125 0.5281 1.0" />
+			</material>
+		</visual>
+		<inertial>
+			<inertia ixx="1.1684398e-05" ixy="-1.3930447e-07" ixz="-3.4062422e-06" iyy="3.8446897e-05" iyz="-3.5507094e-07" izz="4.0761693e-05" />
+			<origin rpy="0 0 0" xyz="0.019776202 -0.00030196559 -0.0056210743" />
+			<mass value="0.071214922" />
+		</inertial>
+	</link>
+	<link name="left_tip_link">
+		<collision>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_distal_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+		</collision>
+		<visual>
+			<geometry>
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_distal_60.stl" scale="0.001 0.001 0.001" />
+			</geometry>
+			<origin rpy="0 0 0" xyz="0 0 0" />
+			<material name="lc_soft_enable_wide_grip_Left_Distal_LEFT_DISTAL.stl">
+				<color rgba="0.4891 0.5125 0.5281 1.0" />
+			</material>
+		</visual>
+		<inertial>
+			<inertia ixx="2.4290894e-06" ixy="2.7371321e-07" ixz="-4.0328611e-09" iyy="2.6146567e-06" iyz="9.9713504e-09" izz="6.7624098e-07" />
+			<origin rpy="0 0 0" xyz="-0.0081993292 0.0060080724 0.00015047764" />
+			<mass value="0.013727707" />
+		</inertial>
+	</link>
+	<joint name="right_finger" type="prismatic">
+		<parent link="base_link" />
+		<child link="right_finger_link" />
+		<axis xyz="0 0 1" />
+		<limit effort="100" lower="0" upper="0.0575" velocity="2" />
+		<!-- <origin rpy="1.874699728327322e-33 -1.5707963057214722 0" xyz="0.07658 4.689172593935216e-18 0.1335" /> -->
+		<origin rpy="-3.141592653589793 -1.5707963057214722 0" xyz="-0.06658 -4.689172593935216e-18 0.1335" />
+	</joint>
+	<joint name="right_tip" type="revolute">
+	    <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7628" soft_upper_limit="1.7628"/>
+		<parent link="right_finger_link" />
+		<child link="right_tip_link" />
+		<axis xyz="0 0 1" />
+		<limit effort="100" lower="0" upper="1.0471975511965976" velocity="2" />
+		<origin rpy="-1.5707963267948963 0.87266404218453 3.141592653589793" xyz="0.0695 0.0 0.005375" />
+	</joint>
+	<joint name="left_base" type="prismatic">
+		<parent link="base_link" />
+		<child link="left_finger_link" />
+		<axis xyz="0 0 1" />
+		<limit effort="100" lower="0" upper="0.0575" velocity="2" />
+		<origin rpy="1.874699728327322e-33 -1.5707963057214722 0" xyz="0.06658 4.689172593935216e-18 0.1335" />
+	</joint>
+	<joint name="left_tip" type="revolute">
+	    <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7628" soft_upper_limit="1.7628"/>
+		<parent link="left_finger_link" />
+		<child link="left_tip_link" />
+		<axis xyz="0 0 1" />
+		<limit effort="100" lower="0" upper="1.0471975511965976" velocity="2" />
+		<origin rpy="-1.5707963267948968 0.8726640421845309 3.141592653589793" xyz="0.0695 0.0 0.005375" />
+	</joint>
+</robot>
