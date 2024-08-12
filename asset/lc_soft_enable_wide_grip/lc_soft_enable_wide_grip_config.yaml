@@ -1,0 +1,12 @@
+joints: []
+links:
+-   name: base_link
+    rename: lc_soft_enable_wide_grip.asm
+-   name: right_finger_link
+    rename: lc_soft_enable_wide_grip.asm
+-   name: right_tip_link
+    rename: lc_soft_enable_wide_grip.asm
+-   name: left_finger
+    rename: lc_soft_enable_wide_grip.asm
+-   name: left_tip_link
+    rename: lc_soft_enable_wide_grip.asm

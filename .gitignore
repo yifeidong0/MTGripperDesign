@@ -14,3 +14,4 @@ results/*
 log.txt
 asset/franka_panda_custom/panda_modified_*
 asset/franka_panda_custom/vpusher_modified_*
+asset/lc_soft_enable_wide_grip/meshes/*
