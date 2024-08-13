@@ -4,11 +4,12 @@ import xml.etree.ElementTree as ET
 import os
 print (os.getcwd())
 
-def change_parameter_lsc_urdf(finger_length,tip_length):
+def change_parameter_lsc_urdf(finger_length,
+                              tip_length,
+                              urdf_path='asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip.urdf'):
     ## input finger length and tip length
     ## output status of change: filename - success
     
-    urdf_path='asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip.urdf'
     robot = URDF.from_xml_file(urdf_path)
     tree = ET.parse(urdf_path)
     root = tree.getroot()

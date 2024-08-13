@@ -18,9 +18,9 @@ g = 9.81
 #     boxId = p.createMultiBody(m_box, boxId, -1, np.array([0, 0, 0.6]))    
 
 fishid = p.loadURDF(fileName='asset/fine-fish-10/fine-fish-10.urdf',
-                    basePosition=[0,0,0.6],
+                    basePosition=[0,-.5,0.7],
                     baseOrientation=p.getQuaternionFromEuler([0,0,0]),
-                    globalScaling=.5,
+                    globalScaling=.3,
                     useFixedBase=0)
 
 gripperId = p.loadURDF(fileName='asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip.urdf', 
@@ -36,8 +36,8 @@ constraint1 = p.createConstraint(gripperId, -1, -1, -1, p.JOINT_PRISMATIC, [0, 0
 
 jointIds = [0,1,2,3]
 initial_positions = [0, 1, 0, 1] # Adjust with your desired initial positions
-stiffness = [1e1,] * len(jointIds)  # P gain for each joint
-damping = [1e9,] * len(jointIds)  # D gain for each joint
+# stiffness = [1e1,] * len(jointIds)  # P gain for each joint
+# damping = [1e9,] * len(jointIds)  # D gain for each joint
 for i in range(len(jointIds)):
     p.resetJointState(gripperId, i, initial_positions[i], 1)
 

@@ -24,13 +24,13 @@
 	<link name="right_finger_link">
 		<collision>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_base_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_base_105.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 		</collision>
 		<visual>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_base_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_base_105.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 			<material name="lc_soft_enable_wide_grip_Right_Base_RIGHT_BASE.stl">
@@ -46,13 +46,13 @@
 	<link name="right_tip_link">
 		<collision>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_distal_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_distal_45.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 		</collision>
 		<visual>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_distal_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/right_distal_45.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 			<material name="lc_soft_enable_wide_grip_Right_Distal_RIGHT_DISTAL.stl">
@@ -68,13 +68,13 @@
 	<link name="left_finger_link">
 		<collision>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_base_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_base_105.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 		</collision>
 		<visual>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_base_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_base_105.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 			<material name="lc_soft_enable_wide_grip_Left_Base_left_base.stl">
@@ -90,13 +90,13 @@
 	<link name="left_tip_link">
 		<collision>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_distal_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_distal_45.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 		</collision>
 		<visual>
 			<geometry>
-				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_distal_60.stl" scale="0.001 0.001 0.001" />
+				<mesh filename="asset/lc_soft_enable_wide_grip/meshes/left_distal_45.stl" scale="0.001 0.001 0.001" />
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0" />
 			<material name="lc_soft_enable_wide_grip_Left_Distal_LEFT_DISTAL.stl">
@@ -123,7 +123,7 @@
 		<child link="right_tip_link" />
 		<axis xyz="0 0 1" />
 		<limit effort="100" lower="0" upper="1.0471975511965976" velocity="2" xyz="0.0695 0.0 0.005375" />
-		<origin rpy="-1.5707963267948963 0.87266404218453 3.141592653589793" xyz="0.0695 0.0 0.005375" />
+		<origin rpy="-1.5707963267948963 0.87266404218453 3.141592653589793" xyz="0.1145 0.0 0.005375" />
 	</joint>
 	<joint name="left_base" type="prismatic">
 		<parent link="base_link" />
@@ -138,6 +138,6 @@
 		<child link="left_tip_link" />
 		<axis xyz="0 0 1" />
 		<limit effort="100" lower="0" upper="1.0471975511965976" velocity="2" xyz="0.0695 0.0 0.005375" />
-		<origin rpy="-1.5707963267948968 0.8726640421845309 3.141592653589793" xyz="0.0695 0.0 0.005375" />
+		<origin rpy="-1.5707963267948968 0.8726640421845309 3.141592653589793" xyz="0.1145 0.0 0.005375" />
 	</joint>
 </robot>

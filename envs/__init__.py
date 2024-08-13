@@ -2,6 +2,8 @@ from .vpush_env import VPushSimulationEnv
 from .vpush_pb_env import VPushPbSimulationEnv
 from .ucatch_env import UCatchSimulationEnv
 from .panda.panda_push_env import PandaPushEnv
+from .scoop_env import ScoopSimulationEnv
+from .dlr_env import DLRSimulationEnv
 from gymnasium.envs.registration import register
 
 register(
@@ -27,4 +29,9 @@ register(
 register(
     id='PandaPushEnv-v0',
     entry_point='envs.panda.panda_push_env:PandaPushEnv',
+)
+
+register(
+    id='DLRSimulationEnv-v0',
+    entry_point='envs.dlr_env:DLRSimulationEnv',
 )
