@@ -94,7 +94,8 @@ class DLRSimulation:
                                 basePosition=self.robot_position,
                                 baseOrientation=self.robot_orientation, # p.getQuaternionFromEuler([1*math.pi,0,0]),
                                 globalScaling=10,
-                                useFixedBase=1
+                                useFixedBase=1,
+                                flags=p.URDF_USE_SELF_COLLISION, # | p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS,
                                 )
 
     def load_fish(self):

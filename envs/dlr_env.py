@@ -35,8 +35,8 @@ class DLRSimulationEnv(gym.Env):
         else:
             # Observation space: low-dimensional pose. TODO: adjust boundaries
             # (object base pose[3+4], joint angles[9]; gripper height[1], rot_z[1], joint angles[4])
-            self.observation_space = spaces.Box(low=np.array([-1,-1,0]+[-1,]*4+[-0.5,]*9+[0,-np.pi]+[0,]*4+[0,60,20]), 
-                                                high=np.array([1,1,5]+[1,]*4+[0.5,]*9+[5,np.pi]+[1,]*4+[1,150,60]), 
+            self.observation_space = spaces.Box(low=np.array([-1,-1,0]+[-1,]*4+[-0.5,]*9+[0,-1]+[0,]*4+[0,0,0]), # TODO: fish joint angle limits
+                                                high=np.array([1,1,1]+[1,]*4+[0.5,]*9+[1,1]+[1,]*4+[1,1,1]), 
                                                 dtype=np.float64)
 
         self.last_gripper_pose = None
@@ -56,7 +56,7 @@ class DLRSimulationEnv(gym.Env):
         base_lengths = np.arange(60, 150, 5)
         distal_lengths = np.arange(20, 60, 5)
         self.design_params = [random.choice(base_lengths), 
-                            random.choice(distal_lengths),]
+                              random.choice(distal_lengths),]
         self.simulation.reset_task_and_design(self.task, self.design_params)
         obs = self._get_obs()
         self.num_end_steps = 0
@@ -72,10 +72,6 @@ class DLRSimulationEnv(gym.Env):
         # Set the new velocities
         dz, drot_z, da0, da1, da2, da3 = action
         da = action[2:]
-
-        # new_linear_velocity = [float(a) for a in action[:2]]+[0,]
-        # new_angular_velocity = [0, 0, action[2]]
-        # p.resetBaseVelocity(self.simulation.robot_id, linearVelocity=new_linear_velocity, angularVelocity=new_angular_velocity)
 
         # Step the simulation (slow with deformable objects)
         sim_steps = 5 # 48Hz
@@ -93,6 +89,7 @@ class DLRSimulationEnv(gym.Env):
             p.resetBasePositionAndOrientation(self.simulation.robot_id,
                                               [gripper_position[0], gripper_position[1], gripper_position[2]+dz],
                                               p.getQuaternionFromEuler([math.pi, 0, pi_2_pi(gripper_orientation[2]+drot_z)]))
+
         # # Visualize the simulation
         # width, height, rgbPixels, _, _ = p.getCameraImage(128, 128, 
         #                                                     viewMatrix=self.simulation.viewMatrix, 
@@ -118,7 +115,7 @@ class DLRSimulationEnv(gym.Env):
         return self.frame
     
     def _get_obs(self):
-        if self.obs_type == 'image': # TODO: debug image observation
+        if self.obs_type == 'image':
             width, height, rgb, _, _ = p.getCameraImage(width=self.img_size[0], height=self.img_size[1])
             rgb = np.array(rgb).reshape(self.img_size[1], self.img_size[0], 4)
             rgb = rgb[:, :, :3]  # Discard the alpha channel
@@ -133,22 +130,22 @@ class DLRSimulationEnv(gym.Env):
                                     [list(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1]))[2],]) # rot_z
             gripper_joint_angles = np.array([p.getJointState(self.simulation.robot_id, i)[0] for i in range(4)])
             obs = np.concatenate([object_pose, object_joint_angles, gripper_pose, gripper_joint_angles])
-            max_vals = np.array([1,1,5]+[1,]*4+[1,]*9+[5,np.pi]+[1,]*4) # Normalization constants
+            max_vals = np.array([3,3,1]+[1,]*4+[1,]*9+[5,np.pi]+[1,]*4) # Normalization constants
             obs_normalized = obs / max_vals
 
             # Concatenate with task and design parameters
             task_design_params = np.array([self.task_int, *self.design_params])
             task_design_params_normalized = task_design_params / np.array([1,150,60])
 
-            return np.concatenate([obs, task_design_params_normalized])
+            return np.concatenate([obs_normalized, task_design_params_normalized])
 
     def _compute_reward(self, action):
         # object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
         # gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
         # self.current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
 
-        # # # Reward for aligning the scoop with the object
-        # reward = 0
+        # Reward for aligning the scoop with the object
+        reward = 0
         # gripper_angle = pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2])
         # current_direction_angle = math.atan2(object_position[1] - gripper_position[1], 
         #                                      object_position[0] - gripper_position[0])
@@ -164,35 +161,30 @@ class DLRSimulationEnv(gym.Env):
         
         # # TODO: Reward of caging robustness
 
-        # if self.is_success:
-        #     reward += 100
-        # return reward
-
-        return 1
+        if self.is_success:
+            reward += 100
+        return reward
 
     def _is_done(self):
-        # TODO
-        # if self.current_dist_gripper_to_object < 0.5:
-        #     self.num_end_steps += 1
-        # if self.num_end_steps >= 100: # end if object stays in the basket for 100 steps
-        #     self.is_success = True
-        #     return True
-        return False
+        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
+        if object_position[2] > 0.5:
+            self.num_end_steps += 1
+        if self.num_end_steps >= 100:
+            self.is_success = True
+            return True
 
     def _is_truncated(self):
-        # TODO: avoid self-collision
-        # gripper_pos = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
-        # object_pos = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
+        gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
+        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
         
-        # gripper_out_of_canvas = not (self.canvas_min_x <= gripper_pos[0] <= self.canvas_max_x 
-        #                              and self.canvas_min_y <= gripper_pos[1] <= self.canvas_max_y)
-        # object_out_of_canvas = not (self.canvas_min_x <= object_pos[0] <= self.canvas_max_x 
-        #                             and self.canvas_min_y <= object_pos[1] <= self.canvas_max_y)
+        gripper_out_of_canvas = bool(5 < gripper_position[2])
+        object_out_of_canvas = not (-3 <= object_position[0] <= 3
+                                    and -3 <= object_position[1] <= 3)
     
-        # time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
 
-        # return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
-        return False
+        return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
+        # return False
 
     def render(self):
         if self.gui:
