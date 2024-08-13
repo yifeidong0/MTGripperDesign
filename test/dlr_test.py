@@ -5,6 +5,9 @@ import math
 import numpy as np
 import random
 
+def pi_2_pi(angle):
+    return (angle + np.pi) % (2 * np.pi) - np.pi
+
 # Physics simulation setup
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -44,17 +47,21 @@ for i in range(len(jointIds)):
 for i in range(80000):
     # print("i: ", i)
 
-    lim = 0.005
+    lim = 0.01
     jointPosition = p.getJointState(gripperId, 1)[0]
-    p.resetJointState(gripperId, 1, jointPosition+random.uniform(-0, lim))
+    p.resetJointState(gripperId, 1, jointPosition+random.uniform(lim/2, lim))
     jointPosition = p.getJointState(gripperId, 3)[0]
-    p.resetJointState(gripperId, 3, jointPosition+random.uniform(-0, lim))
+    p.resetJointState(gripperId, 3, jointPosition+random.uniform(lim/2, lim))
     # p.resetJointState(gripperId, 0, initial_positions[0]+0.001*i)
     # p.resetJointState(gripperId, 2, initial_positions[2]+0.001*i)
-    # p.resetBasePositionAndOrientation(gripperId, [0,0,2-i/1000], p.getQuaternionFromEuler([1*math.pi,0,0]))
-
-    # apply upward force on the gripper
-    pos_gripper, _ = p.getBasePositionAndOrientation(gripperId)
+    
+    gripper_position, gripper_orientation = p.getBasePositionAndOrientation(gripperId)
+    gripper_orientation = p.getEulerFromQuaternion(gripper_orientation)
+    p.resetBasePositionAndOrientation(gripperId, 
+                                      [0,0,gripper_position[2]+random.uniform(0, 0.1*lim)], 
+                                      p.getQuaternionFromEuler([1*math.pi,
+                                                                0,
+                                                                pi_2_pi(gripper_orientation[2]+random.uniform(0, 0))]))
 
     # Step simulation
     p.stepSimulation()

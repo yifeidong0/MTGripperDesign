@@ -50,6 +50,7 @@ def main():
                                 'VPushPbSimulationEnv-v0',
                                 'UCatchSimulationEnv-v0',
                                 'ScoopSimulationEnv-v0',
+                                'DLRSimulationEnv-v0',
                                 'PandaPushEnv-v0'  # Assuming you want to keep this as a default or possible choice
                             ], default='PandaPushEnv-v0', help='Environment ID for the simulation')
     parser.add_argument('--total_timesteps', type=int, default=int(1e6), help='Total number of timesteps for training')
