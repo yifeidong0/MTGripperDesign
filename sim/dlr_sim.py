@@ -48,15 +48,15 @@ class DLRSimulation:
         """
         # Set the object and robot poses
         if self.object_type == 'fish':
-            self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)])
-            self.object_position = [0,-1,0.5]
+            self.object_orientation = p.getQuaternionFromEuler([0, 0, 0])
+            self.object_position = [0,-1,0.35]
         # elif self.object_type == 'pillow':
         #     self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)]) 
         #     self.object_position = [random.normalvariate(3, .3,), 
         #                             random.normalvariate(2.5, .1,), 
         #                             self.body_height]
         self.robot_position = [0,0,4]
-        self.robot_orientation = p.getQuaternionFromEuler([1*math.pi,0,0])
+        self.robot_orientation = p.getQuaternionFromEuler([math.pi,0,0])
 
         # Create the object and robot
         if reset_task_and_design:
