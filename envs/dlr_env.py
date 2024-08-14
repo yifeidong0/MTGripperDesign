@@ -14,7 +14,12 @@ def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
 class DLRSimulationEnv(gym.Env):
-    def __init__(self, gui=1, img_size=(42, 42), obs_type='pose'):
+    def __init__(self, 
+                 gui: bool = False,
+                 obs_type: str = "pose",
+                 using_robustness_reward: bool = False, 
+                 img_size=(42, 42), 
+        ):
         super(DLRSimulationEnv, self).__init__()
         self.task = 'fish' # fish
         self.task_int = 0 if self.task == 'fish' else 1
@@ -23,6 +28,7 @@ class DLRSimulationEnv(gym.Env):
         self.gui = gui
         self.img_size = img_size
         self.obs_type = obs_type
+        self.using_robustness_reward = using_robustness_reward
         self.action_space = spaces.Box(low=np.array([-0.001,]*6), 
                                        high=np.array([0.001,]*6), 
                                        dtype=np.float32) # z, rot_z, a0, ..., a3
@@ -160,6 +166,8 @@ class DLRSimulationEnv(gym.Env):
         # reward += last_dist_gripper_to_object - self.current_dist_gripper_to_object
         
         # # TODO: Reward of caging robustness
+        if self.using_robustness_reward:
+            pass
 
         if self.is_success:
             reward += 100

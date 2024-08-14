@@ -16,14 +16,21 @@ def handle_pygame_events():
             exit()
 
 class UCatchSimulationEnv(gym.Env):
-    def __init__(self, object_type='circle', design_param=[5, 5, 5, np.pi/2, np.pi/2], gui=True, img_size=(42, 42), obs_type='pose'):
+    def __init__(self, 
+                 gui: bool = False,
+                 obs_type: str = "pose",
+                 using_robustness_reward: bool = False, 
+                 img_size=(42, 42), 
+        ):
         super(UCatchSimulationEnv, self).__init__()
-        self.simulation = UCatchSimulation(object_type, design_param, use_gui=gui)
+        self.object_type = 'circle'
+        self.design_param = [5, 5, 5, np.pi/2, np.pi/2]
+        self.simulation = UCatchSimulation(self.object_type, self.design_param, use_gui=gui)
         self.gui = gui
         self.img_size = img_size
         self.obs_type = obs_type
+        self.using_robustness_reward = using_robustness_reward
         self.task_int = 0 if self.obs_type == 'circle' else 1
-        self.design_param = design_param
         self.action_space = spaces.Box(low=np.array([-1]), high=np.array([1]), dtype=np.float32)
 
         if self.obs_type == 'image':
@@ -152,7 +159,8 @@ class UCatchSimulationEnv(gym.Env):
         self.last_velocity_difference = current_velocity_difference
 
         # Reward of caging robustness
-        reward += self.robustness
+        if self.using_robustness_reward:
+            reward += self.robustness
 
         # Reward for catching the object
         if self.simulation.check_end_condition():

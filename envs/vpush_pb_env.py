@@ -19,7 +19,12 @@ def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
 class VPushPbSimulationEnv(gym.Env):
-    def __init__(self, gui=1, img_size=(42, 42), obs_type='pose'):
+    def __init__(self, 
+                 gui: bool = False,
+                 obs_type: str = "pose",
+                 using_robustness_reward: bool = False, 
+                 img_size=(42, 42), 
+        ):
         super(VPushPbSimulationEnv, self).__init__()
         self.task = 'circle' 
         self.task_int = 0 if self.task == 'circle' else 1
@@ -28,6 +33,7 @@ class VPushPbSimulationEnv(gym.Env):
         self.gui = gui
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
+        self.using_robustness_reward = using_robustness_reward
         self.action_space = spaces.Box(low=np.array([-1, -1, -0.4]), high=np.array([1, 1, 0.4]), dtype=np.float32)
         self.canvas_min_x, self.canvas_max_x = 0, 5
         self.canvas_min_y, self.canvas_max_y = 0, 5
@@ -167,7 +173,8 @@ class VPushPbSimulationEnv(gym.Env):
             reward += last_dist_object_to_goal - current_dist_object_to_goal
         
         # Reward of caging robustness
-        reward += self.robustness
+        if self.using_robustness_reward:
+            reward += self.robustness
 
         if self.is_success:
             reward += 100
