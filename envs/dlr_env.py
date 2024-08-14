@@ -15,7 +15,7 @@ def pi_2_pi(angle):
 
 class DLRSimulationEnv(gym.Env):
     def __init__(self, 
-                 gui: bool = False,
+                 render_mode: str = "human",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
@@ -23,8 +23,8 @@ class DLRSimulationEnv(gym.Env):
         super(DLRSimulationEnv, self).__init__()
         self.task = 'fish' # fish
         self.task_int = 0 if self.task == 'fish' else 1
-        self.design_params = [1,1]
-        self.gui = gui
+        self.design_params = [1,1]        
+        self.gui = True if render_mode == 'human' else False
         self.img_size = img_size
         self.obs_type = obs_type
         self.using_robustness_reward = using_robustness_reward
