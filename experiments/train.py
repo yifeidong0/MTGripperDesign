@@ -1,20 +1,16 @@
-import argparse
-import datetime
 import os
 import sys
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.logger import HParam
 
 import envs
-
-def get_timestamp():
-    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+from experiments.args_utils import get_args
 
 class CustomCallback(CheckpointCallback):
     def __init__(self, args,  save_freq: int, save_path: str, name_prefix: str = "rl_model", save_replay_buffer: bool = False, save_vecnormalize: bool = False, verbose: int = 0):
@@ -42,27 +38,7 @@ class CustomCallback(CheckpointCallback):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="RL co-design project")
-    parser.add_argument('--random_seed', type=int, default=42, help='Random seed for reproducibility. Default is 42.')
-    parser.add_argument('--time_stamp', type=str, default=get_timestamp(), help='Current time of the script execution')
-    parser.add_argument('--env_id', type=str, choices=[
-                                'VPushSimulationEnv-v0',
-                                'VPushPbSimulationEnv-v0',
-                                'UCatchSimulationEnv-v0',
-                                'ScoopSimulationEnv-v0',
-                                'DLRSimulationEnv-v0',
-                                'PandaPushEnv-v0'  # Assuming you want to keep this as a default or possible choice
-                            ], default='PandaPushEnv-v0', help='Environment ID for the simulation')
-    parser.add_argument('--total_timesteps', type=int, default=int(1e6), help='Total number of timesteps for training')
-    parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='auto', help='Computational device to use (auto, cuda, cpu)')
-    parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
-    parser.add_argument('--using_robustness_reward', type=bool, default=False, help='Enable or disable the robustness reward')
-    parser.add_argument('--checkpoint_freq', type=int, default=int(1e3), help='Frequency of saving checkpoints')
-    parser.add_argument('--n_envs', type=int, default=1, help='Number of environments to run in parallel')
-    parser.add_argument('--rander_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
-
-    # Parse the arguments
-    args = parser.parse_args()
+    args = get_args()
 
     paths = {
         "tensorboard_log": f"results/runs/{args.env_id}/",
@@ -76,6 +52,7 @@ def main():
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
         env = gym.make(args.env_id, **env_kwargs)
+        # check_env(env)
         
     custom_callback = CustomCallback(
         args=args,
