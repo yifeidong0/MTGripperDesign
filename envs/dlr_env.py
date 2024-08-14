@@ -28,8 +28,8 @@ class DLRSimulationEnv(gym.Env):
         self.img_size = img_size
         self.obs_type = obs_type
         self.using_robustness_reward = using_robustness_reward
-        self.action_space = spaces.Box(low=np.array([-0.001,-0.001,-0.001,-0.01,]), 
-                                       high=np.array([0.001,0.001,0.001,0.01,]), 
+        self.action_space = spaces.Box(low=np.array([-0.001,-0.0003,-0.001,-0.003,]), 
+                                       high=np.array([0.001,0.0003,0.001,0.003,]), 
                                        dtype=np.float32) # z, rot_z, a02, a13
         self.simulation = DLRSimulation(self.task, self.design_params, self.gui)
 
@@ -43,14 +43,10 @@ class DLRSimulationEnv(gym.Env):
                                                 high=np.array([1,1,1]+[1,]*4+[0.5,]*9+[1,1]+[1,]*4+[1,1,1]), 
                                                 dtype=np.float64)
         self.robot_joint_limits = [[0, 0.2], [0, 1.047],]
-        self.robot_base_z_limits = [2, 5]
+        self.robot_base_z_limits = [2, 4.5]
 
-        self.last_gripper_pose = None
-        self.last_object_pose = None
-        # self.last_action = None
-        self.last_angle_difference = None
-        self.current_dist_gripper_to_object = np.inf
-        
+        self.last_object_position = None
+        self.last_robot_position = None
         self.num_end_steps = 0
         self.is_success = False
         self.count_episodes = 0
@@ -84,7 +80,7 @@ class DLRSimulationEnv(gym.Env):
                                           + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2]),])
 
         # Set the new velocities
-        dz, drot_z, da02, da13 = action
+        dz, drot_z = action[:2]
         da = action[2:]
 
         # Step the simulation (slow with deformable objects)
@@ -157,26 +153,49 @@ class DLRSimulationEnv(gym.Env):
             return np.concatenate([obs_normalized, task_design_params_normalized])
 
     def _compute_reward(self, action):
-        # object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
-        # gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
-        # self.current_dist_gripper_to_object = np.linalg.norm(gripper_position - object_position)
-
-        # Reward for aligning the scoop with the object
+        # Rotate the gripper to align with the object
         reward = 0
-        # gripper_angle = pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2])
-        # current_direction_angle = math.atan2(object_position[1] - gripper_position[1], 
-        #                                      object_position[0] - gripper_position[0])
-        # current_angle_difference = abs(current_direction_angle - gripper_angle)
+        object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
+        gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
+        object_orientation = p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.object_id)[1])
+        gripper_orientation = p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])
+        reward += -0.05 * abs(object_orientation[2]-gripper_orientation[2])/np.pi
+
+        # Approach the object: fish and gripper tip are close
+        result = p.getClosestPoints(self.simulation.robot_id, self.simulation.object_id, 10.0, 3, 5)
+        if len(result) > 0:
+            position_on_robot, position_on_object = result[0][5:7]
+        closest_distance = np.linalg.norm(np.array(position_on_robot) - np.array(position_on_object))
+        if np.random.rand() < 0.003:
+            print("Closest distance: ", closest_distance)
+            print("height diff: ", position_on_robot[2] - position_on_object[2])
+        reward += 0.05 * (1-closest_distance/3)
+
+        # Penalize the gripper penetrating the floor
+        result1 = p.getClosestPoints(self.simulation.robot_id, self.simulation.object_id, -0.02, 3, 5)
+        result2 = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.01, 3, -1)
+        if len(result1) > 0:
+            print("Penetrating the fish!")
+            reward -= 0.5
+        if len(result2) > 0:
+            print("Penetrating the floor!")
+            reward -= 0.5
+
+        # Place tips underneath the object
+        if position_on_robot[2] > position_on_object[2]:
+            reward -= 0.01 * (position_on_robot[2]-position_on_object[2])
+        else:
+            reward += 0.05 * (position_on_object[2]-position_on_robot[2])
+
+        # Lift up the object
+        if self.last_object_position is not None:
+            reward += 10 * (position_on_object[2]-self.last_object_position[2])
+        if self.last_robot_position is not None and (position_on_robot[2] < position_on_object[2]):
+            reward += (position_on_robot[2]-self.last_robot_position[2])
+        self.last_object_position = position_on_object
+        self.last_robot_position = position_on_robot
         
-        # if self.last_angle_difference is not None:
-        #     reward = (self.last_angle_difference - current_angle_difference) * 5
-        # self.last_angle_difference = current_angle_difference
-        
-        # # Reward for approaching the object
-        # last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
-        # reward += last_dist_gripper_to_object - self.current_dist_gripper_to_object
-        
-        # # TODO: Reward of caging robustness
+        # TODO: Reward of caging robustness
         if self.using_robustness_reward:
             pass
 
@@ -186,7 +205,7 @@ class DLRSimulationEnv(gym.Env):
 
     def _is_done(self):
         object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
-        if object_position[2] > 0.5:
+        if object_position[2] > 0.6:
             self.num_end_steps += 1
         if self.num_end_steps >= 100:
             self.is_success = True
@@ -196,11 +215,11 @@ class DLRSimulationEnv(gym.Env):
         gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0])
         object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
         
-        gripper_out_of_canvas = bool(5 < gripper_position[2])
-        object_out_of_canvas = not (-3 <= object_position[0] <= 3
-                                    and -3 <= object_position[1] <= 3)
+        gripper_out_of_canvas = bool(4.5 < gripper_position[2])
+        object_out_of_canvas = not (-2 <= object_position[0] <= 2
+                                    and -2 <= object_position[1] <= 2)
     
-        time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 30000  # Maximum number of steps
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
         # return False
