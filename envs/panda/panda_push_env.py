@@ -39,6 +39,7 @@ class PandaPushEnv(RobotTaskEnv):
         self,
         gui: bool = False,
         obs_type: str = "pose",
+        using_robustness_reward: bool = False,
         reward_type: str = "sparse",
         control_type: str = "ee",
         renderer: str = "Tiny",
@@ -56,7 +57,7 @@ class PandaPushEnv(RobotTaskEnv):
             render_mode: str = "human"
         sim = PyBullet(render_mode=render_mode, renderer=renderer)
         robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
-        task = VPush(sim, reward_type=reward_type)
+        task = VPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward)
         super().__init__(
             robot,
             task,
