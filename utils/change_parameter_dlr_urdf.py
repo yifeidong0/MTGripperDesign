@@ -16,7 +16,7 @@ def change_parameter_lsc_urdf(finger_length,
     if finger_length==0:
         finger_length=60
     filename_fl='asset/lc_soft_enable_wide_grip/meshes/right_base_'+str(finger_length)+'.stl'
-    print ("filename for finger length:",filename_fl)
+    # print ("filename for finger length:",filename_fl)
     if os.path.isfile(filename_fl) == False:
         print ("wrong file - probably length not in range")
         return(0)    
@@ -25,7 +25,7 @@ def change_parameter_lsc_urdf(finger_length,
         tip_length=20
  
     filename_tl='asset/lc_soft_enable_wide_grip/meshes/right_distal_'+str(tip_length)+'.stl'
-    print ("filename for tip length:",filename_tl)
+    # print ("filename for tip length:",filename_tl)
     if os.path.isfile(filename_tl) == False:
         print ("wrong file - probably length not in range")
         return(0)
@@ -51,16 +51,13 @@ def change_parameter_lsc_urdf(finger_length,
         if root[i].attrib['name']=='right_tip':
             
             root[i][4].attrib['xyz']=str((finger_length+9.5)/1000)+' '+str(0.00)+' '+str(0.005375)
-            print (root[i][4].attrib['xyz'])
-            #print (root[i][4].attrib['xyz'])
+            # print(root[i][4].attrib['xyz'])
         if root[i].attrib['name']=='left_tip':
             
             root[i][4].attrib['xyz']=str((finger_length+9.5)/1000)+' '+str(0.00)+' '+str(0.005375)
     
     tree.write(urdf_path)
     return (urdf_path)
-
-
 
 
 

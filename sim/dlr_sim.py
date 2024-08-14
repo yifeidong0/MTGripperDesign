@@ -32,6 +32,12 @@ class DLRSimulation:
         self.time_step = 1.0 / 240.0
         self.plane_id = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 
+        # Setup camera
+        p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=45, cameraPitch=-45, cameraTargetPosition=[0,0,0])
+        self.viewMatrix = p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=[0,0,0], 
+                                                              distance=2, yaw=45, pitch=-45, roll=0, upAxisIndex=2)
+        self.projectionMatrix = p.computeProjectionMatrixFOV(fov=45, aspect=1, nearVal=0.1, farVal=100)
+
         self.setup(reset_task_and_design=True)
 
     def setup(self, reset_task_and_design=False, reset_pose=False,):

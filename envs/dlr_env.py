@@ -24,16 +24,14 @@ class DLRSimulationEnv(gym.Env):
         self.task = 'fish' # fish
         self.task_int = 0 if self.task == 'fish' else 1
         self.design_params = [1,1]
-        self.simulation = DLRSimulation(self.task, self.design_params, gui)
         self.gui = gui
         self.img_size = img_size
         self.obs_type = obs_type
         self.using_robustness_reward = using_robustness_reward
-        self.action_space = spaces.Box(low=np.array([-0.001,]*6), 
-                                       high=np.array([0.001,]*6), 
-                                       dtype=np.float32) # z, rot_z, a0, ..., a3
-        self.canvas_min_x, self.canvas_max_x = 0, 6
-        self.canvas_min_y, self.canvas_max_y = 0, 6
+        self.action_space = spaces.Box(low=np.array([-0.001,-0.001,-0.001,-0.01,]), 
+                                       high=np.array([0.001,0.001,0.001,0.01,]), 
+                                       dtype=np.float32) # z, rot_z, a02, a13
+        self.simulation = DLRSimulation(self.task, self.design_params, self.gui)
 
         if self.obs_type == 'image':
             # Observation space: smaller RGB image of the simulation
@@ -53,9 +51,16 @@ class DLRSimulationEnv(gym.Env):
         
         self.num_end_steps = 0
         self.is_success = False
+        self.count_episodes = 0
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+
+        # Reset the simulation environment to avoid memory leak (Pybullet bug)
+        if (self.count_episodes+1) % 10 == 0:
+            self.close()
+            self.simulation = DLRSimulation(self.task, self.design_params, self.gui)
+
         self.simulation.step_count = 0
         self.task = 'fish' # random.choice(['fish',])
         self.task_int = 0 if self.task == 'fish' else 1
@@ -66,6 +71,7 @@ class DLRSimulationEnv(gym.Env):
         self.simulation.reset_task_and_design(self.task, self.design_params)
         obs = self._get_obs()
         self.num_end_steps = 0
+        self.count_episodes += 1
         self.is_success = False
         return obs, {}
 
@@ -76,18 +82,21 @@ class DLRSimulationEnv(gym.Env):
                                           + [pi_2_pi(p.getEulerFromQuaternion(p.getBasePositionAndOrientation(self.simulation.robot_id)[1])[2]),])
 
         # Set the new velocities
-        dz, drot_z, da0, da1, da2, da3 = action
+        dz, drot_z, da02, da13 = action
         da = action[2:]
 
         # Step the simulation (slow with deformable objects)
         sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
             p.stepSimulation()
+            self.robot_joint_limits = [[0, 0.2], [0, 1.047],]
 
             # Reset joint angles
-            for i in range(4):
-                jointPosition = p.getJointState(self.simulation.robot_id, i)[0]
-                p.resetJointState(self.simulation.robot_id, i, jointPosition+da[i])
+            for i in range(2):
+                joint_position = p.getJointState(self.simulation.robot_id, i)[0]
+                new_joint_position = np.clip(joint_position+da[i], self.robot_joint_limits[i][0], self.robot_joint_limits[i][1])
+                p.resetJointState(self.simulation.robot_id, i, new_joint_position)
+                p.resetJointState(self.simulation.robot_id, i+2, new_joint_position)
                 
             # Reset gripper base
             gripper_position, gripper_orientation = p.getBasePositionAndOrientation(self.simulation.robot_id)
@@ -189,7 +198,7 @@ class DLRSimulationEnv(gym.Env):
         object_out_of_canvas = not (-3 <= object_position[0] <= 3
                                     and -3 <= object_position[1] <= 3)
     
-        time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 100  # Maximum number of steps
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
         # return False
