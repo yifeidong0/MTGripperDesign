@@ -42,6 +42,8 @@ class DLRSimulationEnv(gym.Env):
             self.observation_space = spaces.Box(low=np.array([-1,-1,0]+[-1,]*4+[-0.5,]*9+[0,-1]+[0,]*4+[0,0,0]), # TODO: fish joint angle limits
                                                 high=np.array([1,1,1]+[1,]*4+[0.5,]*9+[1,1]+[1,]*4+[1,1,1]), 
                                                 dtype=np.float64)
+        self.robot_joint_limits = [[0, 0.2], [0, 1.047],]
+        self.robot_base_z_limits = [2, 5]
 
         self.last_gripper_pose = None
         self.last_object_pose = None
@@ -89,7 +91,6 @@ class DLRSimulationEnv(gym.Env):
         sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
             p.stepSimulation()
-            self.robot_joint_limits = [[0, 0.2], [0, 1.047],]
 
             # Reset joint angles
             for i in range(2):
@@ -101,8 +102,9 @@ class DLRSimulationEnv(gym.Env):
             # Reset gripper base
             gripper_position, gripper_orientation = p.getBasePositionAndOrientation(self.simulation.robot_id)
             gripper_orientation = p.getEulerFromQuaternion(gripper_orientation)
+            new_gripper_position_z = np.clip(gripper_position[2]+dz, self.robot_base_z_limits[0], self.robot_base_z_limits[1])
             p.resetBasePositionAndOrientation(self.simulation.robot_id,
-                                              [gripper_position[0], gripper_position[1], gripper_position[2]+dz],
+                                              [gripper_position[0], gripper_position[1], new_gripper_position_z],
                                               p.getQuaternionFromEuler([math.pi, 0, pi_2_pi(gripper_orientation[2]+drot_z)]))
 
         # # Visualize the simulation
@@ -198,7 +200,7 @@ class DLRSimulationEnv(gym.Env):
         object_out_of_canvas = not (-3 <= object_position[0] <= 3
                                     and -3 <= object_position[1] <= 3)
     
-        time_ended = self.simulation.step_count >= 100  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 10000  # Maximum number of steps
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
         # return False
