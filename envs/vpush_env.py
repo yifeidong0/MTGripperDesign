@@ -25,10 +25,10 @@ def handle_pygame_events():
             exit()
 
 class VPushSimulationEnv(gym.Env):
-    def __init__(self, object_type='circle', v_angle=np.pi/3, gui=True, img_size=(42, 42), obs_type='pose'):
+    def __init__(self, render_mode='human', object_type='circle', v_angle=np.pi/3, img_size=(42, 42), obs_type='pose'):
         super(VPushSimulationEnv, self).__init__()
         self.simulation = VPushSimulation(object_type, v_angle)
-        self.gui = gui
+        self.gui = True if render_mode == 'human' else False
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
         self.action_space = spaces.Box(low=np.array([-1, -1, -0.2]), high=np.array([1, 1, 0.2]), dtype=np.float32)

@@ -12,7 +12,8 @@ from sim.push_sim import ForwardSimulationPlanePush
 import time
 
 class VisuomotorPlanarPushEnv(gym.Env):
-    def __init__(self, task_type, gripper_length, gui=False):
+    def __init__(self, task_type, gripper_length, render_mode='human'):
+        gui = True if render_mode == 'human' else False
         super(VisuomotorPlanarPushEnv, self).__init__()
         self.simulation = ForwardSimulationPlanePush(task_type, gripper_length, gui)
         self.action_space = spaces.Box(low=-0.01, high=0.01, shape=(3,), dtype=np.float32)

@@ -20,7 +20,7 @@ def pi_2_pi(angle):
 
 class VPushPbSimulationEnv(gym.Env):
     def __init__(self, 
-                 gui: bool = False,
+                 render_mode: str = "human",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
@@ -29,8 +29,8 @@ class VPushPbSimulationEnv(gym.Env):
         self.task = 'circle' 
         self.task_int = 0 if self.task == 'circle' else 1
         self.v_angle = np.pi/3
-        self.simulation = VPushPbSimulation(self.task, self.v_angle, gui)
-        self.gui = gui
+        self.gui = True if render_mode == 'human' else False
+        self.simulation = VPushPbSimulation(self.task, self.v_angle, self.gui)
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
         self.using_robustness_reward = using_robustness_reward

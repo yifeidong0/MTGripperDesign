@@ -14,13 +14,13 @@ def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
 class ScoopSimulationEnv(gym.Env):
-    def __init__(self, gui=1, img_size=(42, 42), obs_type='pose'):
+    def __init__(self, render_mode='human', img_size=(42, 42), obs_type='pose'):
         super(ScoopSimulationEnv, self).__init__()
         self.task = 'pillow' # insole or pillow
         self.task_int = 0 if self.task == 'insole' else 1
         self.coef = [1,1]
-        self.simulation = ScoopingSimulation(self.task, self.coef, gui)
-        self.gui = gui
+        self.gui = True if render_mode == 'human' else False
+        self.simulation = ScoopingSimulation(self.task, self.coef, self.gui)
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
         self.action_space = spaces.Box(low=np.array([-1,]*2+[-0.2,]), high=np.array([1,]*2+[0.2,]), dtype=np.float32)

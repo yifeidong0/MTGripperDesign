@@ -17,7 +17,7 @@ def handle_pygame_events():
 
 class UCatchSimulationEnv(gym.Env):
     def __init__(self, 
-                 gui: bool = False,
+                 render_mode: str = "human",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
@@ -25,8 +25,8 @@ class UCatchSimulationEnv(gym.Env):
         super(UCatchSimulationEnv, self).__init__()
         self.object_type = 'circle'
         self.design_param = [5, 5, 5, np.pi/2, np.pi/2]
-        self.simulation = UCatchSimulation(self.object_type, self.design_param, use_gui=gui)
-        self.gui = gui
+        self.gui = True if render_mode == 'human' else False
+        self.simulation = UCatchSimulation(self.object_type, self.design_param, use_gui=self.gui)
         self.img_size = img_size
         self.obs_type = obs_type
         self.using_robustness_reward = using_robustness_reward

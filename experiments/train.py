@@ -59,7 +59,7 @@ def main():
     parser.add_argument('--using_robustness_reward', type=bool, default=False, help='Enable or disable the robustness reward')
     parser.add_argument('--checkpoint_freq', type=int, default=int(1e3), help='Frequency of saving checkpoints')
     parser.add_argument('--n_envs', type=int, default=1, help='Number of environments to run in parallel')
-    parser.add_argument('--gui', type=bool, default=True, help='Enable or disable the GUI (default: True)')
+    parser.add_argument('--rander_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -71,7 +71,7 @@ def main():
         "monitor_dir": f"results/monitor/{args.env_id}/",
     }       
     
-    env_kwargs = {'gui': args.gui, 'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward}
+    env_kwargs = {'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward, 'render_mode': args.rander_mode}
     if args.n_envs > 1:
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
