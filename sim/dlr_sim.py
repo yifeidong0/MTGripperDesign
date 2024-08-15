@@ -49,7 +49,7 @@ class DLRSimulation:
         # Set the object and robot poses
         if self.object_type == 'fish':
             self.object_orientation = p.getQuaternionFromEuler([0, 0, 0])
-            self.object_position = [0,-1,0.35]
+            self.object_position = [0,-0.8,0.35]
         # elif self.object_type == 'pillow':
         #     self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)]) 
         #     self.object_position = [random.normalvariate(3, .3,), 
@@ -109,7 +109,7 @@ class DLRSimulation:
             fileName='asset/fine-fish-10/fine-fish-10.urdf',
             basePosition=self.object_position,
             baseOrientation=self.object_orientation,
-            globalScaling=.4,
+            globalScaling=.3,
             useFixedBase=0)
         # p.changeVisualShape(self.object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=self.tex, flags=0)
         
