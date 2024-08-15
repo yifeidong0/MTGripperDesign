@@ -83,7 +83,7 @@ class DLRSimulationEnv(gym.Env):
         dz, drot_z = action[:2]
         da = action[2:]
 
-        # Step the simulation (slow with deformable objects)
+        # Step the simulation
         sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
             p.stepSimulation()
@@ -165,35 +165,36 @@ class DLRSimulationEnv(gym.Env):
         result = p.getClosestPoints(self.simulation.robot_id, self.simulation.object_id, 10.0, 3, 5)
         if len(result) > 0:
             position_on_robot, position_on_object = result[0][5:7]
-        closest_distance = np.linalg.norm(np.array(position_on_robot) - np.array(position_on_object))
-        if np.random.rand() < 0.003:
-            print("Closest distance: ", closest_distance)
-            print("height diff: ", position_on_robot[2] - position_on_object[2])
-        reward += 0.05 * (1-closest_distance/3)
+            closest_distance = np.linalg.norm(np.array(position_on_robot) - np.array(position_on_object))
+            if np.random.rand() < 0.003:
+                print("Closest distance: ", closest_distance)
+                print("height diff: ", position_on_robot[2] - position_on_object[2])
+            reward += 0.05 * (1-closest_distance/3)
 
         # Penalize the gripper penetrating the floor
         result1 = p.getClosestPoints(self.simulation.robot_id, self.simulation.object_id, -0.02, 3, 5)
-        result2 = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.01, 3, -1)
+        result2 = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.02, 3, -1)
         if len(result1) > 0:
-            print("Penetrating the fish!")
+            # print("Penetrating the fish!")
             reward -= 0.5
         if len(result2) > 0:
-            print("Penetrating the floor!")
+            # print("Penetrating the floor!")
             reward -= 0.5
 
-        # Place tips underneath the object
-        if position_on_robot[2] > position_on_object[2]:
-            reward -= 0.01 * (position_on_robot[2]-position_on_object[2])
-        else:
-            reward += 0.05 * (position_on_object[2]-position_on_robot[2])
+        if len(result) > 0:
+            # Place tips underneath the object
+            if position_on_robot[2] > position_on_object[2]:
+                reward -= 0.01 * (position_on_robot[2]-position_on_object[2])
+            else:
+                reward += 0.05 * (position_on_object[2]-position_on_robot[2])
 
-        # Lift up the object
-        if self.last_object_position is not None:
-            reward += 10 * (position_on_object[2]-self.last_object_position[2])
-        if self.last_robot_position is not None and (position_on_robot[2] < position_on_object[2]):
-            reward += (position_on_robot[2]-self.last_robot_position[2])
-        self.last_object_position = position_on_object
-        self.last_robot_position = position_on_robot
+            # Lift up the object
+            if self.last_object_position is not None:
+                reward += 10 * (position_on_object[2]-self.last_object_position[2])
+            if self.last_robot_position is not None and (position_on_robot[2] < position_on_object[2]):
+                reward += (position_on_robot[2]-self.last_robot_position[2])
+            self.last_object_position = position_on_object
+            self.last_robot_position = position_on_robot
         
         # TODO: Reward of caging robustness
         if self.using_robustness_reward:

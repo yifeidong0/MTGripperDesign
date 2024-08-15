@@ -85,7 +85,7 @@ def main():
         # verbose=2,
     )
 
-    total_timesteps = int(1e6)
+    total_timesteps = int(1e7)
     if args.env_id == 'PandaPushEnv-v0':
         policy_name = "MultiInputPolicy"
     else:
