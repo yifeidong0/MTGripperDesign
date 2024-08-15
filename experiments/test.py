@@ -1,38 +1,44 @@
+import time
 import os
 import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gymnasium as gym
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import PPO
+
 import envs
-import time
+from experiments.args_utils import get_args
 
 def main():
-    env_name = 'panda_vpush' # 'vpush', 'ucatch'
-    if env_name == 'ucatch':
+    args = get_args()
+    env_kwargs = {'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward, 'render_mode': args.rander_mode}
+    env = gym.make(args.env_id, **env_kwargs)
+    # check_env(env)
+    
+    model = None
+    if args.env_id == 'ScoopSimulationEnv-v0':
         model = PPO.load("results/models/best_model_ucatch_w_robustness_reward.zip")
-        env_id = 'UCatchSimulationEnv-v0' # VPushPbSimulationEnv-v0, UCatchSimulationEnv-v0
-    elif env_name == 'vpush':
+    elif args.env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip")
-        env_id = "VPushPbSimulationEnv-v0"
-    elif env_name == 'panda_vpush':
-        env_id = "PandaPushEnv-v0"
-    env = gym.make(env_id, gui=True, obs_type='pose')
+    elif args.env_id == 'PandaPushEnv-v0':
+        model = PPO.load("results/models/PandaPushEnv-v0_1000000_2024-08-14_16-52-37_final")
+                         
     for episode in range(10):
         obs, _ = env.reset(seed=0)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
         while not (done or truncated):
-            # action = model.predict(obs)[0]
-            action = env.action_space.sample()
+            if model is not None:
+                action, state = model.predict(obs)
+            else:
+                action = env.action_space.sample()
             obs, reward, done, truncated, _ = env.step(action)
             env.render()
-            time.sleep(1/500)
 
         print("Done!" if done else "Truncated.")
         print(f"Episode {episode + 1} finished")
-        time.sleep(1)
 
     env.close()
 

@@ -279,19 +279,21 @@ class VPush(Task):
         diff_object_target_distance = object_target_distance - self.last_object_target_distance
         self.last_object_target_distance = object_target_distance
         object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
-        yaw_difference = abs(pi_2_pi(object_rotation[2] - object_target_yaw))
-        
+        yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
+    
+
         if ee_object_distance > 0.2:
-            reward -= yaw_difference
-        else:        
             weight_ee_object_distance = 1.0
+            weight_object_target_distance = 0
+            weight_yaw = 0.5
+        else:
+            weight_ee_object_distance = 0
             weight_object_target_distance = 1.0
             weight_yaw = 0
-            
-            reward += -weight_ee_object_distance * diff_ee_object_distance - weight_object_target_distance * diff_object_target_distance - weight_yaw * yaw_difference
+        reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
         
         if self.is_success(achieved_goal, desired_goal):
-            reward += 100
+            reward += 500
         
         if self.using_robustness_reward:
             reward += robustness_score      
