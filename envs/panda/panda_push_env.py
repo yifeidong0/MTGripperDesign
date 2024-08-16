@@ -6,6 +6,7 @@ import random
 import pybullet as p
 from panda_gym.envs.core import RobotTaskEnv
 from panda_gym.pybullet import PyBullet
+from panda_gym.envs.tasks.push import Push
 from typing import Any, Dict, Optional, Tuple
 from gymnasium.utils import seeding
 
@@ -15,7 +16,7 @@ import os
 import cv2
 import gc
 
-class PandaPushEnv(RobotTaskEnv):
+class PandaUPushEnv(RobotTaskEnv):
     """Push task wih Panda robot.
 
     Args:
@@ -79,7 +80,9 @@ class PandaPushEnv(RobotTaskEnv):
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         info = {"is_success": terminated}
         truncated = self._is_truncated()
-        reward = float(self.task.compute_reward(observation, info))
+        reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
+        
+        # reward = float(self.task.compute_reward(observation, info))
         # time.sleep(40./240.)
         # print( self.robot.get_ee_position())
         # print( self.robot.get_arm_joint_angles())

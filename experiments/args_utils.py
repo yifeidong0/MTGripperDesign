@@ -14,8 +14,8 @@ def get_args():
                                 'UCatchSimulationEnv-v0',
                                 'ScoopSimulationEnv-v0',
                                 'DLRSimulationEnv-v0',
-                                'PandaPushEnv-v0'  # Assuming you want to keep this as a default or possible choice
-                            ], default='PandaPushEnv-v0', help='Environment ID for the simulation')
+                                'PandaUPushEnv-v0'  # Assuming you want to keep this as a default or possible choice
+                            ], default='PandaUPushEnv-v0', help='Environment ID for the simulation')
     parser.add_argument('--total_timesteps', type=int, default=int(1e6), help='Total number of timesteps for training')
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='auto', help='Computational device to use (auto, cuda, cpu)')
     parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
@@ -23,5 +23,5 @@ def get_args():
     parser.add_argument('--checkpoint_freq', type=int, default=int(1e3), help='Frequency of saving checkpoints')
     parser.add_argument('--n_envs', type=int, default=1, help='Number of environments to run in parallel')
     parser.add_argument('--rander_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
-
+    parser.add_argument('--algo', type=str, choices=['ppo', 'tqc'], default='tqc', help='RL algorithm to use for training')
     return parser.parse_args()
