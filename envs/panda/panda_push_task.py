@@ -16,7 +16,7 @@ class VPush(Task):
     def __init__(
         self,
         sim,
-        reward_type=None,
+        reward_type="sparse",
         using_robustness_reward=False,
         distance_threshold=0.1,
         goal_xy_range=0.3,
@@ -243,59 +243,67 @@ class VPush(Task):
         a1, l1, a2, l2 = self.design_params
         opening_gap = 2 * (l1 * np.sin(a1/2) + l2 * np.sin(a2))
         self.robustness_opening = 0.03 / opening_gap
-        
-    def compute_reward(self, observation_dict, info) -> np.ndarray:
-        observation = observation_dict["observation"]
-        achieved_goal = observation_dict["achieved_goal"]
-        desired_goal = observation_dict["desired_goal"]
+  
+  
+    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
+        d = distance(achieved_goal, desired_goal)
+        if self.reward_type == "sparse":
+            return -np.array(d > self.distance_threshold, dtype=np.float32)
+        else:
+            return -d.astype(np.float32)
+      
+    # def compute_reward(self, observation_dict, info) -> np.ndarray:
+    #     observation = observation_dict["observation"]
+    #     achieved_goal = observation_dict["achieved_goal"]
+    #     desired_goal = observation_dict["desired_goal"]
 
-        # Unpack the observation
-        assert observation.shape == (27,)
-        ee_position = observation[:3]
-        ee_velocity = observation[3:6]
-        ee_yaw = observation[6:7]
-        self.design_params = observation[7:11]
-        object_position = observation[11:14]
-        object_rotation = observation[14:17]
-        object_velocity = observation[17:20]
-        object_angular_velocity = observation[20:23]
-        target_position = observation[23:26]
-        task_int = observation[26:27]
+    #     # Unpack the observation
+    #     assert observation.shape == (27,)
+    #     ee_position = observation[:3]
+    #     ee_velocity = observation[3:6]
+    #     ee_yaw = observation[6:7]
+    #     self.design_params = observation[7:11]
+    #     object_position = observation[11:14]
+    #     object_rotation = observation[14:17]
+    #     object_velocity = observation[17:20]
+    #     object_angular_velocity = observation[20:23]
+    #     target_position = observation[23:26]
+    #     task_int = observation[26:27]
         
-        # Caging robostness
-        if self.design_params is not None and self.robustness_opening is None:
-            self._compute_robustness_opening()
-        robustness_score = self._eval_robustness(ee_position[:2], 
-                                                ee_yaw[0],
-                                                object_position[:2],
-                                                self.design_params,
-                                                slack=self.object_size/2,)
+    #     # Caging robostness
+    #     if self.design_params is not None and self.robustness_opening is None:
+    #         self._compute_robustness_opening()
+    #     robustness_score = self._eval_robustness(ee_position[:2], 
+    #                                             ee_yaw[0],
+    #                                             object_position[:2],
+    #                                             self.design_params,
+    #                                             slack=self.object_size/2,)
 
-        reward = 0
-        ee_object_distance = distance(ee_position, object_position)            
-        diff_ee_object_distance = ee_object_distance - self.last_ee_object_distance
-        self.last_ee_object_distance = ee_object_distance
-        object_target_distance = distance(object_position, target_position) 
-        diff_object_target_distance = object_target_distance - self.last_object_target_distance
-        self.last_object_target_distance = object_target_distance
-        object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
-        yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
+    #     reward = 0
+    #     ee_object_distance = distance(ee_position, object_position)            
+    #     diff_ee_object_distance = ee_object_distance - self.last_ee_object_distance
+    #     self.last_ee_object_distance = ee_object_distance
+    #     object_target_distance = distance(object_position, target_position) 
+    #     diff_object_target_distance = object_target_distance - self.last_object_target_distance
+    #     self.last_object_target_distance = object_target_distance
+    #     object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
+    #     yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
     
 
-        if ee_object_distance > 0.2:
-            weight_ee_object_distance = 1.0
-            weight_object_target_distance = 0
-            weight_yaw = 0.5
-        else:
-            weight_ee_object_distance = 0
-            weight_object_target_distance = 1.0
-            weight_yaw = 0
-        reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
+    #     if ee_object_distance > 0.2:
+    #         weight_ee_object_distance = 1.0
+    #         weight_object_target_distance = 0
+    #         weight_yaw = 0.5
+    #     else:
+    #         weight_ee_object_distance = 0
+    #         weight_object_target_distance = 1.0
+    #         weight_yaw = 0
+    #     reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
         
-        if self.is_success(achieved_goal, desired_goal):
-            reward += 500
+    #     if self.is_success(achieved_goal, desired_goal):
+    #         reward += 500
         
-        if self.using_robustness_reward:
-            reward += robustness_score      
-        return reward
+    #     if self.using_robustness_reward:
+    #         reward += robustness_score      
+    #     return reward
     

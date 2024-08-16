@@ -3,11 +3,14 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gymnasium as gym
+from sb3_contrib import TQC
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.logger import HParam
+
+import panda_gym.envs
 
 import envs
 from experiments.args_utils import get_args
@@ -52,7 +55,8 @@ def main():
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
         env = gym.make(args.env_id, **env_kwargs)
-        # check_env(env)
+        # env = gym.make("PandaPush-v3")
+        check_env(env)
         
     custom_callback = CustomCallback(
         args=args,
@@ -70,13 +74,37 @@ def main():
             policy_name = "MlpPolicy"
         elif args.obs_type == 'image':
             policy_name = "CnnPolicy"
-    model = PPO(policy_name, 
-                env, 
-                verbose=1, 
-                tensorboard_log=paths["tensorboard_log"],
-                device=args.device,
-                seed=args.random_seed,
-                )
+    if args.algo == 'ppo':
+        model = PPO(policy_name, 
+                    env, 
+                    verbose=1, 
+                    tensorboard_log=paths["tensorboard_log"],
+                    device=args.device,
+                    seed=args.random_seed,
+                    )            
+    elif args.algo == 'tqc':
+        from stable_baselines3 import HerReplayBuffer
+        model = TQC('MultiInputPolicy', 
+                    env,
+                    buffer_size=1000000,
+                    batch_size=2048,
+                    gamma=0.95,
+                    learning_rate=1e-3,
+                    tau=0.05,
+                    replay_buffer_class=HerReplayBuffer,
+                    replay_buffer_kwargs={
+                        "goal_selection_strategy": 'future',
+                        "n_sampled_goal": 4
+                    },
+                    policy_kwargs={
+                        "net_arch": [512, 512, 512],
+                        "n_critics": 2
+                    },
+                    verbose=1,
+                    tensorboard_log=paths["tensorboard_log"],
+                    device="auto",
+                    seed=args.random_seed,
+                    )
 
     model.learn(total_timesteps=total_timesteps, progress_bar=True, log_interval=5, callback=custom_callback)
 
