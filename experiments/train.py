@@ -16,7 +16,8 @@ import envs
 from experiments.args_utils import get_args
 
 class CustomCallback(CheckpointCallback):
-    def __init__(self, args,  save_freq: int, save_path: str, name_prefix: str = "rl_model", save_replay_buffer: bool = False, save_vecnormalize: bool = False, verbose: int = 0):
+    def __init__(self, args,  save_freq: int, save_path: str, name_prefix: str = "rl_model", 
+                 save_replay_buffer: bool = False, save_vecnormalize: bool = False, verbose: int = 0):
         super().__init__(save_freq, save_path, name_prefix, save_replay_buffer, save_vecnormalize, verbose)
         self.args = args
     
