@@ -72,7 +72,7 @@ def main():
         policy_name = "MultiInputPolicy"
     else:
         if args.obs_type == 'pose':
-            policy_name = "MlpPolicy"
+            policy_name = "MultiInputPolicy" # MlpPolicy
         elif args.obs_type == 'image':
             policy_name = "CnnPolicy"
     if args.algo == 'ppo':
@@ -91,6 +91,7 @@ def main():
                     batch_size=2048,
                     gamma=0.95,
                     learning_rate=1e-3,
+                    learning_starts=10000,
                     tau=0.05,
                     replay_buffer_class=HerReplayBuffer,
                     replay_buffer_kwargs={
