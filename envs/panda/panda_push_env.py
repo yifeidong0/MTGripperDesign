@@ -69,8 +69,8 @@ class PandaUPushEnv(RobotTaskEnv):
         self.step_count = 0
         self.canvas_min_x = 0.1
         self.canvas_max_x = 0.9
-        self.canvas_min_y = -1
-        self.canvas_max_y = 1
+        self.canvas_min_y = -0.40
+        self.canvas_max_y = 0.40
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1
@@ -138,7 +138,7 @@ class PandaUPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 2000
+        time_ended = self.step_count > 500
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         if truncated:

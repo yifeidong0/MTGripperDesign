@@ -29,7 +29,7 @@ register(
 register(
     id='PandaUPushEnv-v0',
     entry_point='envs.panda.panda_push_env:PandaUPushEnv',
-    max_episode_steps=50,
+    # max_episode_steps=50,
 )
 
 register(

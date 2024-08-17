@@ -43,7 +43,7 @@ class VPush(Task):
             
     def _create_scene(self) -> None:
         self.sim.create_plane(z_offset=-0.4)
-        self.sim.create_table(length=4, width=2, height=0.4, x_offset=0)
+        self.sim.create_table(length=2, width=1, height=0.4, x_offset=0)
         self._create_task_object()
 
     def _create_task_object(self) -> None:
