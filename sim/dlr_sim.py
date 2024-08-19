@@ -49,7 +49,8 @@ class DLRSimulation:
         # Set the object and robot poses
         if self.object_type == 'fish':
             self.object_orientation = p.getQuaternionFromEuler([0, 0, 0])
-            self.object_position = [0,-0.8,0.35]
+            # self.object_position = [0,-0.8,0.35]
+            self.object_position = [0,0,0.1]
         # elif self.object_type == 'pillow':
         #     self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)]) 
         #     self.object_position = [random.normalvariate(3, .3,), 
@@ -61,7 +62,8 @@ class DLRSimulation:
         # Create the object and robot
         if reset_task_and_design:
             if self.object_type == 'fish':
-                self.load_fish()
+                # self.load_fish()
+                self.load_cube()
             self.create_gripper()
 
         # Reset the object and robot poses and velocities
@@ -112,7 +114,20 @@ class DLRSimulation:
             globalScaling=.3,
             useFixedBase=0)
         # p.changeVisualShape(self.object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=self.tex, flags=0)
-        
+    
+    def load_cube(self):
+        """Create from collision shape """
+        self.object_id = p.createCollisionShape(
+            shapeType=p.GEOM_BOX,
+            halfExtents=[0.1, 0.1, 0.1]
+        )
+        self.object_id = p.createMultiBody(
+            baseMass=.1,
+            baseCollisionShapeIndex=self.object_id,
+            basePosition=self.object_position,
+            baseOrientation=self.object_orientation
+        )
+
     # def eval_robustness(self, dt=1./240., acc_lim=1000):
     #     rand_acc = [random.uniform(-acc_lim, acc_lim) for _ in range(3)]
     #     total_acc = rand_acc

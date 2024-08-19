@@ -147,7 +147,7 @@ class VPush(Task):
             [
                 object_position,
                 object_rotation,
-                object_velocity,
+                object_velocity, # TODO: remove velocity for real-world experiments
                 object_angular_velocity,
                 target_position,
                 task_int,
