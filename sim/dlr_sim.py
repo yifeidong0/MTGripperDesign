@@ -12,9 +12,10 @@ from utils.vhacd import decompose_mesh
 from utils.change_parameter_dlr_urdf import change_parameter_lsc_urdf
 
 class DLRSimulation:
-    def __init__(self, object_type='fish', design_params=[60, 60], use_gui=True):
+    def __init__(self, object_type='cube', task_param=0.1, design_params=[60, 60], use_gui=True):
         self.design_params = design_params
         self.object_type = object_type
+        self.task_param = task_param
         self.use_gui = use_gui
         self.g = -9.81
 
@@ -49,20 +50,18 @@ class DLRSimulation:
         # Set the object and robot poses
         if self.object_type == 'fish':
             self.object_orientation = p.getQuaternionFromEuler([0, 0, 0])
-            # self.object_position = [0,-0.8,0.35]
-            self.object_position = [0,0,0.1]
-        # elif self.object_type == 'pillow':
-        #     self.object_orientation = p.getQuaternionFromEuler([0, 0, random.normalvariate(0, 0.1)]) 
-        #     self.object_position = [random.normalvariate(3, .3,), 
-        #                             random.normalvariate(2.5, .1,), 
-        #                             self.body_height]
+            self.object_position = [0,-0.8,0.35]
+        elif self.object_type == 'cube':
+            self.object_orientation = p.getQuaternionFromEuler([0, 0, 0])
+            self.object_position = [0,0,self.task_param]
         self.robot_position = [0,0,4]
         self.robot_orientation = p.getQuaternionFromEuler([math.pi,0,0])
 
         # Create the object and robot
         if reset_task_and_design:
             if self.object_type == 'fish':
-                # self.load_fish()
+                self.load_fish()
+            elif self.object_type == 'cube':
                 self.load_cube()
             self.create_gripper()
 
@@ -73,10 +72,11 @@ class DLRSimulation:
             p.resetBaseVelocity(self.object_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
             p.resetBaseVelocity(self.robot_id, linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0])
 
-    def reset_task_and_design(self, new_task, new_design):
+    def reset_task_and_design(self, new_task, new_task_param, new_design):
         """Reset the task and design parameters for MTBO."""
         self.object_type = new_task
         self.design_params = new_design
+        self.task_param = new_task_param
 
         # Remove the old object and robot
         p.removeBody(self.object_id)
@@ -119,7 +119,7 @@ class DLRSimulation:
         """Create from collision shape """
         self.object_id = p.createCollisionShape(
             shapeType=p.GEOM_BOX,
-            halfExtents=[0.1, 0.1, 0.1]
+            halfExtents=[self.task_param,]*3
         )
         self.object_id = p.createMultiBody(
             baseMass=.1,
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     distal_lengths = np.arange(20, 60, 5)
     design_params = [random.choice(base_lengths), 
                      random.choice(distal_lengths),]
-    simulation = DLRSimulation('fish', design_params=design_params, use_gui=1) # fish
+    simulation = DLRSimulation('cube', 0.1, design_params, use_gui=1) # fish
     for i in range(5):
         print('Iteration %d' % i)
         final_score = simulation.run(1)
@@ -192,8 +192,4 @@ if __name__ == "__main__":
         # randomly select insole or pillow and new design parameters
         design_params = [random.choice(base_lengths), 
                          random.choice(distal_lengths),]
-        simulation.reset_task_and_design('fish', design_params,)
-        # if random.random() < 0.5:
-            # simulation.reset_task_and_design('insole', design_params,)
-        # else:
-        #     simulation.reset_task_and_design('pillow', design_params,)
+        simulation.reset_task_and_design('cube', design_params,) # fish, cube

@@ -24,8 +24,8 @@ class DLRSimulationEnv(gym.Env):
                  img_size=(42, 42), 
         ):
         super(DLRSimulationEnv, self).__init__()
-        self.task = 'fish' # fish
-        self.task_int = 0 if self.task == 'fish' else 1
+        self.task = 'cube' # fish, cube
+        self.task_param = np.random.uniform(0.1, 0.2)
         self.design_params = [1,1]        
         self.gui = True if render_mode == 'human' else False
         self.img_size = img_size
@@ -35,7 +35,7 @@ class DLRSimulationEnv(gym.Env):
         self.action_space = spaces.Box(low=np.array([-1e-5,-1e-5,-0.0005,-1e-5,-0.001,-0.001,]), 
                                        high=np.array([1e-5,1e-5,0.0005,1e-5,0.001,0.001,]), 
                                        dtype=np.float32) # x, y, z, rot_z, a02, a13
-        self.simulation = DLRSimulation(self.task, self.design_params, self.gui)
+        self.simulation = DLRSimulation(self.task, self.task_param, self.design_params, self.gui)
 
         if self.obs_type == 'image':
             # Observation space: smaller RGB image of the simulation
@@ -55,7 +55,7 @@ class DLRSimulationEnv(gym.Env):
                     achieved_goal=spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
                 )
             )
-        self.robot_joint_limits = [[-0.1,0.25], [0.0,1.2],]
+        self.robot_joint_limits = [[-0.3,0.3], [0.0,1.2],]
         self.robot_base_limits = [[-0.5,0.5], [-0.5,0.5], [1.5,4]]
         self.desired_goal_height = 0.5
 
@@ -74,18 +74,18 @@ class DLRSimulationEnv(gym.Env):
         # Reset the simulation environment to avoid memory leak (Pybullet bug)
         if (self.count_episodes+1) % 9 == 0:
             self.close()
-            self.simulation = DLRSimulation(self.task, self.design_params, self.gui)
+            self.simulation = DLRSimulation(self.task, self.task_param, self.design_params, self.gui)
             print(f"INFO: episode {self.count_episodes}")
 
         self.simulation.step_count = 0
-        self.task = 'fish' # random.choice(['fish',])
-        self.task_int = 0 if self.task == 'fish' else 1
+        self.task = 'cube' # cube, fish
+        self.task_param = np.random.uniform(0.1, 0.2)
         base_lengths = np.arange(60, 150, 5)
         distal_lengths = np.arange(20, 60, 5)
-        # self.design_params = [random.choice(base_lengths), 
-        #                       random.choice(distal_lengths),]
-        self.design_params = [60,30]
-        self.simulation.reset_task_and_design(self.task, self.design_params)
+        self.design_params = [random.choice(base_lengths), 
+                              random.choice(distal_lengths),]
+        # self.design_params = [60,30]
+        self.simulation.reset_task_and_design(self.task, self.task_param, self.design_params)
         obs = self._get_obs()
         self.num_end_steps = 0
         self.count_episodes += 1
@@ -166,8 +166,8 @@ class DLRSimulationEnv(gym.Env):
             obs_normalized = obs / max_vals
 
             # Concatenate with task and design parameters
-            task_design_params = np.array([self.task_int, *self.design_params])
-            task_design_params_normalized = task_design_params / np.array([1,150,60])
+            task_design_params = np.array([self.task_param, *self.design_params])
+            task_design_params_normalized = task_design_params / np.array([0.2,150,60])
 
             # return np.concatenate([obs_normalized, task_design_params_normalized])
             return {"observation": np.concatenate([obs_normalized, task_design_params_normalized]),
@@ -207,7 +207,7 @@ class DLRSimulationEnv(gym.Env):
                 if self.last_base_object_distance is not None:
                     reward += 0.001 * (self.last_base_object_distance - base_object_distance)
                 self.last_base_object_distance = base_object_distance
-                if np.random.rand() < 0.002:
+                if np.random.rand() < 3e-4:
                     print("111 tip_object_distance", tip_object_distance)
 
             # Penalize the gripper penetrating the floor or object
@@ -217,9 +217,11 @@ class DLRSimulationEnv(gym.Env):
             result_penalize_floor_tip_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.02, 1, -1)
             result_penalize_floor_finger_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.01, 2, -1)
             result_penalize_floor_finger_right = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.01, 0, -1)
+            result_penalize_tips = p.getClosestPoints(self.simulation.robot_id, self.simulation.robot_id, -0.02, 3, 1)
             reward -= 0.03 * (2*(len(result_penalize_object_tip_left)>0) + 2*(len(result_penalize_object_tip_right)>0) + 
                              (len(result_penalize_floor_tip_left)>0) + (len(result_penalize_floor_tip_right)>0) + 
-                             10*(len(result_penalize_floor_finger_left)>0) + 10*(len(result_penalize_floor_finger_right)>0))
+                             10*(len(result_penalize_floor_finger_left)>0) + 10*(len(result_penalize_floor_finger_right)>0) +
+                             3*(len(result_penalize_tips)>0))
 
             # Reward for making gripper tips lower than the object
             result_floor_tip_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, 100.0, 3, -1)
@@ -234,7 +236,7 @@ class DLRSimulationEnv(gym.Env):
                 # object-tip relative height
                 object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
                 object_tip_height = object_position[2] - tip_floor_distance
-                if np.random.rand() < 0.002:
+                if np.random.rand() < 3e-4:
                     print("222 object_tip_height", object_tip_height)
                 if self.last_object_tip_height is not None:
                     reward += 0.1 * (object_tip_height - self.last_object_tip_height)
@@ -246,7 +248,7 @@ class DLRSimulationEnv(gym.Env):
                 if len(result_tips) > 0:
                     position_on_robot1, position_on_robot2 = result_tips[0][5:7]
                     tips_distance = np.linalg.norm(np.array(position_on_robot1) - np.array(position_on_robot2))
-                    if np.random.rand() < 0.002:
+                    if np.random.rand() < 3e-4:
                         print("333 tips_distance", tips_distance)
                     if self.last_tips_distance is not None:
                         reward += 10.0 * (self.last_tips_distance - tips_distance)
@@ -280,10 +282,10 @@ class DLRSimulationEnv(gym.Env):
         object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
         
         gripper_out_of_canvas = bool(4 < gripper_position[2])
-        object_out_of_canvas = not (-2 <= object_position[0] <= 2
-                                    and -2 <= object_position[1] <= 2)
+        object_out_of_canvas = not (-1 <= object_position[0] <= 1
+                                    and -1 <= object_position[1] <= 1)
     
-        time_ended = self.simulation.step_count >= 4000  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 8000  # Maximum number of steps
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended)
         # return False
