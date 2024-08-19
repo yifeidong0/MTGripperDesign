@@ -127,6 +127,7 @@ class DLRSimulation:
             basePosition=self.object_position,
             baseOrientation=self.object_orientation
         )
+        p.changeDynamics(self.object_id, -1, lateralFriction=0.8)
 
     # def eval_robustness(self, dt=1./240., acc_lim=1000):
     #     rand_acc = [random.uniform(-acc_lim, acc_lim) for _ in range(3)]
@@ -179,10 +180,10 @@ class DLRSimulation:
         return final_score
 
 if __name__ == "__main__":
-    base_lengths = np.arange(60, 150, 5)
+    base_lengths = np.arange(60, 100, 5)
     distal_lengths = np.arange(20, 60, 5)
     design_params = [random.choice(base_lengths), 
-                     random.choice(distal_lengths),]
+                     random.choice(distal_lengths),] # TODO: add curvature
     simulation = DLRSimulation('cube', 0.1, design_params, use_gui=1) # fish
     for i in range(5):
         print('Iteration %d' % i)
