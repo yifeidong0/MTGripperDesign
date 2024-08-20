@@ -22,6 +22,6 @@ def get_args():
     parser.add_argument('--using_robustness_reward', type=bool, default=False, help='Enable or disable the robustness reward')
     parser.add_argument('--checkpoint_freq', type=int, default=int(1e3), help='Frequency of saving checkpoints')
     parser.add_argument('--n_envs', type=int, default=1, help='Number of environments to run in parallel')
-    parser.add_argument('--rander_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
-    parser.add_argument('--algo', type=str, choices=['ppo', 'tqc', 'sac'], default='tqc', help='RL algorithm to use for training')
+    parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
+    parser.add_argument('--algo', type=str, choices=['ppo', 'tqc', 'sac'], default='ppo', help='RL algorithm to use for training')
     return parser.parse_args()

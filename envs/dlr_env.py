@@ -90,6 +90,7 @@ class DLRSimulationEnv(gym.Env):
         self.simulation.reset_task_and_design(self.task, self.task_param, self.design_params)
         obs = self._get_obs()
         self.num_end_steps = 0
+        self.count_penetration = 0
         self.count_episodes += 1
         self.is_success = False
         return obs, {}
@@ -263,7 +264,7 @@ class DLRSimulationEnv(gym.Env):
 
             # Reward for lifting the object
             if self.last_object_position is not None:
-                reward6 = 30.0 * (object_position[2] - self.last_object_position[2])
+                reward6 = 50.0 * (object_position[2] - self.last_object_position[2])
                 reward += reward6
             self.last_object_position = object_position
 
@@ -310,6 +311,8 @@ class DLRSimulationEnv(gym.Env):
                                     and -1 <= object_position[1] <= 1)
     
         time_ended = self.simulation.step_count >= 8000  # Maximum number of steps
+        if self.count_penetration > 100:
+            print("INFO: Penetration count exceeded 100!")
 
         return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended or self.count_penetration > 100)
         # return False

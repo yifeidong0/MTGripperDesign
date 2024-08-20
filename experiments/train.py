@@ -52,7 +52,7 @@ def main():
         "monitor_dir": f"results/monitor/{args.env_id}/",
     }       
     
-    env_kwargs = {'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward, 'render_mode': args.rander_mode}
+    env_kwargs = {'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward, 'render_mode': args.render_mode}
     if args.n_envs > 1:
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
@@ -68,7 +68,6 @@ def main():
         # verbose=2,
     )
 
-    total_timesteps = int(1e7)
     if args.env_id == 'PandaPushEnv-v0':
         policy_name = "MultiInputPolicy"
     else:
@@ -132,9 +131,9 @@ def main():
                     )  
     
 
-    model.learn(total_timesteps=total_timesteps, progress_bar=True, log_interval=5, callback=custom_callback)
+    model.learn(total_timesteps=args.total_timesteps, progress_bar=False, log_interval=5, callback=custom_callback)
 
-    model.save(f"results/models/{args.env_id}_{total_timesteps}_{args.time_stamp}_final") # last model
+    model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
 
 if __name__ == "__main__":
     main()
