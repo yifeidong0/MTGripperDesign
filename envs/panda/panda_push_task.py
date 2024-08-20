@@ -252,30 +252,56 @@ class VPush(Task):
         # else:
             # print(info)
             # print(type(info))
-            observation = info["observation"] # TODO(shaohang): tmp solution, cannot pass env checker, due to possible batch info input
-            assert observation.shape == (27,)
-            ee_position = observation[:3]
-            ee_velocity = observation[3:6]
-            ee_yaw = observation[6:7]
-            self.design_params = observation[7:11]
-            object_position = observation[11:14]
-            object_rotation = observation[14:17]
-            object_velocity = observation[17:20]
-            object_angular_velocity = observation[20:23]
-            target_position = observation[23:26]
-            task_int = observation[26:27]
-        
-            if self.using_robustness_reward:
-                if self.design_params is not None and self.robustness_opening is None:
-                    self._compute_robustness_opening()
-                robustness_score = self._eval_robustness(achieved_goal[:2], 
-                                                        0,
-                                                        desired_goal[:2],
-                                                        self.design_params,
-                                                        slack=self.object_size/2,)
-                return -d.astype(np.float32) + robustness_score
-            return -d.astype(np.float32)
-      
+            
+            if type(info) == dict:
+                observation = info["observation"] # TODO(shaohang): tmp solution, cannot pass env checker, due to possible batch info input
+                assert observation.shape == (27,)
+                ee_position = observation[:3]
+                ee_velocity = observation[3:6]
+                ee_yaw = observation[6:7]
+                self.design_params = observation[7:11]
+                object_position = observation[11:14]
+                object_rotation = observation[14:17]
+                object_velocity = observation[17:20]
+                object_angular_velocity = observation[20:23]
+                target_position = observation[23:26]
+                task_int = observation[26:27]
+            
+                if self.using_robustness_reward:
+                    if self.design_params is not None and self.robustness_opening is None:
+                        self._compute_robustness_opening()
+                    robustness_score = self._eval_robustness(achieved_goal[:2], 
+                                                            0,
+                                                            desired_goal[:2],
+                                                            self.design_params,
+                                                            slack=self.object_size/2,)
+                    return -d.astype(np.float32) + robustness_score
+                return -d.astype(np.float32)
+            else:
+                for info in info:
+                    observation = info["observation"] # TODO(shaohang): tmp solution, cannot pass env checker, due to possible batch info input
+                    assert observation.shape == (27,)
+                    ee_position = observation[:3]
+                    ee_velocity = observation[3:6]
+                    ee_yaw = observation[6:7]
+                    self.design_params = observation[7:11]
+                    object_position = observation[11:14]
+                    object_rotation = observation[14:17]
+                    object_velocity = observation[17:20]
+                    object_angular_velocity = observation[20:23]
+                    target_position = observation[23:26]
+                    task_int = observation[26:27]
+                
+                    if self.using_robustness_reward:
+                        if self.design_params is not None and self.robustness_opening is None:
+                            self._compute_robustness_opening()
+                        robustness_score = self._eval_robustness(achieved_goal[:2], 
+                                                                0,
+                                                                desired_goal[:2],
+                                                                self.design_params,
+                                                                slack=self.object_size/2,)
+                        return -d.astype(np.float32) + robustness_score
+                    return -d.astype(np.float32)
     # def compute_reward(self, observation_dict, info) -> np.ndarray:
     #     observation = observation_dict["observation"]
     #     achieved_goal = observation_dict["achieved_goal"]

@@ -65,7 +65,7 @@ def main():
     else:
         env = gym.make(args.env_id, **env_kwargs)
         # env = gym.make("PandaPush-v3")
-        # check_env(env)
+        check_env(env)
         
     custom_callback = CustomCallback(
         args=args,
@@ -143,6 +143,7 @@ def main():
         print("Training interrupted")
     finally:
         model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
+        print("removing asset")
         os.system(f"rm -rf asset/{args.time_stamp}")
 
 if __name__ == "__main__":
