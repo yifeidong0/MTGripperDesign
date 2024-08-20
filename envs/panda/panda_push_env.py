@@ -81,7 +81,7 @@ class PandaUPushEnv(RobotTaskEnv):
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         if terminated:
             print(f"is_success: {self.step_count}")
-        info = {"is_success": terminated}
+        info = {"is_success": terminated, "observation": observation["observation"]}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
         

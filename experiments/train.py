@@ -57,13 +57,15 @@ def main():
     env_kwargs = {'obs_type': args.obs_type,
                   'using_robustness_reward': args.using_robustness_reward,
                   'render_mode': args.render_mode, 
-                  'time_stamp': args.time_stamp}
+                  'time_stamp': args.time_stamp,
+                  'reward_type': 'sparse',
+                  }
     if args.n_envs > 1:
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
         env = gym.make(args.env_id, **env_kwargs)
         # env = gym.make("PandaPush-v3")
-        check_env(env)
+        # check_env(env)
         
     custom_callback = CustomCallback(
         args=args,

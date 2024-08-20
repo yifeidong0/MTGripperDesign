@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the values for using_robustness_reward
-robustness_values=(False True)
+robustness_values=(false true)
 
 # Define the random seeds
 random_seeds=(0 1 2)
