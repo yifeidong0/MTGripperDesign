@@ -129,21 +129,35 @@ class DLRSimulation:
         )
         p.changeDynamics(self.object_id, -1, lateralFriction=0.8)
 
-    # def eval_robustness(self, dt=1./240., acc_lim=1000):
-    #     rand_acc = [random.uniform(-acc_lim, acc_lim) for _ in range(3)]
-    #     total_acc = rand_acc
-    #     total_acc[2] = self.g
-    #     delta_vel = [a * dt for a in total_acc]
-    #     curr_vel = p.getBaseVelocity(self.object_id)[0]
-    #     new_vel = [v + dv for v, dv in zip(curr_vel, delta_vel)]
-    #     p.resetBaseVelocity(self.object_id, new_vel, [0, 0, 0])
+    def eval_robustness(self, height_threshold, acc_lim=100):
+        steps_on_the_scoop = 0
+        object_initial_position = p.getBasePositionAndOrientation(self.object_id)[0]
+        object_initial_orientation = p.getBasePositionAndOrientation(self.object_id)[1]
+        object_initial_velocity = p.getBaseVelocity(self.object_id)[0]
+        object_initial_angular_velocity = p.getBaseVelocity(self.object_id)[1]
 
-    #     if self.object_position[2] > self.unsafe_height:
-    #         self.steps_on_the_scoop += 1
-    #     else:
-    #         self.done_evaluation = True
+        # Apply random acceleration/force to the object
+        while True:
+            rand_acc = [random.uniform(-acc_lim, acc_lim) for _ in range(3)]
+            total_acc = rand_acc
+            total_acc[2] = self.g
+            delta_vel = [a * self.time_step for a in total_acc]
+            curr_vel = p.getBaseVelocity(self.object_id)[0]
+            new_vel = [v + dv for v, dv in zip(curr_vel, delta_vel)]
+            p.resetBaseVelocity(self.object_id, new_vel, [0, 0, 0])
+            p.stepSimulation()
+            # time.sleep(self.time_step)
+
+            object_position = p.getBasePositionAndOrientation(self.object_id)[0]
+            if object_position[2] > height_threshold:
+                steps_on_the_scoop += 1
+            else:
+                break
         
-    #     return self.done_evaluation
+        # Reset the object to the initial state
+        p.resetBasePositionAndOrientation(self.object_id, object_initial_position, object_initial_orientation)
+        p.resetBaseVelocity(self.object_id, object_initial_velocity, object_initial_angular_velocity)
+        return steps_on_the_scoop
     
     def run(self, num_episodes=1):
         avg_score = 0

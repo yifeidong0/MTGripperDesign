@@ -131,7 +131,7 @@ def main():
                     )  
     
 
-    model.learn(total_timesteps=args.total_timesteps, progress_bar=False, log_interval=5, callback=custom_callback)
+    model.learn(total_timesteps=args.total_timesteps, progress_bar=True, log_interval=5, callback=custom_callback)
 
     model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
 

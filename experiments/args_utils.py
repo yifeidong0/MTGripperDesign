@@ -16,7 +16,7 @@ def get_args():
                                 'DLRSimulationEnv-v0',
                                 'PandaUPushEnv-v0'  # Assuming you want to keep this as a default or possible choice
                             ], default='PandaUPushEnv-v0', help='Environment ID for the simulation')
-    parser.add_argument('--total_timesteps', type=int, default=int(1e6), help='Total number of timesteps for training')
+    parser.add_argument('--total_timesteps', type=int, default=int(3e6), help='Total number of timesteps for training')
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='auto', help='Computational device to use (auto, cuda, cpu)')
     parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
     parser.add_argument('--using_robustness_reward', type=bool, default=False, help='Enable or disable the robustness reward')

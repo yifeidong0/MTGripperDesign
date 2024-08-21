@@ -57,7 +57,7 @@ class DLRSimulationEnv(gym.Env):
             )
         self.robot_joint_limits = [[-0.3,0.3], [0.0,1.2],]
         self.robot_base_limits = [[-0.5,0.5], [-0.5,0.5], [1.5,4]]
-        self.desired_goal_height = 0.5
+        self.desired_goal_height = 0.6
 
         self.last_object_position = None
         self.last_tip_object_distance = None
@@ -81,9 +81,9 @@ class DLRSimulationEnv(gym.Env):
         self.simulation.step_count = 0
         self.task = 'cube' # cube, fish
         self.task_param = np.random.uniform(0.08, 0.14)
-        base_lengths = np.arange(60, 100, 5)
+        # base_lengths = np.arange(60, 100, 5)
         distal_lengths = np.arange(20, 60, 5)
-        # distal_curvature = np.arange(1, 5, 1)
+        # distal_curvature = np.arange(1, 5, 1) # TODO: add curvature as design parameter
         self.design_params = [60, # random.choice(base_lengths), 
                               random.choice(distal_lengths),]
         # self.design_params = [60,30]
@@ -187,7 +187,7 @@ class DLRSimulationEnv(gym.Env):
             return -d.astype(np.float32)
         else:
             reward = 0
-            reward1, reward2, reward3, reward4, reward5, reward6 = None, None, None, None, None, None
+            reward1, reward2, reward3, reward4, reward5, reward6, reward_robustness = None, None, None, None, None, None, None
 
             # Approach the object: object and gripper tips/base are close
             result_approach_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.object_id, 100.0, 3, -1)
@@ -229,6 +229,8 @@ class DLRSimulationEnv(gym.Env):
             if reward3 < 0:
                 self.count_penetration += 1
             reward += reward3
+            # if self.count_penetration > 100:
+            #     reward += -5.0
 
             # Reward for making gripper tips lower than the object
             result_floor_tip_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, 100.0, 3, -1)
@@ -268,28 +270,33 @@ class DLRSimulationEnv(gym.Env):
                 reward += reward6
             self.last_object_position = object_position
 
+            # Reward of caging robustness
+            if self.using_robustness_reward and object_position[2]>0.5*self.desired_goal_height and np.random.rand() < 0.004:
+                reward_robustness = self.simulation.eval_robustness(0.5*object_position[2]) / 200
+                if reward_robustness is not None:
+                    print("!!!!!!!!!!!!reward robustness", round(reward_robustness, 3))
+                reward += reward_robustness
+
+            # Reward of success and caging robustness
+            if self.is_success:
+                reward += 100.0
+
             # Debugging, show rewards with 2 digits after the decimal point
-            if np.random.rand() < 5e-4:
+            if np.random.rand() < 3e-4:
                 if reward1 is not None:
-                    print("reward 1", round(reward1, 3))
+                    print("reward object-tip distance", round(reward1, 3))
                 if reward2 is not None:
-                    print("reward 2", round(reward2, 3))
+                    print("reward object-gripper-base distance", round(reward2, 3))
                 if reward3 is not None:
-                    print("reward 3", round(reward3, 3))
+                    print("reward penetration", round(reward3, 3))
                 if reward4 is not None:
-                    print("reward 4", round(reward4, 3))
+                    print("reward object-tip relative height", round(reward4, 3))
                 if reward5 is not None:
-                    print("reward 5", round(reward5, 3))
+                    print("reward gripper-tip distance", round(reward5, 3))
                 if reward6 is not None:
-                    print("reward 6", round(reward6, 3))
+                    print("reward lift", round(reward6, 3))
                 print("")
 
-            # TODO: Reward of caging robustness
-            if self.using_robustness_reward:
-                pass
-
-            if self.is_success:
-                reward += 100
 
             return reward * np.ones(desired_goal.shape).squeeze()
         
@@ -311,10 +318,11 @@ class DLRSimulationEnv(gym.Env):
                                     and -1 <= object_position[1] <= 1)
     
         time_ended = self.simulation.step_count >= 8000  # Maximum number of steps
-        if self.count_penetration > 100:
+        too_many_penetrations = self.count_penetration > 100
+        if too_many_penetrations:
             print("INFO: Penetration count exceeded 100!")
 
-        return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended or self.count_penetration > 100)
+        return bool(gripper_out_of_canvas or object_out_of_canvas or time_ended or too_many_penetrations)
         # return False
 
     def render(self):
