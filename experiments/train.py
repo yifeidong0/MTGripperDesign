@@ -52,7 +52,14 @@ def main():
         "monitor_dir": f"results/monitor/{args.env_id}/",
     }       
     
-    env_kwargs = {'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward, 'render_mode': args.render_mode}
+    os.system(f"mkdir asset/{args.time_stamp}")
+
+    env_kwargs = {'obs_type': args.obs_type,
+                  'using_robustness_reward': args.using_robustness_reward,
+                  'render_mode': args.render_mode, 
+                  'time_stamp': args.time_stamp,
+                  'reward_type': 'sparse',
+                  }
     if args.n_envs > 1:
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
@@ -130,10 +137,14 @@ def main():
                     seed=args.random_seed,
                     )  
     
-
-    model.learn(total_timesteps=args.total_timesteps, progress_bar=True, log_interval=5, callback=custom_callback)
-
-    model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
+    try:
+        model.learn(total_timesteps=args.total_timesteps, progress_bar=True, log_interval=5, callback=custom_callback)
+    except KeyboardInterrupt:
+        print("Training interrupted")
+    finally:
+        model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
+        print("removing asset")
+        os.system(f"rm -rf asset/{args.time_stamp}")
 
 if __name__ == "__main__":
     main()

@@ -31,6 +31,7 @@ class PandaCustom(PyBulletRobot):
         block_gripper: bool = False,
         base_position: Optional[np.ndarray] = None,
         control_type: str = "ee",
+        time_stamp: str = "",
     ) -> None:
         self.base_position = base_position if base_position is not None else np.zeros(3)
         self.block_gripper = block_gripper
@@ -51,7 +52,7 @@ class PandaCustom(PyBulletRobot):
 
         self.num_episodes = 0
         self.constraint_id = None
-
+        self.time_stamp = time_stamp
         super().__init__(
             sim,
             body_name="panda",
@@ -194,9 +195,9 @@ class PandaCustom(PyBulletRobot):
 
     def _attach_tool_to_ee(self) -> None:
         """Attach the tool to the end-effector."""
-        os.system("rm -rf asset/vpusher/*")
+        os.system(f"rm -rf asset/{self.time_stamp}/*")
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
-        tool_obj_path = f"asset/vpusher/{unique_obj_filename}"
+        tool_obj_path = f"asset/{self.time_stamp}/{unique_obj_filename}"
         generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, 
                                 tool_obj_path, self.finger_angle, self.distal_phalanx_length)
         decompose_mesh(pb_connected=True, input_file=tool_obj_path)
@@ -204,8 +205,7 @@ class PandaCustom(PyBulletRobot):
             self.urdf_content = file.read()
         self.urdf_content = self.urdf_content.replace('{v_pusher_name}', tool_obj_path)
 
-        os.system(f"rm -rf asset/franka_panda_custom/vpusher_modified_*")
-        self.modified_vpusher_path = f"asset/franka_panda_custom/vpusher_modified_{self.v_angle:.3f}.urdf"
+        self.modified_vpusher_path = f"asset/{self.time_stamp}/vpusher_modified_{self.v_angle:.3f}.urdf"
         with open(self.modified_vpusher_path, 'w') as file:
             file.write(self.urdf_content)
 

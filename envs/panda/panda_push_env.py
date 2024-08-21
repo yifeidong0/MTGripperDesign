@@ -40,6 +40,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self,
         render_mode: str = "human",
         obs_type: str = "pose",
+        time_stamp: str = "",
         using_robustness_reward: bool = False,
         reward_type: str = "sparse",
         control_type: str = "ee",
@@ -53,7 +54,7 @@ class PandaUPushEnv(RobotTaskEnv):
         render_roll: float = 0,
     ) -> None:
         sim = PyBullet(render_mode=render_mode, renderer=renderer)
-        robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type)
+        robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type, time_stamp=time_stamp)
         task = VPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward)
         super().__init__(
             robot,
@@ -80,7 +81,7 @@ class PandaUPushEnv(RobotTaskEnv):
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         if terminated:
             print(f"is_success: {self.step_count}")
-        info = {"is_success": terminated}
+        info = {"is_success": terminated, "observation": observation["observation"]}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
         
