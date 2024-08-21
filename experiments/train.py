@@ -58,7 +58,7 @@ def main():
                   'using_robustness_reward': args.using_robustness_reward,
                   'render_mode': args.render_mode, 
                   'time_stamp': args.time_stamp,
-                  'reward_type': 'sparse',
+                  'reward_type': 'sparse', # dense, sparse
                   }
     if args.n_envs > 1:
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)

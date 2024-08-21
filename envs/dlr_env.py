@@ -18,9 +18,10 @@ def pi_2_pi(angle):
 class DLRSimulationEnv(gym.Env):
     def __init__(self, 
                  render_mode: str = "human",
+                 time_stamp: str = "",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
-                 reward_type: str = "none", # dense, sparse, none
+                 reward_type: str = "dense", # dense, sparse
                  img_size=(42, 42), 
         ):
         super(DLRSimulationEnv, self).__init__()
@@ -183,9 +184,9 @@ class DLRSimulationEnv(gym.Env):
             d = distance(achieved_goal, desired_goal)
             return -np.array(d > 0.01, dtype=np.float32)
         elif self.reward_type == 'dense':
-            d = distance(achieved_goal, desired_goal)
-            return -d.astype(np.float32)
-        else:
+        #     d = distance(achieved_goal, desired_goal)
+        #     return -d.astype(np.float32)
+        # else:
             reward = 0
             reward1, reward2, reward3, reward4, reward5, reward6, reward_robustness = None, None, None, None, None, None, None
 
