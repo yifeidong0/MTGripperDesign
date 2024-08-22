@@ -35,8 +35,6 @@ class VPush(Task):
         self.task_int = 0 if self.task_object_name == 'circle' else 1
         self.last_ee_object_distance = 0
         self.last_object_target_distance = 0
-        self.design_params = None
-        self.robustness_opening = None
         self.using_robustness_reward = using_robustness_reward
         with self.sim.no_rendering():
             self._create_scene()
@@ -98,7 +96,7 @@ class VPush(Task):
             self._create_task_object_mesh(file_name, mesh_scale, height)
 
         # for caging escape computation
-        self.object_rad = {"circle": self.object_size/2, "square": self.object_size/2, 
+        self.all_object_rad = {"circle": self.object_size/2, "square": self.object_size/2, 
                            "polygon0": 2.7/4.0*self.object_size/2, "narrow": 2.9/4.0*self.object_size/2, 
                            "oval": self.object_size/2}
 
@@ -143,6 +141,7 @@ class VPush(Task):
         object_angular_velocity = np.array(self.sim.get_base_angular_velocity("object"))
         target_position = np.array(self.sim.get_base_position("target"))
         task_int = np.array([self.task_int,])
+        object_rad = np.array([self.all_object_rad[self.task_object_name],])
         observation = np.concatenate(
             [
                 object_position,
@@ -151,6 +150,7 @@ class VPush(Task):
                 object_angular_velocity,
                 target_position,
                 task_int,
+                object_rad
             ]
         )
         return observation
@@ -164,8 +164,6 @@ class VPush(Task):
         p.removeBody(self.sim._bodies_idx["target"])
         p.removeBody(self.sim._bodies_idx["object"])
         self._create_task_object()
-        self.design_params = None
-        self.robustness_opening = None
         # print(p.getNumBodies())
         # print(self.sim._bodies_idx)
 
@@ -193,115 +191,101 @@ class VPush(Task):
         d = distance(achieved_goal, desired_goal)
         return np.array(d < self.distance_threshold, dtype=bool)
         
-    def _is_point_inside_polygon(self, point, vertices, slack=2):
-        polygon = Polygon(vertices)
-        point = Point(point)
-        if polygon.contains(point):
-            return True
-        if polygon.distance(point) <= slack:
-            return True
+    def _is_point_inside_polygon(self, points, vertices, slack=2):
+        """
+        Batch processing version of _is_point_inside_polygon.
+        points: numpy array of shape [N, 2]
+        polygons: numpy array of shape [N, 5, 2] where 5 is the number of vertices in each U shape polygon
+        slack: tolerance distance for considering a point inside the polygon
+        returns: boolean array of shape [N] indicating whether each point is inside the polygon or within slack distance
+        """
+        results = np.zeros(points.shape[0], dtype=bool)
+        for i in range(points.shape[0]):
+            polygon = Polygon(vertices[i])
+            point = Point(points[i])
+            if polygon.contains(point):
+                results[i] = True
+            elif polygon.distance(point) <= slack:
+                results[i] = True
+        return results
 
-        return False
-    
-    def _eval_robustness(self, tool_position, tool_angle, object_position, design_params, slack=0.0):
-        a1, l1, a2, l2 = design_params
-
-        # Calculate the object position in the robot frame
-        # object_pos = np.array(p.getBasePositionAndOrientation(self.object_id)[0][:2])
-        # robot_pos = np.array(p.getBasePositionAndOrientation(self.robot_id)[0][:2])
-        # robot_angle = p.getBasePositionAndOrientation(self.robot_id)[1]
-        # robot_angle = p.getEulerFromQuaternion(robot_angle)[2]
-        object_pos_R = object_position - tool_position
-        object_pos_R = np.array([ # robot frame
-            object_pos_R[0] * math.cos(tool_angle) + object_pos_R[1] * math.sin(tool_angle),
-            -object_pos_R[0] * math.sin(tool_angle) + object_pos_R[1] * math.cos(tool_angle)
-        ])
-
-        # Compute robot vertices position in the robot frame
-        robot_vertices = [(0, 0),  # robot frame
-                               (l1*math.cos(a1/2), l1*math.sin(a1/2)),
-                               (l1*math.cos(-a1/2), l1*math.sin(-a1/2)),
-                               (l1*math.cos(a1/2) + l2*math.cos(a2), l1*math.sin(a1/2) + l2*math.sin(a2)),
-                               (l1*math.cos(-a1/2) + l2*math.cos(-a2), l1*math.sin(-a1/2) + l2*math.sin(-a2)),
-        ]
-                            #    (self.finger_length*math.cos(self.v_angle/2), self.finger_length*math.sin(self.v_angle/2)),
-                            #    (self.finger_length*math.cos(-self.v_angle/2), self.finger_length*math.sin(-self.v_angle/2))]
+    def _eval_robustness(self, tool_positions, tool_angles, object_positions, design_params, object_rad, slack=0.0):
+        """
+        Batch processing version of _eval_robustness.
+        tool_positions: numpy array of shape [N, 2]
+        tool_angles: numpy array of shape [N]
+        object_positions: numpy array of shape [N, 2]
+        design_params: numpy array of shape [N, 4] where each row contains [a1, l1, a2, l2]
+        slack: tolerance value used in _is_point_inside_polygon
+        returns: numpy array of shape [N] containing the robustness scores for each evaluation
+        """
+        N = tool_positions.shape[0]
+        assert design_params.shape == (N, 4) and object_positions.shape == (N, 2) and tool_positions.shape == (N, 2) and tool_angles.shape == (N, 1)
+        a1 = design_params[:, 0]
+        l1 = design_params[:, 1]
+        a2 = design_params[:, 2]
+        l2 = design_params[:, 3]
         
-        if self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack):
-            soft_fixture_metric = l1*math.cos(a1/2) + l2*math.cos(a2) - object_pos_R[0] + self.object_rad[self.task_object_name]
-            # soft_fixture_metric = l1*math.cos(a1/2) +  - object_pos_R[0] + self.object_rad
-            robustness_depth = max(0.0, soft_fixture_metric) # depth
-            robustness = 10*robustness_depth + self.robustness_opening
-            # print("robustness_depth: ", robustness_depth)
-            # print("robustness: ", robustness)
-        else:
-            robustness = 0
-
-        return robustness
-
-    def _compute_robustness_opening(self,):
-        a1, l1, a2, l2 = self.design_params
+        # Calculate opening_gap and robustness_opening for each evaluation
         opening_gap = 2 * (l1 * np.sin(a1/2) + l2 * np.sin(a2))
-        self.robustness_opening = 0.03 / opening_gap
+        robustness_opening = 0.03 / opening_gap
+        
+        # Calculate object positions in the robot frame for each evaluation
+        delta_positions = object_positions - tool_positions
+        cos_angles = np.cos(tool_angles)
+        sin_angles = np.sin(tool_angles)
+        
+        object_pos_R = np.stack([
+            delta_positions[:, 0] * cos_angles[:, 0] + delta_positions[:, 1] * sin_angles[:, 0],
+            -delta_positions[:, 0] * sin_angles[:, 0] + delta_positions[:, 1] * cos_angles[:, 0]
+        ], axis=1)
+
+        vertex_1 = np.zeros((N, 2))
+        vertex_2 = np.stack([l1 * np.cos(a1/2), l1 * np.sin(a1/2)], axis=1)
+        vertex_3 = np.stack([l1 * np.cos(-a1/2), l1 * np.sin(-a1/2)], axis=1)
+        vertex_4 = np.stack([l1 * np.cos(a1/2) + l2 * np.cos(a2), l1 * np.sin(a1/2) + l2 * np.sin(a2)], axis=1)
+        vertex_5 = np.stack([l1 * np.cos(-a1/2) + l2 * np.cos(-a2), l1 * np.sin(-a1/2) + l2 * np.sin(-a2)], axis=1)
+
+        robot_vertices = np.stack([vertex_1, vertex_2, vertex_3, vertex_4, vertex_5], axis=1)  # (N, 5, 2)
+        assert robot_vertices.shape == (N, 5, 2) and object_pos_R.shape == (N, 2)
+        
+        # Check if each object position is inside the corresponding robot polygon
+        is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
+        # Calculate robustness for each evaluation
+        soft_fixture_metric = l1 * np.cos(a1/2) + l2 * np.cos(a2) - object_pos_R[:, 0] + object_rad[:, 0]
+        robustness_depth = np.maximum(0.0, soft_fixture_metric)
+        robustness = np.where(is_inside, 10 * robustness_depth + robustness_opening, 0)
+        return robustness
   
-  
-    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
+    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
-        if self.reward_type == "sparse":
-        #     return -np.array(d > self.distance_threshold, dtype=np.float32)
-        # else:
-            # print(info)
-            # print(type(info))
-            
-            if type(info) == dict:
-                observation = info["observation"] # TODO(shaohang): tmp solution, cannot pass env checker, due to possible batch info input
-                assert observation.shape == (27,)
-                ee_position = observation[:3]
-                ee_velocity = observation[3:6]
-                ee_yaw = observation[6:7]
-                self.design_params = observation[7:11]
-                object_position = observation[11:14]
-                object_rotation = observation[14:17]
-                object_velocity = observation[17:20]
-                object_angular_velocity = observation[20:23]
-                target_position = observation[23:26]
-                task_int = observation[26:27]
-            
-                if self.using_robustness_reward:
-                    if self.design_params is not None and self.robustness_opening is None:
-                        self._compute_robustness_opening()
-                    robustness_score = self._eval_robustness(achieved_goal[:2], 
-                                                            0,
-                                                            desired_goal[:2],
-                                                            self.design_params,
-                                                            slack=self.object_size/2,)
-                    return -d.astype(np.float32) + robustness_score
-                return -d.astype(np.float32)
-            else:
-                for info in info:
-                    observation = info["observation"] # TODO(shaohang): tmp solution, cannot pass env checker, due to possible batch info input
-                    assert observation.shape == (27,)
-                    ee_position = observation[:3]
-                    ee_velocity = observation[3:6]
-                    ee_yaw = observation[6:7]
-                    self.design_params = observation[7:11]
-                    object_position = observation[11:14]
-                    object_rotation = observation[14:17]
-                    object_velocity = observation[17:20]
-                    object_angular_velocity = observation[20:23]
-                    target_position = observation[23:26]
-                    task_int = observation[26:27]
+        if self.using_robustness_reward:
+            if observation.ndim == 1:
+                observation = np.expand_dims(observation, axis=0)  # Converts (27,) to (1, 27)
+            assert observation.shape[-1] == 28
+            ee_position = observation[..., :3]
+            ee_velocity = observation[...,3:6]
+            ee_yaw = observation[...,6:7]
+            design_params = observation[...,7:11]
+            object_position = observation[...,11:14]
+            object_rotation = observation[...,14:17]
+            object_velocity = observation[...,17:20]
+            object_angular_velocity = observation[...,20:23]
+            target_position = observation[...,23:26]
+            task_int = observation[...,26:27]
+            object_rad = observation[...,27:28]
+            robustness_score = self._eval_robustness(ee_position[:, :2],
+                                                     ee_yaw,
+                                                     object_position[:, :2],
+                                                     design_params,
+                                                     object_rad,
+                                                     slack=self.object_size/2,)
+            if robustness_score.shape[0] == 1:
+                robustness_score = np.squeeze(robustness_score, axis=0)  # Converts (1,) to ()
+            return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score
+        return -np.array(d > self.distance_threshold, dtype=np.float32)
+
                 
-                    if self.using_robustness_reward:
-                        if self.design_params is not None and self.robustness_opening is None:
-                            self._compute_robustness_opening()
-                        robustness_score = self._eval_robustness(achieved_goal[:2], 
-                                                                0,
-                                                                desired_goal[:2],
-                                                                self.design_params,
-                                                                slack=self.object_size/2,)
-                        return -d.astype(np.float32) + robustness_score
-                    return -d.astype(np.float32)
     # def compute_reward(self, observation_dict, info) -> np.ndarray:
     #     observation = observation_dict["observation"]
     #     achieved_goal = observation_dict["achieved_goal"]

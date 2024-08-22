@@ -82,9 +82,9 @@ class PandaUPushEnv(RobotTaskEnv):
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         if terminated:
             print(f"is_success: {self.step_count}")
-        info = {"is_success": terminated, "observation": observation["observation"]}
+        info = {"is_success": terminated}
         truncated = self._is_truncated()
-        reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), info))
+        reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
         
         # reward = float(self.task.compute_reward(observation, info))
         # time.sleep(40./240.)
@@ -102,7 +102,10 @@ class PandaUPushEnv(RobotTaskEnv):
         # cv2.imwrite(f'images/{self.step_count}.png', self.frame)
 
         return observation, reward, terminated, truncated, info
-        
+    
+    def compute_robustness(self, achieved_goal, desired_goal, info):
+        return 0
+    
     def reset(
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
