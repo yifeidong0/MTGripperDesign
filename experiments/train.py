@@ -5,7 +5,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import gymnasium as gym
 from sb3_contrib import TQC
 from stable_baselines3 import PPO, SAC
-from stable_baselines3 import HerReplayBuffer
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
@@ -15,6 +14,7 @@ import panda_gym.envs
 
 import envs
 from experiments.args_utils import get_args
+from policy.her_replay_buffer_mod import HerReplayBufferMod
 
 class CustomCallback(CheckpointCallback):
     def __init__(self, args,  save_freq: int, save_path: str, name_prefix: str = "rl_model", 
@@ -64,8 +64,8 @@ def main():
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
         env = gym.make(args.env_id, **env_kwargs)
-        # env = gym.make("PandaPush-v3")
-        check_env(env)
+        if args.env_id != 'PandaUPushEnv-v0':
+            check_env(env)
         
     custom_callback = CustomCallback(
         args=args,
@@ -122,7 +122,7 @@ def main():
                     learning_rate=1e-3,
                     learning_starts=10000,
                     tau=0.05,
-                    replay_buffer_class=HerReplayBuffer,
+                    replay_buffer_class=HerReplayBufferMod,
                     replay_buffer_kwargs={
                         "goal_selection_strategy": 'future',
                         "n_sampled_goal": 4
@@ -143,7 +143,6 @@ def main():
         print("Training interrupted")
     finally:
         model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
-        print("removing asset")
         os.system(f"rm -rf asset/{args.time_stamp}")
 
 if __name__ == "__main__":
