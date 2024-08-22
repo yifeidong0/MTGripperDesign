@@ -21,6 +21,7 @@ class DLRSimulationEnv(gym.Env):
                  time_stamp: str = "",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
+                 reward_weights: list = [0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0],
                  reward_type: str = "dense", # dense, sparse
                  img_size=(42, 42), 
         ):
@@ -32,6 +33,7 @@ class DLRSimulationEnv(gym.Env):
         self.img_size = img_size
         self.obs_type = obs_type
         self.reward_type = reward_type
+        self.reward_weights = reward_weights
         self.using_robustness_reward = using_robustness_reward
         self.action_space = spaces.Box(low=np.array([-1e-5,-1e-5,-0.0005,-1e-5,-0.001,-0.001,]), 
                                        high=np.array([1e-5,1e-5,0.0005,1e-5,0.001,0.001,]), 
@@ -188,7 +190,8 @@ class DLRSimulationEnv(gym.Env):
         #     return -d.astype(np.float32)
         # else:
             reward = 0
-            reward1, reward2, reward3, reward4, reward5, reward6, reward_robustness = None, None, None, None, None, None, None
+            # self.reward_weights = [0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0]
+            # reward1, reward2, reward3, reward4, reward5, reward6, reward_robustness = None, None, None, None, None, None, None
 
             # Approach the object: object and gripper tips/base are close
             result_approach_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.object_id, 100.0, 3, -1)
@@ -205,13 +208,13 @@ class DLRSimulationEnv(gym.Env):
                 # object-tip relative distance
                 tip_object_distance = (tip_object_distance_left+tip_object_distance_right) / 2
                 if self.last_tip_object_distance is not None:
-                    reward1 = 0.1 * (self.last_tip_object_distance - tip_object_distance)
+                    reward1 = self.reward_weights[0] * (self.last_tip_object_distance - tip_object_distance)
                     reward += reward1
                 self.last_tip_object_distance = tip_object_distance
 
                 # object and gripper base relative distance
                 if self.last_base_object_distance is not None:
-                    reward2 = 0.001 * (self.last_base_object_distance - base_object_distance)
+                    reward2 = self.reward_weights[1] * (self.last_base_object_distance - base_object_distance)
                     reward += reward2
                 self.last_base_object_distance = base_object_distance
 
@@ -223,7 +226,7 @@ class DLRSimulationEnv(gym.Env):
             result_penalize_floor_finger_left = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.01, 2, -1)
             result_penalize_floor_finger_right = p.getClosestPoints(self.simulation.robot_id, self.simulation.plane_id, -0.01, 0, -1)
             result_penalize_tips = p.getClosestPoints(self.simulation.robot_id, self.simulation.robot_id, -0.02, 3, 1)
-            reward3 = -0.03 * (2*(len(result_penalize_object_tip_left)>0) + 2*(len(result_penalize_object_tip_right)>0) + 
+            reward3 = self.reward_weights[2] * (2*(len(result_penalize_object_tip_left)>0) + 2*(len(result_penalize_object_tip_right)>0) + 
                              (len(result_penalize_floor_tip_left)>0) + (len(result_penalize_floor_tip_right)>0) + 
                              10*(len(result_penalize_floor_finger_left)>0) + 10*(len(result_penalize_floor_finger_right)>0) +
                              3*(len(result_penalize_tips)>0))
@@ -247,7 +250,7 @@ class DLRSimulationEnv(gym.Env):
                 object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0])
                 object_tip_height = object_position[2] - tip_floor_distance
                 if self.last_object_tip_height is not None:
-                    reward4 = 0.1 * (object_tip_height - self.last_object_tip_height)
+                    reward4 = self.reward_weights[3] * (object_tip_height - self.last_object_tip_height)
                     reward += reward4
                 self.last_object_tip_height = object_tip_height
 
@@ -259,45 +262,44 @@ class DLRSimulationEnv(gym.Env):
                     tips_distance = np.linalg.norm(np.array(position_on_robot1) - np.array(position_on_robot2))
                     if self.last_tips_distance is not None:
                         if self.last_object_tip_height>0:
-                            reward5 = 10.0 * (self.last_tips_distance - tips_distance)
+                            reward5 = self.reward_weights[4] * (self.last_tips_distance - tips_distance)
                         else:
-                            reward5 = 10.0 * (tips_distance - self.last_tips_distance)
+                            reward5 = self.reward_weights[4] * (tips_distance - self.last_tips_distance)
                         reward += reward5
                     self.last_tips_distance = tips_distance
 
             # Reward for lifting the object
             if self.last_object_position is not None:
-                reward6 = 50.0 * (object_position[2] - self.last_object_position[2])
+                reward6 = self.reward_weights[5] * (object_position[2] - self.last_object_position[2])
                 reward += reward6
             self.last_object_position = object_position
 
             # Reward of caging robustness
             if self.using_robustness_reward and object_position[2]>0.5*self.desired_goal_height and np.random.rand() < 0.004:
-                reward_robustness = self.simulation.eval_robustness(0.5*object_position[2]) / 200
+                reward_robustness = self.reward_weights[6] * self.simulation.eval_robustness(0.5*object_position[2])
                 if reward_robustness is not None:
                     print("!!!!!!!!!!!!reward robustness", round(reward_robustness, 3))
                 reward += reward_robustness
 
             # Reward of success and caging robustness
             if self.is_success:
-                reward += 100.0
+                reward += self.reward_weights[7]
 
             # Debugging, show rewards with 2 digits after the decimal point
-            if np.random.rand() < 3e-4:
-                if reward1 is not None:
-                    print("reward object-tip distance", round(reward1, 3))
-                if reward2 is not None:
-                    print("reward object-gripper-base distance", round(reward2, 3))
-                if reward3 is not None:
-                    print("reward penetration", round(reward3, 3))
-                if reward4 is not None:
-                    print("reward object-tip relative height", round(reward4, 3))
-                if reward5 is not None:
-                    print("reward gripper-tip distance", round(reward5, 3))
-                if reward6 is not None:
-                    print("reward lift", round(reward6, 3))
-                print("")
-
+            # if np.random.rand() < 3e-4:
+            #     if reward1 is not None:
+            #         print("reward object-tip distance", round(reward1, 3))
+            #     if reward2 is not None:
+            #         print("reward object-gripper-base distance", round(reward2, 3))
+            #     if reward3 is not None:
+            #         print("reward penetration", round(reward3, 3))
+            #     if reward4 is not None:
+            #         print("reward object-tip relative height", round(reward4, 3))
+            #     if reward5 is not None:
+            #         print("reward gripper-tip distance", round(reward5, 3))
+            #     if reward6 is not None:
+            #         print("reward lift", round(reward6, 3))
+            #     print("")
 
             return reward * np.ones(desired_goal.shape).squeeze()
         

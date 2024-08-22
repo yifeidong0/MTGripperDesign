@@ -23,7 +23,12 @@ class CustomCallback(CheckpointCallback):
         self.args = args
     
     def _on_training_start(self) -> None:
-        hparam_dict = vars(self.args)
+        hparam_dict = {k: (str(v) if isinstance(v, (list, dict)) else v) for k, v in vars(self.args).items()}
+        
+        if hasattr(self.training_env.envs[0], 'reward_weights'):
+            reward_weights = self.training_env.envs[0].reward_weights
+            hparam_dict.update({'reward_weights': str(reward_weights)})  # Convert to string to avoid type issues
+        
         metric_dict = {
             "rollout/ep_len_mean": 0,
             "train/value_loss": 0.0,
@@ -58,7 +63,8 @@ def main():
                   'using_robustness_reward': args.using_robustness_reward,
                   'render_mode': args.render_mode, 
                   'time_stamp': args.time_stamp,
-                  'reward_type': 'sparse', # dense, sparse
+                  'reward_type': 'dense', # dense, sparse
+                  'reward_weights': args.reward_weights,
                   }
     if args.n_envs > 1:
         env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)

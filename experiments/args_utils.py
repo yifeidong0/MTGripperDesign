@@ -26,7 +26,7 @@ def get_args():
                                 'DLRSimulationEnv-v0',
                                 'PandaUPushEnv-v0'  # Assuming you want to keep this as a default or possible choice
                             ], default='PandaUPushEnv-v0', help='Environment ID for the simulation')
-    parser.add_argument('--total_timesteps', type=int, default=int(3e6), help='Total number of timesteps for training')
+    parser.add_argument('--total_timesteps', type=int, default=int(5e3), help='Total number of timesteps for training')
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='auto', help='Computational device to use (auto, cuda, cpu)')
     parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
     parser.add_argument('--using_robustness_reward', type=str2bool, nargs='?', const=True, default=False, help='Enable or disable the robustness reward')
@@ -34,4 +34,5 @@ def get_args():
     parser.add_argument('--n_envs', type=int, default=1, help='Number of environments to run in parallel')
     parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
     parser.add_argument('--algo', type=str, choices=['ppo', 'tqc', 'sac'], default='ppo', help='RL algorithm to use for training')
+    parser.add_argument('--reward_weights', type=float, nargs='+', default=[0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0], help='List of reward weights to use during training')
     return parser.parse_args()

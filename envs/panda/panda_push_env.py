@@ -42,6 +42,7 @@ class PandaUPushEnv(RobotTaskEnv):
         obs_type: str = "pose",
         time_stamp: str = "",
         using_robustness_reward: bool = False,
+        reward_weights: list = [],
         reward_type: str = "sparse",
         control_type: str = "ee",
         renderer: str = "Tiny",
