@@ -79,8 +79,8 @@ class PandaUPushEnv(RobotTaskEnv):
         self.sim.step()
         observation = self._get_obs()
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
-        if terminated:
-            print(f"is_success: {self.step_count}")
+        # if terminated:
+        #     print(f"is_success: {self.step_count}")
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
@@ -145,8 +145,8 @@ class PandaUPushEnv(RobotTaskEnv):
         time_ended = self.step_count > 500
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
-        if truncated:
-            print(f"step count: {self.step_count}")
-            print(f"gripper: {ee_position}")
-            print(f"object: {object_position}")
+        # if truncated:
+        #     print(f"step count: {self.step_count}")
+        #     print(f"gripper: {ee_position}")
+        #     print(f"object: {object_position}")
         return truncated

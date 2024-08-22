@@ -161,8 +161,8 @@ class PandaCustom(PyBulletRobot):
     def reset(self) -> None:
         # self._reload_robot()
         self.num_episodes += 1
-        if self.num_episodes % 5 == 0:
-            print(f"INFO: episode {self.num_episodes}")
+        # if self.num_episodes % 5 == 0:
+        #     print(f"INFO: episode {self.num_episodes}")
 
         if "tool" in self.sim._bodies_idx:
             p.removeBody(self.sim._bodies_idx["tool"])

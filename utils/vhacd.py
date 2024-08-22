@@ -49,6 +49,8 @@ def decompose_mesh(
         # Restore stdout and stderr
         os.dup2(old_stdout, 1)
         os.dup2(old_stderr, 2)
+        os.close(old_stdout)
+        os.close(old_stderr)
         devnull.close()
 
     # Disconnect from PyBullet

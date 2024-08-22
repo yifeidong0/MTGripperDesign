@@ -131,7 +131,7 @@ def main():
                         "net_arch": [512, 512, 512],
                         "n_critics": 2
                     },
-                    verbose=1,
+                    verbose=0,
                     tensorboard_log=paths["tensorboard_log"],
                     device="auto",
                     seed=args.random_seed,
