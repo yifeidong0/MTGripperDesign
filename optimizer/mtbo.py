@@ -20,7 +20,7 @@ class BayesianOptimizationMultiTask:
         Initialize the Bayesian Optimization Pipeline with the given parameters.
 
         Args:
-            env_type (str): The type of environment ('push', 'vpush', or 'ucatch').
+            env_type (str): The type of environment ('vpush', or 'catch').
             initial_iter (int): The number of initial iterations to run.
             max_iter (int): The maximum number of iterations to run.
             gui (bool): Whether to use GUI for the simulations.
@@ -31,25 +31,15 @@ class BayesianOptimizationMultiTask:
         self.num_episodes = num_episodes
 
         # Set bounds and number of tasks based on environment type
-        if self.env_type == "push":
-            self.x_scale = np.arange(0.1, 1.2, 0.04)
-            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0.1, 1.2)},
-                        {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
-            self.num_outputs = 2 # number of tasks
-        elif self.env_type == "vpush":
+        if self.env_type == "vpush":
             self.x_scale = np.arange(np.pi/12, np.pi*11/12, np.pi/64)
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (np.pi/12, np.pi*11/12)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
             self.env_id = 'VPushPbSimulationEnv-v0'
-            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip"
-        elif self.env_type == "vpush-frictionless":
-            self.x_scale = np.arange(0, np.pi, np.pi/64)
-            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
-                        {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
-            self.num_outputs = 2
-        elif self.env_type == "ucatch":
+            self.model_path = "results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip"
+        elif self.env_type == "catch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)}, # design space bounds
                         {'name': 'd1', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'd2', 'type': 'continuous', 'domain': (5, 10)},
@@ -59,22 +49,23 @@ class BayesianOptimizationMultiTask:
             self.num_outputs = 2
             self.robustness_score_weight = 0.1
             self.env_id = 'UCatchSimulationEnv-v0'
-            self.model_path = "results/models/best_model_ucatch_w_robustness_reward.zip"
-        elif self.env_type == "scoop":
-            self.bounds = [{'name': 'c0', 'type': 'continuous', 'domain': (0.5, 2)},
-                        {'name': 'c1', 'type': 'continuous', 'domain': (0.2, 1.3)},
+            self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-23_18-19-42_1000_steps.zip"
+        elif self.env_type == "panda":
+            self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds
+                        {'name': 'finger_length', 'type': 'continuous', 'domain': (0.07, 0.15)},
+                        {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
+                        {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.10)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
-            self.num_outputs = 2
-
+            self.num_outputs = 5
+            self.robustness_score_weight = 0.1
+            self.env_id = 'PandaUPushEnv-v0'
+            self.model_path = "results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-23_20-15-08_3000_steps.zip"
         if self.policy == "heuristic":
             if self.env_type == "vpush":
                 from sim.vpush_pb_sim import VPushPbSimulation as Simulation
                 self.sim = Simulation('circle', 1, self.gui)
-            elif self.env_type == "scoop":
-                from sim.scoop_sim import ScoopingSimulation as Simulation
-                self.sim = Simulation('pillow', [1,1], self.gui)
         elif self.policy == "rl":
-            self.env = gym.make(self.env_id, gui=self.gui, obs_type='pose')
+            self.env = gym.make(self.env_id, obs_type='pose')
             self.rl_model = PPO.load(self.model_path)
         
         self.initial_iter = initial_iter
@@ -130,29 +121,15 @@ class BayesianOptimizationMultiTask:
         self.task_counter[t] = self.task_counter.get(t, 0) + 1
         
         if self.policy == "heuristic":
-            if self.env_type == "push":
-                from sim.push_sim import ForwardSimulationPlanePush as Simulation
-                task = 'ball' if int(t) == 0 else 'box'
-                sim = Simulation(task, x, self.gui)
-                score = sim.run()
-            elif self.env_type == "vpush":
+            if self.env_type == "vpush":
                 task = 'circle' if int(t) == 0 else 'polygon'
                 self.sim.reset_task_and_design(task, x[0])
                 score = self.sim.run(self.num_episodes)
-            elif self.env_type == "vpush-frictionless":
-                from sim.vpush_sim import VPushSimulation as Simulation
-                task = 'circle' if int(t) == 0 else 'polygon'
-                sim = Simulation(task, x, self.gui)
-                score = sim.run(self.num_episodes)
-            elif self.env_type == "ucatch":
+            elif self.env_type == "catch":
                 from sim.ucatch_sim import UCatchSimulation as Simulation
                 task = 'circle' if int(t) == 0 else 'polygon'
                 sim = Simulation(task, x, self.gui)
                 score = sim.run(self.num_episodes)
-            elif self.env_type == "scoop":
-                task = 'bread' if int(t) == 0 else 'pillow'
-                self.sim.reset_task_and_design(task, x)
-                score = self.sim.run(self.num_episodes)
         elif self.policy == "rl":
             avg_score = 0
             obs, _ = self.env.reset(seed=0)
@@ -314,7 +291,7 @@ class BayesianOptimizationMultiTask:
                 f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
                 for line in csv_buffer:
                     f.write(f"{line[0]},{line[1]},{line[2][0]},{line[3]}\n")
-            elif self.env_type in ["ucatch",]:
+            elif self.env_type in ["catch",]:
                 f.write("num_iter,num_episodes_so_far,best_design_0,best_design_1,best_design_2,best_design_3,best_design_4,best_score_estimated\n")
                 for line in csv_buffer:
                     f.write(f"{line[0]},{line[1]},{line[2][0]},{line[2][1]},{line[2][2]},{line[2][3]},{line[2][4]},{line[3]}\n")
@@ -350,14 +327,14 @@ class BayesianOptimizationMultiTask:
         self.save_to_csv(csv_filename, csv_buffer)
 
         # Plot the results
-        if self.env_type in ["ucatch", "scoop"]:
+        if self.env_type in ["catch",]:
             plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_outputs)), optimizer='mtbo')
 
 
 if __name__ == "__main__":
     num_run = 10
     for r in range(num_run):
-        pipeline = BayesianOptimizationMultiTask(env_type="vpush", # vpush, (vpush-frictionless, push), ucatch, scoop
+        pipeline = BayesianOptimizationMultiTask(env_type="panda", # vpush, catch, dlr, panda
                                                 initial_iter=1, 
                                                 max_iter=50, 
                                                 policy='rl',

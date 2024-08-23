@@ -18,7 +18,7 @@ def pi_2_pi(angle):
 class DLRSimulationEnv(gym.Env):
     def __init__(self, 
                  render_mode: str = "human",
-                 time_stamp: str = "",
+                 time_stamp: str = "2024-08-23_20-15-08",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
                  reward_weights: list = [0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0],

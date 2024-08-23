@@ -20,7 +20,7 @@ class UCatchSimulationEnv(gym.Env):
                  render_mode: str = "human",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
-                 time_stamp: str = "",
+                 time_stamp: str = "2024-08-23_20-15-08",
                  reward_weights: list = [],
                  reward_type: str = "dense", # dense, sparse
                  img_size=(42, 42), 
