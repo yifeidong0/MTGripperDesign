@@ -18,7 +18,7 @@ def main():
     # check_env(env)
     
     model = None
-    if args.env_id == 'ScoopSimulationEnv-v0':
+    if args.env_id == 'UCatchSimulationEnv-v0':
         model = PPO.load("results/models/best_model_ucatch_w_robustness_reward.zip")
     elif args.env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip")

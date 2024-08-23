@@ -15,8 +15,8 @@ for rw4 in "${reward_weight_4_values[@]}"; do
       echo "Running training with reward_weights[4]=$rw4, reward_weights[5]=$rw5, and random_seed=$seed"
       
       # Run the Python training script in the background. TODO: unexpected keyword argument 'using_robustness_reward'
-      python3 /home/yif/Documents/git/MTGripperDesign/experiments/train.py \
-        --env_id ScoopSimulationEnv-v0 \
+      python3 experiments/train.py \
+        --env_id DLRSimulationEnv-v0 \
         --algo ppo \
         --using_robustness_reward "False" \
         --render_mode rgb_array \
