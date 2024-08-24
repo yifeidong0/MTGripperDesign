@@ -69,6 +69,7 @@ class PandaInferenceNode:
         if self.obs is None:
             return
         action, _ = self.model.predict(self.obs)
+        action *= 0.05
         print("Action: ", action)
         current_pose = self.group.get_current_pose().pose
         target_pose = geometry_msgs.msg.Pose()
