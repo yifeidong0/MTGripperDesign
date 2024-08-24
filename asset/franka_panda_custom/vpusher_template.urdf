@@ -3,7 +3,7 @@
 
   <link name="vpusher">
     <contact>
-      <lateral_friction value="1.0"/>
+      <lateral_friction value="0.2"/>
       <rolling_friction value="0.001"/>
       <restitution value="0.5"/>
     </contact>
