@@ -195,6 +195,7 @@ class PandaCustom(PyBulletRobot):
 
     def _attach_tool_to_ee(self) -> None:
         """Attach the tool to the end-effector."""
+        os.makedirs(f"asset/{self.time_stamp}", exist_ok=True)
         os.system(f"rm -rf asset/{self.time_stamp}/*")
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
         tool_obj_path = f"asset/{self.time_stamp}/{unique_obj_filename}"

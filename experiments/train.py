@@ -49,12 +49,17 @@ class CustomCallback(CheckpointCallback):
 
 def main():
     args = get_args()
+    env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+              'catch':'UCatchSimulationEnv-v0',
+              'dlr':'DLRSimulationEnv-v0',
+              'panda':'PandaUPushEnv-v0'}
+    env_id = env_ids[args.env_id]
 
     paths = {
-        "tensorboard_log": f"results/runs/{args.env_id}/",
-        "log_path": f"results/logs/{args.env_id}/",
-        "model_save_path": f"results/models/{args.env_id}/",
-        "monitor_dir": f"results/monitor/{args.env_id}/",
+        "tensorboard_log": f"results/runs/{env_id}/",
+        "log_path": f"results/logs/{env_id}/",
+        "model_save_path": f"results/models/{env_id}/",
+        "monitor_dir": f"results/monitor/{env_id}/",
     }       
     
     os.system(f"mkdir asset/{args.time_stamp}")
@@ -67,21 +72,21 @@ def main():
                   'reward_weights': args.reward_weights,
                   }
     if args.n_envs > 1:
-        env = make_vec_env(args.env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
+        env = make_vec_env(env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
-        env = gym.make(args.env_id, **env_kwargs)
-        if args.env_id != 'PandaUPushEnv-v0':
+        env = gym.make(env_id, **env_kwargs)
+        if env_id != 'PandaUPushEnv-v0':
             check_env(env)
         
     custom_callback = CustomCallback(
         args=args,
         save_freq=args.checkpoint_freq,
         save_path=paths["model_save_path"],
-        name_prefix=f"{args.env_id}_{args.time_stamp}",
+        name_prefix=f"{env_id}_{args.time_stamp}",
         # verbose=2,
     )
 
-    if args.env_id == 'PandaPushEnv-v0':
+    if env_id == 'PandaPushEnv-v0':
         policy_name = "MultiInputPolicy"
     else:
         if args.obs_type == 'pose':
@@ -148,7 +153,7 @@ def main():
     except KeyboardInterrupt:
         print("Training interrupted")
     finally:
-        model.save(f"results/models/{args.env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
+        model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
         os.system(f"rm -rf asset/{args.time_stamp}")
 
 if __name__ == "__main__":

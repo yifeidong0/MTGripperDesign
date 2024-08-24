@@ -24,6 +24,9 @@ class VPushPbSimulationEnv(gym.Env):
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
+                 time_stamp: str = "2024-08-23_20-15-08",
+                 reward_weights: list = [],
+                 reward_type: str = "dense", # dense, sparse
         ):
         super(VPushPbSimulationEnv, self).__init__()
         self.task = 'circle' 
@@ -43,8 +46,13 @@ class VPushPbSimulationEnv(gym.Env):
             self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
         else:
             # Observation space: low-dimensional pose (object pose, gripper pose)
-            self.observation_space = spaces.Box(low=np.array([0., 0., -1.]*2 +[0.,]*4), high=np.array([1.0]*10), dtype=np.float64)
-        
+            self.observation_space = spaces.Dict(
+                dict(
+                    observation=spaces.Box(low=np.array([0., 0., -1.]*2 +[0.,]*4), high=np.array([1.0]*10), dtype=np.float64),
+                    desired_goal=spaces.Box(0.0, 5.0, shape=(2,), dtype=np.float32),
+                    achieved_goal=spaces.Box(0.0, 5.0, shape=(2,), dtype=np.float32),
+                )
+            )
         # Goal parameters
         self.goal_radius = 0.5
         self.goal_position = np.array([4.5, 2.5]) # workspace [[0,5], [0,5]]
@@ -144,8 +152,11 @@ class VPushPbSimulationEnv(gym.Env):
             # Concatenate with task and design parameters
             task_design_params_normalized = np.array([self.task_int, self.v_angle/np.pi])
 
-            return np.concatenate([obs_normalized, task_design_params_normalized])
-
+            # return np.concatenate([obs_normalized, task_design_params_normalized])
+            return {"observation": np.concatenate([obs_normalized, task_design_params_normalized]),
+                    "achieved_goal": np.array(object_pose[:2]).astype(np.float32),
+                    "desired_goal": np.array(self.goal_position).astype(np.float32),} 
+        
     def _compute_reward(self, action):
         object_position = np.array(p.getBasePositionAndOrientation(self.simulation.object_id)[0][:2])
         gripper_position = np.array(p.getBasePositionAndOrientation(self.simulation.robot_id)[0][:2])

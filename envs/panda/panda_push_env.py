@@ -40,7 +40,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self,
         render_mode: str = "human",
         obs_type: str = "pose",
-        time_stamp: str = "",
+        time_stamp: str = "2024-08-23_20-15-08",
         using_robustness_reward: bool = False,
         reward_weights: list = [],
         reward_type: str = "sparse",

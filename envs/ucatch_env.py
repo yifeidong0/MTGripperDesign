@@ -20,6 +20,9 @@ class UCatchSimulationEnv(gym.Env):
                  render_mode: str = "human",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
+                 time_stamp: str = "2024-08-23_20-15-08",
+                 reward_weights: list = [],
+                 reward_type: str = "dense", # dense, sparse
                  img_size=(42, 42), 
         ):
         super(UCatchSimulationEnv, self).__init__()
@@ -36,8 +39,11 @@ class UCatchSimulationEnv(gym.Env):
         if self.obs_type == 'image':
             self.observation_space = spaces.Box(low=0, high=1.0, shape=(self.img_size[1], self.img_size[0], 3), dtype=np.float64)
         else:
-            self.observation_space = spaces.Box(low=np.array([-1.0]*12), high=np.array([1.0]*12), dtype=np.float64)
-
+            self.observation_space = spaces.Dict(
+                dict(
+                    observation=spaces.Box(low=np.array([-1.0]*12), high=np.array([1.0]*12), dtype=np.float64),
+                )
+            )
         if self.gui:
             pygame.init()
             self.screen = pygame.display.set_mode((self.simulation.width, self.simulation.height))
@@ -134,8 +140,10 @@ class UCatchSimulationEnv(gym.Env):
                                                       self.design_param[1]/10, self.design_param[2]/10, 
                                                       self.design_param[3]/np.pi, self.design_param[4]/np.pi])
 
-            return np.concatenate([pos_normalized, object_vel_normalized, task_design_params_normalized])
-
+            # return np.concatenate([pos_normalized, object_vel_normalized, task_design_params_normalized])
+            return {"observation": np.concatenate([pos_normalized, object_vel_normalized, task_design_params_normalized]),
+                    } 
+        
     def _compute_reward(self, action):
         object_pos = np.array([self.simulation.object_body.position[0], self.simulation.object_body.position[1]])
         object_vel = np.array([self.simulation.object_body.linearVelocity[0], self.simulation.object_body.linearVelocity[1]])

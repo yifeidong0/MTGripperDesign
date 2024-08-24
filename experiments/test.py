@@ -13,21 +13,30 @@ from experiments.args_utils import get_args
 
 def main():
     args = get_args()
-    env_kwargs = {'obs_type': args.obs_type, 'using_robustness_reward': args.using_robustness_reward, 'render_mode': args.render_mode}
-    env = gym.make(args.env_id, **env_kwargs)
+    env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+              'catch':'UCatchSimulationEnv-v0',
+              'dlr':'DLRSimulationEnv-v0',
+              'panda':'PandaUPushEnv-v0'}
+    env_id = env_ids[args.env_id]
+    env_kwargs = {'obs_type': args.obs_type, 
+                  'using_robustness_reward': args.using_robustness_reward, 
+                  'render_mode': args.render_mode,
+                  'time_stamp': args.time_stamp,
+                  }
+    env = gym.make(env_id, **env_kwargs)
     # check_env(env)
     
     model = None
-    if args.env_id == 'ScoopSimulationEnv-v0':
-        model = PPO.load("results/models/best_model_ucatch_w_robustness_reward.zip")
-    elif args.env_id == 'VPushPbSimulationEnv-v0':
-        model = PPO.load("results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip")
-    elif args.env_id == 'PandaPushEnv-v0':
-        model = PPO.load("results/models/PandaPushEnv-v0_1000000_2024-08-14_16-52-37_final")
-    elif args.env_id == 'DLRSimulationEnv-v0':
-        model = PPO.load("results/models/DLRSimulationEnv-v0/saved/DLRSimulationEnv-v0_2024-08-19_22-57-35_2191000_steps.zip")
+    if env_id == 'UCatchSimulationEnv-v0':
+        model = PPO.load("results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-23_18-19-42_1000_steps.zip")
+    elif env_id == 'VPushPbSimulationEnv-v0':
+        model = PPO.load("results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip")
+    elif env_id == 'PandaUPushEnv-v0':
+        model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-23_20-15-08_3000_steps.zip")
+    elif env_id == 'DLRSimulationEnv-v0':
+        model = PPO.load("results/models/DLRSimulationEnv-v0/DLRSimulationEnv-v0_2024-08-23_09-38-01_4000_steps.zip")
                          
-    for episode in range(10):
+    for episode in range(3):
         obs, _ = env.reset(seed=0)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
@@ -43,6 +52,7 @@ def main():
         print(f"Episode {episode + 1} finished")
 
     env.close()
+    os.system(f"rm -rf asset/202*")
 
 if __name__ == "__main__":
     main()
