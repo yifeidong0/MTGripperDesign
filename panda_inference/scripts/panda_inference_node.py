@@ -6,6 +6,7 @@ import rospy
 import roslib.packages
 import geometry_msgs.msg
 import moveit_commander
+import tf
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from stable_baselines3.sac.policies import MlpPolicy
 
@@ -49,6 +50,10 @@ class PandaInferenceNode:
         
         self.obs = None
         self.z_offset = 0.3
+        self.tf_listener = tf.TransformListener()
+        robot_frame = "panda_link0"
+        object_frame = "target_obj"
+        self.tf_listener.waitForTransform(robot_frame, object_frame, rospy.Time(), rospy.Duration(4.0))
     
     def go_home(self, msg):
         target_pose = geometry_msgs.msg.Pose()
@@ -77,8 +82,7 @@ class PandaInferenceNode:
         target_pose.position.y = current_pose.position.y + float(action[1])
         target_pose.position.z = self.z_offset
         current_orientation_euler = euler_from_quaternion([current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z, current_pose.orientation.w])
-        # target_orientation_euler = (np.pi, 0, current_orientation_euler[2] + float(action[2]))
-        target_orientation_euler = (np.pi, 0, 0)
+        target_orientation_euler = (np.pi, 0, current_orientation_euler[2] + float(action[2]))
         target_pose.orientation = geometry_msgs.msg.Quaternion(*quaternion_from_euler(*target_orientation_euler))
         self.group.set_pose_target(target_pose)
         start = time.time()
@@ -106,23 +110,30 @@ class PandaInferenceNode:
         self.obs["observation"] = np.random.rand(28)
         self.obs["achieved_goal"] = np.random.rand(3)
         self.obs["desired_goal"] = np.random.rand(3)
-        for i in range(num_steps):
-            ee_pose = self.group.get_current_pose().pose
-            self.obs["observation"][:3] = [ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]
-            ee_euler = euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w])
-            self.obs["observation"][3:6] = [0, 0, 0]
-            self.obs["observation"][6:7] = ee_euler[2]
-            self.obs["observation"][7:11] = [0, 0, 0, 0]
-            self.obs["observation"][11:14] = [3, 0, 0]
-            self.obs["observation"][14:17] = [0, 0, 0]
-            self.obs["observation"][17:20] = [0, 0, 0]
-            self.obs["observation"][20:23] = [0, 0, 0]
-            self.obs["observation"][23:26] = [5, 0, 0]
-            self.obs["observation"][26:27] = [0]
-            self.obs["observation"][27:28] = [0.1]
-            self.obs["achieved_goal"] = self.obs["observation"][11:14]
-            self.obs["desired_goal"] = self.obs["observation"][23:26]
-            self.control_timer_cb(None)
+        try:
+            for i in range(num_steps):
+                ee_pose = self.group.get_current_pose().pose
+                self.obs["observation"][:3] = [ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]
+                print("EE position: ", self.obs["observation"][:3])
+                ee_euler = euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w])
+                self.obs["observation"][3:6] = [0, 0, 0]
+                self.obs["observation"][6:7] = ee_euler[2]
+                (object_position, object_orientation) = self.tf_listener.lookupTransform("panda_link0", "target_obj", rospy.Time(0))
+                assert (object_position[1] < 1 and abs(object_position[2]) < 0.5)
+                object_orientation_euler = euler_from_quaternion(object_orientation)
+                self.obs["observation"][7:11] = [0, 0, 0, 0]
+                self.obs["observation"][11:14] = object_position
+                self.obs["observation"][14:17] = object_orientation_euler
+                self.obs["observation"][17:20] = [0, 0, 0]
+                self.obs["observation"][20:23] = [0, 0, 0]
+                self.obs["observation"][23:26] = [5, 0, 0]
+                self.obs["observation"][26:27] = [0]
+                self.obs["observation"][27:28] = [0.1]
+                self.obs["achieved_goal"] = self.obs["observation"][11:14]
+                self.obs["desired_goal"] = self.obs["observation"][23:26]
+                self.control_timer_cb(None)
+        except KeyboardInterrupt:
+            pass
 
         # ee_position = observation[..., :3]
         # ee_velocity = observation[...,3:6]
@@ -141,8 +152,8 @@ if __name__ == "__main__":
     panda_inference_node = PandaInferenceNode()
     rospy.loginfo("Going home...")
     panda_inference_node.go_home(None)
-    # rospy.loginfo("Replaying observations...")
-    # panda_inference_node.replay_obs()
-    # rospy.loginfo("Replay all observations done!")
-    rospy.loginfo("Went home, start to control!")
-    panda_inference_node.run()
+    rospy.loginfo("Replaying observations...")
+    panda_inference_node.replay_obs()
+    rospy.loginfo("Replay all observations done!")
+    # rospy.loginfo("Went home, start to control!")
+    # panda_inference_node.run()
