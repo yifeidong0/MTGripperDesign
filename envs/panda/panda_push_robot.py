@@ -145,9 +145,10 @@ class PandaCustom(PyBulletRobot):
 
     def get_obs(self) -> np.ndarray:
         # end-effector position and velocity
-        ee_position = np.array(self.get_ee_position())
+        ee_position = np.array(self.get_ee_position())[:2]
         ee_velocity = np.array(self.get_ee_velocity())
         ee_yaw = list(p.getEulerFromQuaternion(self.get_ee_orientation()))[-1]
+        arm_joint_angles = self.get_arm_joint_angles()
 
         # fingers opening
         if not self.block_gripper:
@@ -155,7 +156,7 @@ class PandaCustom(PyBulletRobot):
             observation = np.concatenate((ee_position, ee_velocity, [fingers_width]))
         else:
             self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
-            observation = np.concatenate((ee_position, ee_velocity, [ee_yaw,], self.design_params))
+            observation = np.concatenate((ee_position, [ee_yaw,], arm_joint_angles, self.design_params))
         return observation
 
     def reset(self) -> None:
