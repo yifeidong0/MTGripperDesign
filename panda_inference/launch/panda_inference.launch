@@ -1,0 +1,6 @@
+<launch>
+
+    <!-- Load the panda_inference node -->
+    <node name="panda_inference" pkg="panda_inference" type="panda_inference_node.py" output="screen" />
+
+</launch>
