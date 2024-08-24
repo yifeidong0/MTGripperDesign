@@ -51,7 +51,7 @@ class VPush(Task):
             
     def _create_scene(self) -> None:
         self.sim.create_plane(z_offset=-0.4)
-        self.sim.create_table(length=2, width=1, height=0.4, x_offset=0)
+        self.sim.create_table(length=2, width=1, height=0.4, x_offset=0, lateral_friction=40/77)
         self._create_task_object()
 
     def _create_task_object(self) -> None:
@@ -63,6 +63,7 @@ class VPush(Task):
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size/4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
+                lateral_friction=40/77,
             )
             self.sim.create_cylinder(
                 body_name="target",
@@ -80,6 +81,7 @@ class VPush(Task):
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size / 4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
+                lateral_friction=40/77,
             )
             self.sim.create_box(
                 body_name="target",
@@ -125,6 +127,7 @@ class VPush(Task):
                         "fileName": file_name,
                         "meshScale": mesh_scale,
                     },
+                lateral_friction=40/77,
             )
             self.sim._create_geometry(
                 body_name="target",
