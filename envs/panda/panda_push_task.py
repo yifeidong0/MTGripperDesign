@@ -36,6 +36,16 @@ class VPush(Task):
         self.last_ee_object_distance = 0
         self.last_object_target_distance = 0
         self.using_robustness_reward = using_robustness_reward
+        self.joint_limits = [
+            (-2.8973, 2.8973),
+            (-1.7628, 1.7628),
+            (-2.8973, 2.8973),
+            (-3.0718, -0.0698),
+            (-2.8973, 2.8973),
+            (-0.0175, 3.7525),
+            (-2.8973, 2.8973),
+        ]
+        self.tolerance = 0.0873  # radians, 5 deg
         with self.sim.no_rendering():
             self._create_scene()
             
@@ -135,19 +145,19 @@ class VPush(Task):
 
     def get_obs(self) -> np.ndarray:
         # position, rotation of the object
-        object_position = np.array(self.sim.get_base_position("object"))
-        object_rotation = np.array(self.sim.get_base_rotation("object"))
-        object_velocity = np.array(self.sim.get_base_velocity("object"))
-        object_angular_velocity = np.array(self.sim.get_base_angular_velocity("object"))
-        target_position = np.array(self.sim.get_base_position("target"))
+        object_position = np.array(self.sim.get_base_position("object"))[:2]
+        object_rotation = np.array(self.sim.get_base_rotation("object"))[2:]
+        # object_velocity = np.array(self.sim.get_base_velocity("object"))
+        # object_angular_velocity = np.array(self.sim.get_base_angular_velocity("object"))
+        target_position = np.array(self.sim.get_base_position("target"))[:2]
         task_int = np.array([self.task_int,])
         object_rad = np.array([self.all_object_rad[self.task_object_name],])
         observation = np.concatenate(
             [
                 object_position,
                 object_rotation,
-                object_velocity, # TODO: remove velocity for real-world experiments
-                object_angular_velocity,
+                # object_velocity,
+                # object_angular_velocity,
                 target_position,
                 task_int,
                 object_rad
@@ -257,23 +267,24 @@ class VPush(Task):
         robustness = np.where(is_inside, 10 * robustness_depth + robustness_opening, 0)
         return robustness
   
-    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray) -> np.ndarray:
+    def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray,) -> np.ndarray:
         d = distance(achieved_goal, desired_goal)
+        if observation.ndim == 1:
+            observation = np.expand_dims(observation, axis=0)  # Converts (21,) to (1, 21)
+        assert observation.shape[-1] == 21
+        ee_position = observation[..., :2]
+        ee_yaw = observation[..., 2:3]
+        arm_joint_angles = observation[..., 3:10]  # Joint angles
+        design_params = observation[..., 10:14]
+        object_position = observation[..., 14:16]
+        object_rotation = observation[..., 16:17]
+        target_position = observation[..., 17:19]
+        task_int = observation[..., 19:20]
+        object_rad = observation[..., 20:21]
+
+        # Robustness score
+        robustness_score = 0
         if self.using_robustness_reward:
-            if observation.ndim == 1:
-                observation = np.expand_dims(observation, axis=0)  # Converts (27,) to (1, 27)
-            assert observation.shape[-1] == 28
-            ee_position = observation[..., :3]
-            ee_velocity = observation[...,3:6]
-            ee_yaw = observation[...,6:7]
-            design_params = observation[...,7:11]
-            object_position = observation[...,11:14]
-            object_rotation = observation[...,14:17]
-            object_velocity = observation[...,17:20]
-            object_angular_velocity = observation[...,20:23]
-            target_position = observation[...,23:26]
-            task_int = observation[...,26:27]
-            object_rad = observation[...,27:28]
             robustness_score = self._eval_robustness(ee_position[:, :2],
                                                      ee_yaw,
                                                      object_position[:, :2],
@@ -282,10 +293,24 @@ class VPush(Task):
                                                      slack=self.object_size/2,)
             if robustness_score.shape[0] == 1:
                 robustness_score = np.squeeze(robustness_score, axis=0)  # Converts (1,) to ()
-            return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score
-        return -np.array(d > self.distance_threshold, dtype=np.float32)
+    
+        # Joint violation penalty
+        joint_violation_penalty = 0.0
+        for i, angle in enumerate(arm_joint_angles[0]):
+            lower_limit, upper_limit = self.joint_limits[i]
+            if angle < lower_limit:
+                joint_violation_penalty += 10.0 * abs(lower_limit - angle)
+            elif angle > upper_limit:
+                joint_violation_penalty += 10.0 * abs(angle - upper_limit)
+            else:
+                # Apply a small penalty as the joint approaches the limit
+                if abs(angle - lower_limit) <= self.tolerance or abs(angle - upper_limit) <= self.tolerance:
+                    proximity_to_limit = min(abs(angle - lower_limit), abs(angle - upper_limit))
+                    joint_violation_penalty += 0.05 * (self.tolerance - proximity_to_limit) / self.tolerance
 
-                
+        # Return the combined reward
+        return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
+
     # def compute_reward(self, observation_dict, info) -> np.ndarray:
     #     observation = observation_dict["observation"]
     #     achieved_goal = observation_dict["achieved_goal"]
