@@ -13,6 +13,7 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import PPO
 import envs
 import time
+from experiments.args_utils import get_args
 
 class BayesianOptimizationMultiTask:
     def __init__(self, env_type="push", initial_iter=3, max_iter=10, policy='rl', num_episodes=1, gui=False):
@@ -37,7 +38,6 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
-            self.env_id = 'VPushPbSimulationEnv-v0'
             self.model_path = "results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip"
         elif self.env_type == "catch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)}, # design space bounds
@@ -47,9 +47,12 @@ class BayesianOptimizationMultiTask:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
-            self.robustness_score_weight = 0.1
-            self.env_id = 'UCatchSimulationEnv-v0'
-            self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-23_18-19-42_1000_steps.zip"
+            self.robustness_score_weight = 0.0
+            self.model_with_robustness_reward = 0
+            if self.model_with_robustness_reward:
+                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-00-59_809000_steps.zip" # with robustness reward
+            else:
+                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-01-23_737000_steps.zip" # without robustness reward
         elif self.env_type == "panda":
             self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds
                         {'name': 'finger_length', 'type': 'continuous', 'domain': (0.07, 0.15)},
@@ -58,14 +61,26 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 5
             self.robustness_score_weight = 0.1
-            self.env_id = 'PandaUPushEnv-v0'
             self.model_path = "results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-23_20-15-08_3000_steps.zip"
+
         if self.policy == "heuristic":
             if self.env_type == "vpush":
                 from sim.vpush_pb_sim import VPushPbSimulation as Simulation
                 self.sim = Simulation('circle', 1, self.gui)
         elif self.policy == "rl":
-            self.env = gym.make(self.env_id, obs_type='pose')
+            args = get_args()
+            env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+                        'catch':'UCatchSimulationEnv-v0',
+                        'dlr':'DLRSimulationEnv-v0',
+                        'panda':'PandaUPushEnv-v0'}
+            self.env_id = env_ids[args.env_id]
+            env_kwargs = {'obs_type': args.obs_type, 
+                        'using_robustness_reward': args.using_robustness_reward, 
+                        'render_mode': args.render_mode,
+                        'time_stamp': args.time_stamp,
+                        'perturb': args.perturb,
+                        }
+            self.env = gym.make(self.env_id, **env_kwargs)
             self.rl_model = PPO.load(self.model_path)
         
         self.initial_iter = initial_iter
@@ -145,7 +160,7 @@ class BayesianOptimizationMultiTask:
                         num_robustness_step += 1
                         avg_robustness += info['robustness'] * self.robustness_score_weight
                     self.env.render()
-                success_score = 0.5 if done else 0.1
+                success_score = 1.0 if done else 0.0
                 robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
                 # print(f"Success: {success_score}, Robustness: {robustness_score}")
                 score = success_score + robustness_score
@@ -302,12 +317,10 @@ class BayesianOptimizationMultiTask:
         """
         # Create a file with unique name
         k = 0
-        while True:     
-            csv_filename = f"results/csv/{self.env_type}_mtbo_results_{k}.csv"
-            if os.path.exists(csv_filename):
-                k += 1
-            else:
-                break
+        # get current time
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        csv_filename = f"results/csv/{self.env_type}_mtbo_results_usingrob{self.model_with_robustness_reward}_{timestamp}.csv"
 
         csv_buffer = []
         for i in range(1, self.max_iter + 1):
@@ -327,18 +340,18 @@ class BayesianOptimizationMultiTask:
         self.save_to_csv(csv_filename, csv_buffer)
 
         # Plot the results
-        if self.env_type in ["catch",]:
-            plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_outputs)), optimizer='mtbo')
+        # if self.env_type in ["catch",]:
+        #     plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_outputs)), optimizer='mtbo')
 
 
 if __name__ == "__main__":
-    num_run = 10
+    num_run = 1
     for r in range(num_run):
-        pipeline = BayesianOptimizationMultiTask(env_type="panda", # vpush, catch, dlr, panda
-                                                initial_iter=1, 
+        pipeline = BayesianOptimizationMultiTask(env_type="catch", # vpush, catch, dlr, panda
+                                                initial_iter=1, # has to be more than 0
                                                 max_iter=50, 
                                                 policy='rl',
-                                                num_episodes=4,
+                                                num_episodes=10,
                                                 gui=0) 
         pipeline.run()
         pipeline.env.close()

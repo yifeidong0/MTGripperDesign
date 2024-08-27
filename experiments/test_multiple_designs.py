@@ -14,19 +14,38 @@ import time
 import imageio
 from stable_baselines3 import PPO
 import pygame
+from experiments.args_utils import get_args
 
 def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0, 
                     create_new_env=1, close_env=1, env=None, writer=None, video_write_freq=4):
-    if env_name == 'vpush':
-        env_id = 'VPushPbSimulationEnv-v0'
-    elif env_name == 'ucatch':
-        env_id = 'UCatchSimulationEnv-v0'
+    # if env_name == 'vpush':
+    #     env_id = 'VPushPbSimulationEnv-v0'
+    # elif env_name == 'catch':
+    #     env_id = 'UCatchSimulationEnv-v0'
     if create_new_env:
-        env = gym.make(env_id, gui=gui, obs_type='pose')
+        args = get_args()
+        env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+                    'catch':'UCatchSimulationEnv-v0',
+                    'dlr':'DLRSimulationEnv-v0',
+                    'panda':'PandaUPushEnv-v0'}
+        env_id = env_ids[args.env_id]
+        env_kwargs = {'obs_type': args.obs_type, 
+                    'using_robustness_reward': args.using_robustness_reward, 
+                    'render_mode': args.render_mode,
+                    'time_stamp': args.time_stamp,
+                    'perturb': args.perturb,
+                    }
+        env = gym.make(env_id, **env_kwargs)
+
+    model_with_robustness_reward = 0
+    if model_with_robustness_reward:
+        model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-00-59_809000_steps.zip" # with robustness reward
+    else:
+        model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-01-23_737000_steps.zip" # without robustness reward
 
     if env_id == 'UCatchSimulationEnv-v0':
-        model = PPO.load("results/models/best_model_ucatch_w_robustness_reward.zip")
-        robustness_score_weight = 0.1
+        model = PPO.load(model_path)
+        robustness_score_weight = 0.0
         num_task = 2
     elif env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip")
@@ -50,7 +69,7 @@ def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0,
                 obs, reward, done, truncated, info = env.step(action)
                 if info['robustness'] is not None and info['robustness'] > 0:
                     num_robustness_step += 1
-                    avg_robustness += info['robustness'] * robustness_score_weight
+                    avg_robustness += info['robustness']
                 
                 # Render the environment and capture the frame
                 env.render()
@@ -60,9 +79,9 @@ def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0,
                     writer.append_data(frame)
                 step_count += 1
 
-            success_score = 0.5 if done else 0.1
+            success_score = 1.0 if done else 0.0
             robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
-            score = success_score + robustness_score
+            score = success_score + robustness_score * robustness_score_weight
             avg_score += score
             avg_success_score += success_score
             avg_robustness_score += robustness_score
@@ -94,7 +113,7 @@ def read_designs(file_path, env_name):
                 # Evaluate the string as a list
                 # design = ast.literal_eval(row[2])
                 design = [float(row[2]),]
-            elif env_name == 'ucatch':
+            elif env_name == 'catch':
                 design = [float(row[k]) for k in range(2, 7)]
             designs.append(design)
     return designs
@@ -117,9 +136,12 @@ def write_scores(file_path, scores):
     
 def main(env_name, optimizer, num_runs, num_episodes):
     # Load designs from CSV files
+    import glob
     file_paths = []
     for r in range(num_runs):
-        file_path = f"results/csv/{env_name}_{optimizer}_results_{r}.csv"
+        file_path = glob.glob(f"results/csv/{env_name}_{optimizer}_results_{r}_*.csv")[0]
+        # file_path = "results/csv/catch_mtbo_results_usingrob1_2024-08-27_10-39-49.csv"
+        file_path = "results/csv/catch_mtbo_results_usingrob0_2024-08-27_10-40-10.csv"
         file_paths.append(file_path)
     
     # Evaluate designs
@@ -301,17 +323,17 @@ def plot_multi_task_sample_efficiency(env_name, optimizers, num_runs):
 
 
 if __name__ == "__main__":
-    num_runs = 10
+    num_runs = 1
     num_episodes = 10
-    env_name = 'ucatch' # 'vpush', 'ucatch'
-    optimizer = 'bo' # 'mtbo', 'ga', 'bo'
-    plot_type = 'test_score_composition' # 'estimation_accuracy', 'test_score_composition'
+    env_name = 'catch' # 'vpush', 'catch'
+    optimizer = 'mtbo' # 'mtbo', 'ga', 'bo'
 
-    # main(env_name, optimizer, num_runs, num_episodes)
+    main(env_name, optimizer, num_runs, num_episodes)
 
+    # plot_type = 'test_score_composition' # 'estimation_accuracy', 'test_score_composition'
     # main_plot(env_name, optimizer, num_runs, plot_type)
 
     # plot_multi_task_sample_efficiency(env_name, ['mtbo', 'ga', 'bo'], num_runs)
 
-    num_episodes = 1
-    qualitative_design_iteration_demo(env_name, optimizer, num_episodes)
+    # num_episodes = 1
+    # qualitative_design_iteration_demo(env_name, optimizer, num_episodes)
