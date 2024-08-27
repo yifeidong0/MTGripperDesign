@@ -302,70 +302,72 @@ class VPush(Task):
         for i, angle in enumerate(arm_joint_angles[0]):
             lower_limit, upper_limit = self.joint_limits[i]
             if angle < lower_limit:
-                joint_violation_penalty += 10.0 * abs(lower_limit - angle)
+                joint_violation_penalty += 1.0 * abs(lower_limit - angle)
             elif angle > upper_limit:
-                joint_violation_penalty += 10.0 * abs(angle - upper_limit)
+                joint_violation_penalty += 1.0 * abs(angle - upper_limit)
             else:
                 # Apply a small penalty as the joint approaches the limit
                 if abs(angle - lower_limit) <= self.tolerance or abs(angle - upper_limit) <= self.tolerance:
                     proximity_to_limit = min(abs(angle - lower_limit), abs(angle - upper_limit))
-                    joint_violation_penalty += 0.05 * (self.tolerance - proximity_to_limit) / self.tolerance
+                    joint_violation_penalty += 0.01 * (self.tolerance - proximity_to_limit) / self.tolerance
 
         # Return the combined reward
-        return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
+        # return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
+        reward = -np.array(d - self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
+        reward += 100 * np.array(d < self.distance_threshold, dtype=np.float32)
+        return reward
 
-    # def compute_reward(self, observation_dict, info) -> np.ndarray:
-    #     observation = observation_dict["observation"]
-    #     achieved_goal = observation_dict["achieved_goal"]
-    #     desired_goal = observation_dict["desired_goal"]
+    def compute_reward(self, observation_dict, info) -> np.ndarray:
+        observation = observation_dict["observation"]
+        achieved_goal = observation_dict["achieved_goal"]
+        desired_goal = observation_dict["desired_goal"]
 
-    #     # Unpack the observation
-    #     assert observation.shape == (27,)
-    #     ee_position = observation[:3]
-    #     ee_velocity = observation[3:6]
-    #     ee_yaw = observation[6:7]
-    #     self.design_params = observation[7:11]
-    #     object_position = observation[11:14]
-    #     object_rotation = observation[14:17]
-    #     object_velocity = observation[17:20]
-    #     object_angular_velocity = observation[20:23]
-    #     target_position = observation[23:26]
-    #     task_int = observation[26:27]
+        # Unpack the observation
+        assert observation.shape == (27,)
+        ee_position = observation[:3]
+        ee_velocity = observation[3:6]
+        ee_yaw = observation[6:7]
+        self.design_params = observation[7:11]
+        object_position = observation[11:14]
+        object_rotation = observation[14:17]
+        object_velocity = observation[17:20]
+        object_angular_velocity = observation[20:23]
+        target_position = observation[23:26]
+        task_int = observation[26:27]
         
-    #     # Caging robostness
-    #     if self.design_params is not None and self.robustness_opening is None:
-    #         self._compute_robustness_opening()
-    #     robustness_score = self._eval_robustness(ee_position[:2], 
-    #                                             ee_yaw[0],
-    #                                             object_position[:2],
-    #                                             self.design_params,
-    #                                             slack=self.object_size/2,)
+        # Caging robostness
+        if self.design_params is not None and self.robustness_opening is None:
+            self._compute_robustness_opening()
+        robustness_score = self._eval_robustness(ee_position[:2], 
+                                                ee_yaw[0],
+                                                object_position[:2],
+                                                self.design_params,
+                                                slack=self.object_size/2,)
 
-    #     reward = 0
-    #     ee_object_distance = distance(ee_position, object_position)            
-    #     diff_ee_object_distance = ee_object_distance - self.last_ee_object_distance
-    #     self.last_ee_object_distance = ee_object_distance
-    #     object_target_distance = distance(object_position, target_position) 
-    #     diff_object_target_distance = object_target_distance - self.last_object_target_distance
-    #     self.last_object_target_distance = object_target_distance
-    #     object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
-    #     yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
-    
+        reward = 0
+        ee_object_distance = distance(ee_position, object_position)            
+        diff_ee_object_distance = ee_object_distance - self.last_ee_object_distance
+        self.last_ee_object_distance = ee_object_distance
+        object_target_distance = distance(object_position, target_position) 
+        diff_object_target_distance = object_target_distance - self.last_object_target_distance
+        self.last_object_target_distance = object_target_distance
+        object_target_yaw = math.atan2(target_position[1] - object_position[1], target_position[0] - object_position[0])
+        yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
 
-    #     if ee_object_distance > 0.2:
-    #         weight_ee_object_distance = 1.0
-    #         weight_object_target_distance = 0
-    #         weight_yaw = 0.5
-    #     else:
-    #         weight_ee_object_distance = 0
-    #         weight_object_target_distance = 1.0
-    #         weight_yaw = 0
-    #     reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
+        if ee_object_distance > 0.2:
+            weight_ee_object_distance = 1.0
+            weight_object_target_distance = 0
+            weight_yaw = 0.5
+        else:
+            weight_ee_object_distance = 0
+            weight_object_target_distance = 1.0
+            weight_yaw = 0
+        reward += -weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
         
-    #     if self.is_success(achieved_goal, desired_goal):
-    #         reward += 500
+        if self.is_success(achieved_goal, desired_goal):
+            reward += 500
         
-    #     if self.using_robustness_reward:
-    #         reward += robustness_score      
-    #     return reward
+        if self.using_robustness_reward:
+            reward += robustness_score
+        return reward
     

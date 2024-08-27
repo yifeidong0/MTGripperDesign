@@ -60,7 +60,7 @@ class DLRSimulationEnv(gym.Env):
             )
         self.robot_joint_limits = [[-0.3,0.3], [0.0,1.2],]
         self.robot_base_limits = [[-0.5,0.5], [-0.5,0.5], [1.5,4]]
-        self.desired_goal_height = 0.6
+        self.desired_goal_height = 0.5
 
         self.last_object_position = None
         self.last_tip_object_distance = None

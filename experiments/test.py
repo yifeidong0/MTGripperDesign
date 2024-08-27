@@ -32,15 +32,16 @@ def main():
     elif env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
-        model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-23_20-15-08_3000_steps.zip")
+        model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-26_10-38-59_809000_steps.zip")
     elif env_id == 'DLRSimulationEnv-v0':
-        model = PPO.load("results/models/DLRSimulationEnv-v0/DLRSimulationEnv-v0_2024-08-23_09-38-01_4000_steps.zip")
+        model = PPO.load("results/models/DLRSimulationEnv-v0/DLRSimulationEnv-v0_2024-08-25_23-03-56_809000_steps.zip")
                          
-    for episode in range(3):
+    for episode in range(20):
         obs, _ = env.reset(seed=0)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
         while not (done or truncated):
+            time.sleep(0.1)
             if model is not None:
                 action, state = model.predict(obs)
             else:
