@@ -23,6 +23,7 @@ class UCatchSimulationEnv(gym.Env):
                  time_stamp: str = "2024-08-23_20-15-08",
                  reward_weights: list = [],
                  reward_type: str = "dense", # dense, sparse
+                 perturb: bool = False,
                  img_size=(42, 42), 
         ):
         super(UCatchSimulationEnv, self).__init__()
@@ -32,6 +33,7 @@ class UCatchSimulationEnv(gym.Env):
         self.simulation = UCatchSimulation(self.object_type, self.design_param, use_gui=self.gui)
         self.img_size = img_size
         self.obs_type = obs_type
+        self.perturb = perturb
         self.using_robustness_reward = using_robustness_reward
         self.task_int = 0 if self.obs_type == 'circle' else 1
         self.action_space = spaces.Box(low=np.array([-1]), high=np.array([1]), dtype=np.float32)
@@ -94,12 +96,16 @@ class UCatchSimulationEnv(gym.Env):
         for _ in range(sim_steps):
             self.simulation.world.Step(self.simulation.timeStep, self.simulation.vel_iters, self.simulation.pos_iters)
             # pygame.time.Clock().tick(260)
+            # Add horizontal perturbation force to the object
+            if self.perturb:
+                perturb = (random.normalvariate(0, 0.5), 0) # 1.0 is too high
+                self.simulation.object_body.linearVelocity = self.simulation.object_body.linearVelocity + perturb
         self.simulation.world.ClearForces()
         self.simulation.step_count += 1
 
         obs = self._get_obs()
-        reward = self._compute_reward(action)
         done = self._is_done()
+        reward = self._compute_reward(action)
         truncated = self._is_truncated()
         self.last_action = action
 
@@ -154,7 +160,7 @@ class UCatchSimulationEnv(gym.Env):
         # Reward for decreasing the distance between object and the goal
         reward = 0
         if self.last_position_difference is not None:
-            reward += self.last_position_difference - current_position_difference
+            reward += 1.0 * (self.last_position_difference - current_position_difference)
         self.last_position_difference = current_position_difference
         
         # Reward for reaching desired velocity
@@ -163,23 +169,25 @@ class UCatchSimulationEnv(gym.Env):
         self.robot_desired_vx = -self.robot_distance_to_travel / time_to_fall
         current_velocity_difference = abs(self.robot_desired_vx - action[0]) # - self.simulation.robot_body.linearVelocity[0]
         if self.last_velocity_difference is not None:
-            reward += self.last_velocity_difference - current_velocity_difference
+            reward += 1.0 * (self.last_velocity_difference - current_velocity_difference)
         self.last_velocity_difference = current_velocity_difference
 
         # Reward of caging robustness
         if self.using_robustness_reward:
-            reward += self.robustness
+            reward += 0.25 * self.robustness
 
         # Reward for catching the object
-        if self.simulation.check_end_condition():
-            reward += 1
+        # if self.simulation.check_end_condition():
+        #     reward += 100.0 / 250.0
+        if self.is_success:
+            reward += 100.0
 
         return reward
 
     def _is_done(self):
         if self.simulation.check_end_condition():
             self.num_end_steps += 1
-        if self.num_end_steps >= 100: # end if object stays in the basket for 100 steps
+        if self.num_end_steps >= 250: # end if object stays in the basket for 100 steps
             self.is_success = True
             return True
         return False
@@ -194,7 +202,7 @@ class UCatchSimulationEnv(gym.Env):
             object_pos[0] < self.canvas_min_x or object_pos[0] > self.canvas_max_x or 
             object_pos[1] < self.canvas_min_y or object_pos[1] > self.canvas_max_y
         )
-        time_ended = self.simulation.step_count >= 500  # Maximum number of steps
+        time_ended = self.simulation.step_count >= 700  # Maximum number of steps
         object_on_ground = object_pos[1] < self.simulation.object_on_ground_height # object falls on the ground outside the basket
 
         return bool(out_of_bounds or time_ended or object_on_ground)

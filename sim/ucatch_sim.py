@@ -180,7 +180,6 @@ class UCatchSimulation:
             robustness = max(robot_y_max + thickness - object_pos[1], 0.0)
         else:
             robustness = 0
-        # print(f"Robustness: {robustness}")
         return robustness
     
     def check_end_condition(self, slack=2):
