@@ -9,8 +9,8 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.logger import HParam
-
-import panda_gym.envs
+import wandb
+from wandb.integration.sb3 import WandbCallback
 
 import envs
 from experiments.args_utils import get_args
@@ -49,6 +49,7 @@ class CustomCallback(CheckpointCallback):
 
 def main():
     args = get_args()
+    
     env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
               'catch':'UCatchSimulationEnv-v0',
               'dlr':'DLRSimulationEnv-v0',
@@ -72,6 +73,17 @@ def main():
                   'reward_type': 'dense', # dense, sparse
                   'reward_weights': args.reward_weights,
                   }
+    
+    if args.wandb_mode != 'disabled':
+        wandb.init(
+            project="MTGripperDesign",
+            name=f"{env_id}_{args.time_stamp}",
+            config=vars(args),
+            sync_tensorboard=True,
+            save_code=True,
+            mode=args.wandb_mode,
+        )
+    
     if args.n_envs > 1:
         env = make_vec_env(env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
     else:
@@ -150,7 +162,16 @@ def main():
                     )  
     
     try:
-        model.learn(total_timesteps=args.total_timesteps, progress_bar=True, log_interval=5, callback=custom_callback)
+        model.learn(
+            total_timesteps=args.total_timesteps,
+            progress_bar=False,
+            log_interval=5,
+            callback=WandbCallback(
+                gradient_save_freq=100,
+                model_save_freq=args.checkpoint_freq,
+                model_save_path=paths["model_save_path"],
+            ) if args.wandb_mode != 'disabled' else custom_callback,
+        )
     except KeyboardInterrupt:
         print("Training interrupted")
     finally:
