@@ -50,9 +50,11 @@ class BayesianOptimizationMultiTask:
             self.robustness_score_weight = 0.0
             self.model_with_robustness_reward = 0
             if self.model_with_robustness_reward:
-                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-00-59_809000_steps.zip" # with robustness reward
+                # self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-21-56_1218000_steps.zip" # with robustness reward, PPO36
+                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-23-52_758000_steps.zip" # with robustness reward, PPO38
             else:
-                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-01-23_737000_steps.zip" # without robustness reward
+                # self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-22-13_1597000_steps.zip" # without robustness reward. PPO37
+                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-24-28_512000_steps.zip" # without robustness reward. PPO39
         elif self.env_type == "panda":
             self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds
                         {'name': 'finger_length', 'type': 'continuous', 'domain': (0.07, 0.15)},

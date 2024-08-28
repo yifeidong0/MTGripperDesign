@@ -16,6 +16,8 @@ from stable_baselines3 import PPO
 import pygame
 from experiments.args_utils import get_args
 
+model_with_robustness_reward = 1
+
 def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0, 
                     create_new_env=1, close_env=1, env=None, writer=None, video_write_freq=4):
     # if env_name == 'vpush':
@@ -37,11 +39,10 @@ def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0,
                     }
         env = gym.make(env_id, **env_kwargs)
 
-    model_with_robustness_reward = 0
     if model_with_robustness_reward:
-        model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-00-59_809000_steps.zip" # with robustness reward
+        model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-21-56_1218000_steps.zip" # with robustness reward, PPO36
     else:
-        model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_07-01-23_737000_steps.zip" # without robustness reward
+        model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-22-13_1597000_steps.zip" # without robustness reward. PPO37
 
     if env_id == 'UCatchSimulationEnv-v0':
         model = PPO.load(model_path)
@@ -139,9 +140,11 @@ def main(env_name, optimizer, num_runs, num_episodes):
     import glob
     file_paths = []
     for r in range(num_runs):
-        file_path = glob.glob(f"results/csv/{env_name}_{optimizer}_results_{r}_*.csv")[0]
-        # file_path = "results/csv/catch_mtbo_results_usingrob1_2024-08-27_10-39-49.csv"
-        file_path = "results/csv/catch_mtbo_results_usingrob0_2024-08-27_10-40-10.csv"
+        # file_path = glob.glob(f"results/csv/{env_name}_{optimizer}_results_{r}_*.csv")[0]
+        if model_with_robustness_reward:
+            file_path = "results/csv/catch_mtbo_results_usingrob1_2024-08-27_17-40-34.csv"
+        else:
+            file_path = "results/csv/catch_mtbo_results_usingrob0_2024-08-27_16-33-38.csv"
         file_paths.append(file_path)
     
     # Evaluate designs

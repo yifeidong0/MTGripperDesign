@@ -19,7 +19,7 @@ def get_args():
     parser.add_argument('--random_seed', type=int, default=42, help='Random seed for reproducibility. Default is 42.')
     parser.add_argument('--time_stamp', type=str, default=get_timestamp(), help='Current time of the script execution')
     parser.add_argument('--env_id', type=str, choices=['vpush', 'catch', 'dlr', 'panda',], default='panda', help='Environment ID for the simulation')
-    parser.add_argument('--total_timesteps', type=int, default=int(3e6), help='Total number of timesteps for training')
+    parser.add_argument('--total_timesteps', type=int, default=int(5e6), help='Total number of timesteps for training')
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='auto', help='Computational device to use (auto, cuda, cpu)')
     parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
     parser.add_argument('--using_robustness_reward', type=str2bool, nargs='?', const=True, default=True, help='Enable or disable the robustness reward')
@@ -47,5 +47,24 @@ def get_args():
 
 # Aug. 27:
 # catch PPO 36-39: get 100 if success, 3e6 timesteps, cutoff at around 2.3M steps
-# BO running with disturbance using policy a
-# BO running with disturbance using policy b
+# PPO 36, 38: using_robustness_reward=True
+# PPO 37, 39: using_robustness_reward=False
+# PPO 36, 37: random_seed=11
+# PPO 38, 39: random_seed=22
+
+# BO running with disturbance using PPO 26
+# BO running with disturbance using PPO 27
+
+# panda PPO 1,3: get 100 if success, 3e6 timesteps, 
+# PPO 1: using_robustness_reward=True
+# PPO 3: using_robustness_reward=False
+
+# Aug. 28:
+# catch PPO 79-86:
+# robustness_values=(true false)
+# random_seeds=(1 2)
+# perturbs=(true false)
+# for seed in "${random_seeds[@]}"; do
+#   for perturb in "${perturbs[@]}"; do
+#     for robustness in "${robustness_values[@]}"; do
+#       run_in_vscode_terminal "$robustness" "$seed" "$perturb"

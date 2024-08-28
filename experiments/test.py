@@ -29,7 +29,7 @@ def main():
     
     model = None
     if env_id == 'UCatchSimulationEnv-v0':
-        model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/paper/catch/lowlevel/with_robustness_reward/1/UCatchSimulationEnv-v0_2024-08-26_13-52-39_747000_steps.zip")
+        model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-28_07-45-29_4992000_steps.zip")
         # model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/paper/catch/lowlevel/without_robustness_reward/1/UCatchSimulationEnv-v0_2024-08-26_13-52-44_717000_steps.zip")
     elif env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip")
@@ -44,7 +44,6 @@ def main():
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
         while not (done or truncated):
-            time.sleep(0.1)
             if model is not None:
                 action, state = model.predict(obs)
             else:

@@ -60,12 +60,13 @@ def main():
         "log_path": f"results/logs/{env_id}/",
         "model_save_path": f"results/models/{env_id}/",
         "monitor_dir": f"results/monitor/{env_id}/",
-    }       
+    }
     
     os.system(f"mkdir asset/{args.time_stamp}")
 
     env_kwargs = {'obs_type': args.obs_type,
                   'using_robustness_reward': args.using_robustness_reward,
+                  'perturb': args.perturb,
                   'render_mode': args.render_mode, 
                   'time_stamp': args.time_stamp,
                   'reward_type': 'dense', # dense, sparse

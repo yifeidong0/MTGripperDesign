@@ -58,8 +58,8 @@ def decompose_mesh(
         p.disconnect()
 
     # Remove log file
-    if os.path.exists(name_log):
-        os.remove(name_log)
+    # if os.path.exists(name_log):
+    #     os.remove(name_log)
 
     # if success:
     #     print(f"Decomposed mesh saved to {output_file}")

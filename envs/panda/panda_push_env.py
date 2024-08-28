@@ -103,9 +103,6 @@ class PandaUPushEnv(RobotTaskEnv):
 
         return observation, reward, terminated, truncated, info
     
-    def compute_robustness(self, achieved_goal, desired_goal, info):
-        return 0
-    
     def reset(
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
