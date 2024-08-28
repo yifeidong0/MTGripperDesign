@@ -32,6 +32,25 @@ def get_args():
     parser.add_argument('--wandb_mode', type=str, choices=['online', 'offline', 'disabled'], default='disabled', help='Wandb mode for logging')
     return parser.parse_args()
 
+def get_args_bo():
+    parser = argparse.ArgumentParser(description="RL co-design project")
+    parser.add_argument('--random_seed', type=int, default=42, help='Random seed for reproducibility. Default is 42.')
+    parser.add_argument('--time_stamp', type=str, default=get_timestamp(), help='Current time of the script execution')
+    parser.add_argument('--env', type=str, choices=['vpush', 'catch', 'dlr', 'panda',], default='panda', help='Environment ID for the simulation')
+    parser.add_argument('--total_timesteps', type=int, default=int(5e6), help='Total number of timesteps for training')
+    parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='auto', help='Computational device to use (auto, cuda, cpu)')
+    parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
+    parser.add_argument('--model_with_robustness_reward', type=str2bool, nargs='?', const=True, default=True, help='Enable or disable the robustness reward')
+    parser.add_argument('--perturb', type=str2bool, nargs='?', const=False, default=False, help='Add random perturbations to the target object')
+    parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
+    parser.add_argument('--algo', type=str, choices=['ppo', 'tqc', 'sac'], default='ppo', help='RL algorithm to use for training')
+    parser.add_argument('--model_path', type=str, default='results/paper/catch/1/UCatchSimulationEnv-v0_5000000_2024-08-28_07-45-29_final.zip', help='model for evaluation')
+    parser.add_argument('--save_filename', type=str, default='results/paper/catch/1/mtbo_eval.csv', help='model for evaluation')
+    parser.add_argument('--num_episodes_eval', type=int, default=10, help='Number of episodes for each evaluation iteration')
+    parser.add_argument('--num_episodes_eval_best', type=int, default=30, help='Number of episodes for each evaluation iteration')
+    parser.add_argument('--max_iterations', type=int, default=50, help='Number of iterations for Bayesian optimization')
+    return parser.parse_args()
+
 # Aug. 26: 
 # catch PPO 19-22: get 1/250 if in_polygon
 # catch PPO 23-26: get 100 if success

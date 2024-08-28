@@ -13,10 +13,11 @@ from stable_baselines3.common.env_checker import check_env
 from stable_baselines3 import PPO
 import envs
 import time
-from experiments.args_utils import get_args
+import csv
+from experiments.args_utils import get_args_bo
 
 class BayesianOptimizationMultiTask:
-    def __init__(self, env_type="push", initial_iter=3, max_iter=10, policy='rl', num_episodes=1, gui=False):
+    def __init__(self, initial_iter=1, num_episodes=1):
         """
         Initialize the Bayesian Optimization Pipeline with the given parameters.
 
@@ -24,12 +25,13 @@ class BayesianOptimizationMultiTask:
             env_type (str): The type of environment ('vpush', or 'catch').
             initial_iter (int): The number of initial iterations to run.
             max_iter (int): The maximum number of iterations to run.
-            gui (bool): Whether to use GUI for the simulations.
         """
-        self.env_type = env_type
-        self.gui = gui
-        self.policy = policy # "heuristic" or "rl"
-        self.num_episodes = num_episodes
+        self.initial_iter = initial_iter
+        self.args = get_args_bo()
+        self.env_type = self.args.env
+        self.max_iter = self.args.max_iterations
+        self.num_episodes = self.args.num_episodes_eval
+        self.model_path = self.args.model_path
 
         # Set bounds and number of tasks based on environment type
         if self.env_type == "vpush":
@@ -38,7 +40,6 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
-            self.model_path = "results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip"
         elif self.env_type == "catch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)}, # design space bounds
                         {'name': 'd1', 'type': 'continuous', 'domain': (5, 10)},
@@ -47,14 +48,7 @@ class BayesianOptimizationMultiTask:
                         {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
-            self.robustness_score_weight = 0.0
-            self.model_with_robustness_reward = 0
-            if self.model_with_robustness_reward:
-                # self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-21-56_1218000_steps.zip" # with robustness reward, PPO36
-                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-23-52_758000_steps.zip" # with robustness reward, PPO38
-            else:
-                # self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-22-13_1597000_steps.zip" # without robustness reward. PPO37
-                self.model_path = "results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-27_09-24-28_512000_steps.zip" # without robustness reward. PPO39
+            self.robustness_score_weight = 0.1
         elif self.env_type == "panda":
             self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds
                         {'name': 'finger_length', 'type': 'continuous', 'domain': (0.07, 0.15)},
@@ -63,30 +57,23 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 5
             self.robustness_score_weight = 0.1
-            self.model_path = "results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-23_20-15-08_3000_steps.zip"
+        elif self.env_type == "dlr":
+            pass
 
-        if self.policy == "heuristic":
-            if self.env_type == "vpush":
-                from sim.vpush_pb_sim import VPushPbSimulation as Simulation
-                self.sim = Simulation('circle', 1, self.gui)
-        elif self.policy == "rl":
-            args = get_args()
-            env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
-                        'catch':'UCatchSimulationEnv-v0',
-                        'dlr':'DLRSimulationEnv-v0',
-                        'panda':'PandaUPushEnv-v0'}
-            self.env_id = env_ids[args.env_id]
-            env_kwargs = {'obs_type': args.obs_type, 
-                        'using_robustness_reward': args.using_robustness_reward, 
-                        'render_mode': args.render_mode,
-                        'time_stamp': args.time_stamp,
-                        'perturb': args.perturb,
+        # Create the environment and RL model
+        env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+                    'catch':'UCatchSimulationEnv-v0',
+                    'dlr':'DLRSimulationEnv-v0',
+                    'panda':'PandaUPushEnv-v0'}
+        self.env_id = env_ids[self.args.env]
+        env_kwargs = {'obs_type': self.args.obs_type, 
+                        'render_mode': self.args.render_mode,
+                        'time_stamp': self.args.time_stamp,
+                        'perturb': self.args.perturb,
                         }
-            self.env = gym.make(self.env_id, **env_kwargs)
-            self.rl_model = PPO.load(self.model_path)
-        
-        self.initial_iter = initial_iter
-        self.max_iter = max_iter
+        self.env = gym.make(self.env_id, **env_kwargs)
+        self.rl_model = PPO.load(self.model_path)
+
         self.kernel = self.get_kernel_mt(input_dim=len(self.bounds)-1, num_outputs=self.num_outputs)
         self.task_counter = {}
         self.setup_bo()
@@ -137,38 +124,28 @@ class BayesianOptimizationMultiTask:
         x, t = xt[:-1], int(xt[-1])
         self.task_counter[t] = self.task_counter.get(t, 0) + 1
         
-        if self.policy == "heuristic":
-            if self.env_type == "vpush":
-                task = 'circle' if int(t) == 0 else 'polygon'
-                self.sim.reset_task_and_design(task, x[0])
-                score = self.sim.run(self.num_episodes)
-            elif self.env_type == "catch":
-                from sim.ucatch_sim import UCatchSimulation as Simulation
-                task = 'circle' if int(t) == 0 else 'polygon'
-                sim = Simulation(task, x, self.gui)
-                score = sim.run(self.num_episodes)
-        elif self.policy == "rl":
-            avg_score = 0
-            obs, _ = self.env.reset(seed=0)
-            for episode in range(self.num_episodes):
-                obs, _ = self.env.reset_task_and_design(t, x, seed=0)
-                done, truncated = False, False
-                avg_robustness = 0
-                num_robustness_step = 0
-                while not (done or truncated):
-                    action = self.rl_model.predict(obs)[0]
-                    obs, reward, done, truncated, info = self.env.step(action)
-                    if info['robustness'] is not None and info['robustness'] > 0:
-                        num_robustness_step += 1
-                        avg_robustness += info['robustness'] * self.robustness_score_weight
-                    self.env.render()
-                success_score = 1.0 if done else 0.0
-                robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
-                # print(f"Success: {success_score}, Robustness: {robustness_score}")
-                score = success_score + robustness_score
-                avg_score += score
-                print("Done!" if done else "Truncated.")
-            score = avg_score / self.num_episodes
+        avg_score = 0
+        obs, _ = self.env.reset(seed=0)
+        for episode in range(self.num_episodes):
+            obs, _ = self.env.reset_task_and_design(t, x, seed=0)
+            done, truncated = False, False
+            avg_robustness = 0
+            num_robustness_step = 0
+            while not (done or truncated):
+                action = self.rl_model.predict(obs)[0]
+                obs, reward, done, truncated, info = self.env.step(action)
+                if info['robustness'] is not None and info['robustness'] > 0:
+                    num_robustness_step += 1
+                    weight = self.robustness_score_weight if self.args.model_with_robustness_reward else 0.0
+                    avg_robustness += info['robustness'] * weight
+                self.env.render()
+            success_score = 1.0 if done else 0.0
+            robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+            # print(f"Success: {success_score}, Robustness: {robustness_score}")
+            score = success_score + robustness_score
+            avg_score += score
+            print("Done!" if done else "Truncated.")
+        score = avg_score / self.num_episodes
         print(f"Task: {t}, Design: {x}, Score: {score}")
             # time.sleep(1)
 
@@ -297,63 +274,95 @@ class BayesianOptimizationMultiTask:
         best_score = avg_scores[best_idx]
         
         return best_design, best_score, grid_points, means, vars
-    
-    def save_to_csv(self, filename, csv_buffer):
+
+    def evaluate_optimal_design(self, design):
         """
-        Save the results of num_iter, best_design, best_score to a csv file.
+        Evaluate the given design using the model. Optionally, apply perturbation if args.perturb is true.
+
+        Args:
+            design (list): The design parameters to evaluate.
+
+        Returns:
+            tuple: The average score, success score, and robustness score over the evaluation episodes.
         """
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as f:
-            if self.env_type in ["vpush"]:
-                f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
-                for line in csv_buffer:
-                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[3]}\n")
-            elif self.env_type in ["catch",]:
-                f.write("num_iter,num_episodes_so_far,best_design_0,best_design_1,best_design_2,best_design_3,best_design_4,best_score_estimated\n")
-                for line in csv_buffer:
-                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[2][1]},{line[2][2]},{line[2][3]},{line[2][4]},{line[3]}\n")
+        avg_score = 0
+        avg_success_score = 0
+        avg_robustness_score = 0
+        obs, _ = self.env.reset(seed=0)
+
+        for episode in range(self.args.num_episodes_eval_best):
+            task = np.random.choice([0, 1])  # Randomly select a task
+            obs, _ = self.env.reset_task_and_design(task, design, seed=0)
+            done, truncated = False, False
+            avg_robustness = 0
+            num_robustness_step = 0
+
+            while not (done or truncated):
+                action = self.rl_model.predict(obs)[0]
+                obs, reward, done, truncated, info = self.env.step(action)
+                if info.get('robustness') is not None and info['robustness'] > 0:
+                    num_robustness_step += 1
+                    avg_robustness += info['robustness'] * self.robustness_score_weight
+                self.env.render()
+
+            success_score = 1.0 if done else 0.0
+            robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+            score = success_score + robustness_score
+            avg_score += score
+            avg_success_score += success_score
+            avg_robustness_score += robustness_score
+
+        avg_score /= self.args.num_episodes_eval_best
+        avg_success_score /= self.args.num_episodes_eval_best
+        avg_robustness_score /= self.args.num_episodes_eval_best
+
+        return avg_score, avg_success_score, avg_robustness_score
 
     def run(self):
         """
         Run the Bayesian Optimization pipeline.
         """
-        # Create a file with unique name
-        k = 0
-        # get current time
-        import datetime
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        csv_filename = f"results/csv/{self.env_type}_mtbo_results_usingrob{self.model_with_robustness_reward}_{timestamp}.csv"
-
-        csv_buffer = []
         for i in range(1, self.max_iter + 1):
             print("-------------- Iteration: --------------", i)
-            self.bo.run_optimization(1, eps=-1) # TODO: slow..2-8 sec (plotting)
-            print('next_locations: ', self.bo.suggest_next_locations()) # 1-4 sec
-            if self.env_type in ["push", "vpush"]:
-                plot_mtbo(self.bo, self.x_scale, i, id_run=k)
+            self.bo.run_optimization(1, eps=-1)
+            print('next_locations: ', self.bo.suggest_next_locations())
 
             # Find the optimal design after the optimization loop
             best_design, best_score, grid_points, means, vars = self.find_optimal_design()
             print(f"Optimal Design: {best_design}, Score: {best_score}")
+            
+            # Evaluate the best design using the optimal policy
+            score_true, success_score_true, robustness_score_true = self.evaluate_optimal_design(best_design)
+            
             num_episodes_so_far = self.num_episodes * (i + self.initial_iter)
-            csv_buffer.append([i, num_episodes_so_far, best_design, best_score])
+            row_data = [i, num_episodes_so_far] + best_design.tolist() + [best_score, score_true, success_score_true, robustness_score_true]
+
+            # Save the result to CSV immediately
+            self.save_to_csv(row_data)
+
+    def save_to_csv(self, row_data, mode='a'):
+        """
+        Save the results of num_iter, best_design, best_score, and evaluation scores to a CSV file.
+
+        Args:
+            row_data (list): Data row to be saved.
+            mode (str): Mode to open the file. Default is 'a' (append).
+        """
+        filename = self.args.save_filename
+        if not os.path.exists(filename):
+            headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
+                    "best_design_3", "best_design_4", "best_score_estimated", "score_true", 
+                    "success_score_true", "robustness_score_true"]
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
         
-        # Save intermediate designs to a csv file
-        self.save_to_csv(csv_filename, csv_buffer)
-
-        # Plot the results
-        # if self.env_type in ["catch",]:
-        #     plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_outputs)), optimizer='mtbo')
-
+        with open(filename, mode, newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(row_data)
 
 if __name__ == "__main__":
-    num_run = 1
-    for r in range(num_run):
-        pipeline = BayesianOptimizationMultiTask(env_type="catch", # vpush, catch, dlr, panda
-                                                initial_iter=1, # has to be more than 0
-                                                max_iter=50, 
-                                                policy='rl',
-                                                num_episodes=10,
-                                                gui=0) 
-        pipeline.run()
-        pipeline.env.close()
+    pipeline = BayesianOptimizationMultiTask(initial_iter=1) # initial_iter has to be more than 0 
+    pipeline.run()
+    pipeline.env.close()

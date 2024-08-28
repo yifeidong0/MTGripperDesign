@@ -164,7 +164,7 @@ def main():
     try:
         model.learn(
             total_timesteps=args.total_timesteps,
-            progress_bar=False,
+            progress_bar=1,
             log_interval=5,
             callback=WandbCallback(
                 gradient_save_freq=100,
@@ -175,7 +175,7 @@ def main():
     except KeyboardInterrupt:
         print("Training interrupted")
     finally:
-        model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final") # last model
+        model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final_{args.using_robustness_reward}_{args.perturb}") # last model
         os.system(f"rm -rf asset/{args.time_stamp}")
 
 if __name__ == "__main__":

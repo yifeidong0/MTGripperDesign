@@ -4,7 +4,7 @@
 robustness_values=(true false)
 
 # Define the random seeds
-random_seeds=(3 4)
+random_seeds=(5 6)
 
 # Define perturbation values
 perturbs=(true false)
