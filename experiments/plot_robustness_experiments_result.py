@@ -122,7 +122,7 @@ class SuccessScorePlotter:
         data = self.load_csv_data()
 
         plt.figure(figsize=(10, 6))
-
+        k = 0
         for label, color in zip(self.labels, self.colors):
             all_steps = []
             all_success_scores = []
@@ -140,18 +140,22 @@ class SuccessScorePlotter:
             std_values = np.std(all_success_scores, axis=0)
 
             plt.plot(all_steps, mean_values, label=label, color=color)
-            plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+            if k == 0 or k == 1:
+                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+            k += 1
 
         plt.xlabel('Iteration')
-        plt.ylabel('Success Score (True)')
+        plt.ylabel('Test Success Score')
+        plt.xlim(1, 30)
+        plt.ylim(0, 1)
         plt.legend()
-        plt.title(f'Success Score (True) vs Iteration')
+        plt.title(f'Test Performance of Optimal Design over BO Iterations')
         plt.grid(True)
         plt.savefig(save_path)
         plt.close()
 
     def plot_all(self):
-        self.plot_with_mean_std(f'{self.base_path}/catch_success_score_true.png')
+        self.plot_with_mean_std(f'{self.base_path}/catch_bo_success_score.png')
 
 
 

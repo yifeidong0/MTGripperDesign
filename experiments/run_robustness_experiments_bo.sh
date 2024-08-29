@@ -22,7 +22,7 @@ run_in_vscode_terminal() {
         --save_filename $csv_filename \
         --num_episodes_eval 15 \
         --num_episodes_eval_best 25 \
-        --max_iterations 30 \
+        --max_iterations 50 \
         --random_seed $seed"
 
   # Open a new VSCode terminal and run the command
@@ -46,23 +46,20 @@ for i in {1..6}; do
 
   # Generate csv_filename paths based on the required format
   timestamp=$(date +%Y%m%d_%H%M%S)
-  csv_file_a="results/paper/catch/$i/catch_mtbo_results_${timestamp}_1_1.csv"
-  timestamp=$(date +%Y%m%d_%H%M%S)
-  csv_file_b="results/paper/catch/$i/catch_mtbo_results_${timestamp}_0_1.csv"
-  timestamp=$(date +%Y%m%d_%H%M%S)
-  csv_file_c="results/paper/catch/$i/catch_mtbo_results_${timestamp}_1_0.csv"
-  timestamp=$(date +%Y%m%d_%H%M%S)
-  csv_file_d="results/paper/catch/$i/catch_mtbo_results_${timestamp}_0_0.csv"
+  csv_file_a="results/paper/catch/$i/catch_mtbo_results_${timestamp}_1_1_run1.csv"
+  csv_file_b="results/paper/catch/$i/catch_mtbo_results_${timestamp}_0_1_run1.csv"
+  csv_file_c="results/paper/catch/$i/catch_mtbo_results_${timestamp}_1_0_run1.csv"
+  csv_file_d="results/paper/catch/$i/catch_mtbo_results_${timestamp}_0_0_run1.csv"
 
   # Run the command for each zip file with the corresponding csv_filename
   run_in_vscode_terminal "${model_files[0]}" 1 1 ${random_seeds[$i-1]} $csv_file_a  # a.zip: robustness=1, perturb=1
-  sleep 1000
+  sleep 1200
   run_in_vscode_terminal "${model_files[1]}" 0 1 ${random_seeds[$i-1]} $csv_file_b  # b.zip: robustness=0, perturb=1
-  sleep 1000
+  sleep 1200
   run_in_vscode_terminal "${model_files[2]}" 1 0 ${random_seeds[$i-1]} $csv_file_c  # c.zip: robustness=1, perturb=0
-  sleep 1000
+  sleep 1200
   run_in_vscode_terminal "${model_files[3]}" 0 0 ${random_seeds[$i-1]} $csv_file_d  # d.zip: robustness=0, perturb=0
-  sleep 1000
+  sleep 1200
 done
 
 echo "All training scripts have been launched."

@@ -4,7 +4,7 @@
 robustness_values=(true false)
 
 # Define the random seeds
-random_seeds=(1 2)
+random_seeds=(1 2 3)
 
 # Define perturbation values
 perturbs=(true false)
@@ -34,7 +34,7 @@ for seed in "${random_seeds[@]}"; do
   for perturb in "${perturbs[@]}"; do
     for robustness in "${robustness_values[@]}"; do
       run_in_vscode_terminal "$robustness" "$seed" "$perturb"
-      sleep 3600 # sec
+      sleep 4800 # sec
     done
   done
 done
