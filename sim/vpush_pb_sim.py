@@ -28,6 +28,7 @@ class VPushPbSimulation:
         p.setGravity(0, 0, -9.81)
         p.setTimeStep(1.0 / 240.0)
         self.plane_id = p.loadURDF("plane.urdf")
+        p.changeDynamics(self.plane_id, -1, lateralFriction=40/77)
 
         # Setup camera
         p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=90, cameraPitch=-89.99, cameraTargetPosition=[2.5, 2.5, 0])
@@ -48,6 +49,8 @@ class VPushPbSimulation:
         self.robot_orientation = None
         self.robot_id = None
         self.object_id = None
+        self.goal_id = None
+        self.time_stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
     def setup(self, reset_task_and_design=False, reset_pose=False, min_distance=1.1):
         """ Setup the simulation environment.
@@ -62,7 +65,7 @@ class VPushPbSimulation:
                                 self.body_height / 2]
         self.object_orientation = p.getQuaternionFromEuler([0, 0, random.uniform(0, 2 * math.pi)])
 
-        # Minimum distance to ensure no penetration
+        # ensure no penetration
         while True:
             self.robot_position = [random.normalvariate(1, .3),
                                     random.normalvariate(2.5, .3),
@@ -79,6 +82,7 @@ class VPushPbSimulation:
             elif self.object_type == 'polygon':
                 self.object_id = self.create_polygon()
             self.create_v_shape()
+            self.goal_id = self.create_goal()
 
         if reset_pose:
             p.resetBasePositionAndOrientation(self.object_id, self.object_position, self.object_orientation)
@@ -96,6 +100,8 @@ class VPushPbSimulation:
             p.removeBody(self.object_id)
         if self.robot_id is not None:
             p.removeBody(self.robot_id)
+        if self.goal_id is not None:
+            p.removeBody(self.goal_id)
 
         self.setup(reset_task_and_design=True)
 
@@ -104,7 +110,7 @@ class VPushPbSimulation:
         collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius=self.object_rad, height=self.body_height, collisionFramePosition=[0, 0, 0])
         body_id = p.createMultiBody(baseMass=self.object_mass, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
                                     baseVisualShapeIndex=visual_shape_id, basePosition=self.object_position, baseOrientation=self.object_orientation)
-        p.changeDynamics(body_id, -1, lateralFriction=1)
+        p.changeDynamics(body_id, -1, lateralFriction=40/77)
         p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
@@ -114,20 +120,31 @@ class VPushPbSimulation:
         collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=half_extents)
         body_id = p.createMultiBody(baseMass=self.object_mass, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=collision_shape_id,
                                     baseVisualShapeIndex=visual_shape_id, basePosition=self.object_position, baseOrientation=self.object_orientation)
-        p.changeDynamics(body_id, -1, lateralFriction=1)
+        p.changeDynamics(body_id, -1, lateralFriction=40/77)
         p.changeVisualShape(body_id, -1, rgbaColor=[1, 0, 0, 1])
         return body_id
 
+    def create_goal(self,):
+        """Create a goal object that is semi-transparent, non-collision, cylinder with radius goal_radius."""
+        visual_shape_id = p.createVisualShape(shapeType=p.GEOM_CYLINDER, radius=self.goal_radius, length=self.body_height, 
+                                              rgbaColor=[0, 1, 0, 0.5],)
+        body_id = p.createMultiBody(baseMass=0, baseInertialFramePosition=[0, 0, 0], baseCollisionShapeIndex=-1,
+                                    baseVisualShapeIndex=visual_shape_id, basePosition=[self.goal_position[0], self.goal_position[1], self.body_height / 2])
+        return body_id
+
     def create_v_shape(self,):
+        # make dir if not exist
+        os.makedirs(f"asset/vpusher_{self.time_stamp}", exist_ok=True)
+
         # Remove previous obj and urdf files
-        os.system("rm -rf asset/vpusher/*")
+        os.system(f"rm -rf asset/vpusher_{self.time_stamp}/*")
 
         # Generate V-shaped pusher obj file
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
-        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher/{unique_obj_filename}")
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher_{self.time_stamp}/{unique_obj_filename}")
 
         # Decompose the mesh
-        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher/{unique_obj_filename}")
+        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher_{self.time_stamp}/{unique_obj_filename}")
 
         # Create a new URDF file with the updated OBJ file path
         unique_urdf_filename = f"v_pusher_{self.v_angle:.3f}.urdf"
@@ -136,7 +153,7 @@ class VPushPbSimulation:
             <robot name="v_pusher">
             <link name="baseLink">
                 <contact>
-                <lateral_friction value="1.0"/>
+                <lateral_friction value="0.47"/>
                 <rolling_friction value="0.001"/>
                 <restitution value="0.5"/>
                 </contact>
@@ -164,10 +181,10 @@ class VPushPbSimulation:
             </robot>
         """
 
-        with open(f"asset/vpusher/{unique_urdf_filename}", "w") as urdf_file:
+        with open(f"asset/vpusher_{self.time_stamp}/{unique_urdf_filename}", "w") as urdf_file:
             urdf_file.write(urdf_template)
 
-        self.robot_id = p.loadURDF(f"asset/vpusher/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=self.robot_orientation)
+        self.robot_id = p.loadURDF(f"asset/vpusher_{self.time_stamp}/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=self.robot_orientation)
 
         # Load urdf
         p.changeVisualShape(self.robot_id, -1, rgbaColor=[0, 0, 1, 1])

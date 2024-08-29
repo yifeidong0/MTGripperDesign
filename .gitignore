@@ -2,6 +2,7 @@
 *.pyc
 
 asset/vpusher/*
+asset/vpusher_*
 
 asset/cube/*
 

@@ -27,6 +27,7 @@ class VPushPbSimulationEnv(gym.Env):
                  time_stamp: str = "2024-08-23_20-15-08",
                  reward_weights: list = [],
                  reward_type: str = "dense", # dense, sparse
+                 perturb: bool = False,
         ):
         super(VPushPbSimulationEnv, self).__init__()
         self.task = 'circle' 
@@ -37,6 +38,8 @@ class VPushPbSimulationEnv(gym.Env):
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
         self.using_robustness_reward = using_robustness_reward
+        self.perturb = perturb
+        self.simulation.time_stamp = time_stamp
         self.action_space = spaces.Box(low=np.array([-1, -1, -0.4]), high=np.array([1, 1, 0.4]), dtype=np.float32)
         self.canvas_min_x, self.canvas_max_x = 0, 5
         self.canvas_min_y, self.canvas_max_y = 0, 5
@@ -54,8 +57,9 @@ class VPushPbSimulationEnv(gym.Env):
                 )
             )
         # Goal parameters
-        self.goal_radius = 0.5
+        self.goal_radius = 0.4
         self.goal_position = np.array([4.5, 2.5]) # workspace [[0,5], [0,5]]
+        self.goal_position += np.array([random.uniform(-0.2, 0.1), random.uniform(-1.0, 1.0)])
         self.simulation.goal_position = self.goal_position
         self.simulation.goal_radius = self.goal_radius
 
@@ -73,6 +77,9 @@ class VPushPbSimulationEnv(gym.Env):
         self.task = random.choice(['circle', 'polygon'])
         self.task_int = 0 if self.task == 'circle' else 1
         self.v_angle = random.uniform(np.pi/12, np.pi*11/12)
+        self.goal_position = np.array([4.5, 2.5]) # workspace [[0,5], [0,5]]
+        self.goal_position += np.array([random.uniform(-0.2, 0.1), random.uniform(-0.3, 0.3)])
+        self.simulation.goal_position = self.goal_position
         self.simulation.reset_task_and_design(self.task, self.v_angle)
         obs = self._get_obs()
 
@@ -106,6 +113,9 @@ class VPushPbSimulationEnv(gym.Env):
         # Step the simulation
         sim_steps = 5 # 48Hz
         for _ in range(sim_steps):
+            # add random perturbation force to the target object
+            if self.perturb:
+                p.applyExternalForce(self.simulation.object_id, -1, [random.normalvariate(0, 0.4), random.normalvariate(0, 0.4), 0], [0, 0, 0], p.LINK_FRAME)
             p.stepSimulation()
 
         # width, height, rgbPixels, _, _ = p.getCameraImage(64, 64, 
@@ -172,16 +182,16 @@ class VPushPbSimulationEnv(gym.Env):
         current_angle_difference = abs(current_direction_angle - gripper_angle)
         
         if self.last_angle_difference is not None:
-            reward = (self.last_angle_difference - current_angle_difference) * 5
+            reward = (self.last_angle_difference - current_angle_difference) * 0.2
         self.last_angle_difference = current_angle_difference
         
         # Reward for approaching the object and the goal
         if not condition_approached:
             last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
-            reward += last_dist_gripper_to_object - current_dist_gripper_to_object
+            reward += (last_dist_gripper_to_object - current_dist_gripper_to_object) * 0.2
         else:
             last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
-            reward += last_dist_object_to_goal - current_dist_object_to_goal
+            reward += (last_dist_object_to_goal - current_dist_object_to_goal) * 0.2
         
         # Reward of caging robustness
         if self.using_robustness_reward:
