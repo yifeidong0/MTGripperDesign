@@ -182,20 +182,20 @@ class VPushPbSimulationEnv(gym.Env):
         current_angle_difference = abs(current_direction_angle - gripper_angle)
         
         if self.last_angle_difference is not None:
-            reward = (self.last_angle_difference - current_angle_difference) * 0.4
+            reward = (self.last_angle_difference - current_angle_difference) * 0.3
         self.last_angle_difference = current_angle_difference
         
         # Reward for approaching the object and the goal
         if not condition_approached:
             last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
-            reward += (last_dist_gripper_to_object - current_dist_gripper_to_object) * 0.4
+            reward += (last_dist_gripper_to_object - current_dist_gripper_to_object) * 0.3
         else:
             last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
-            reward += (last_dist_object_to_goal - current_dist_object_to_goal) * 0.4
+            reward += (last_dist_object_to_goal - current_dist_object_to_goal) * 0.3
         
         # Reward of caging robustness
         if self.using_robustness_reward:
-            reward += self.robustness * 5
+            reward += self.robustness * 3
 
         if self.is_success:
             reward += 100

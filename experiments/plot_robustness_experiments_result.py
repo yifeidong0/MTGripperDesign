@@ -104,7 +104,7 @@ class SuccessScorePlotter:
         data = {}
 
         for i in range(1, 7):  # For folders 1 to 6
-            csv_files = sorted(glob(f"{self.base_path}/{i}/*.csv"))
+            csv_files = sorted(glob(f"{self.base_path}/{i}/*run1.csv"))
             data[i] = {}
 
             for j, csv_file in enumerate(csv_files):
@@ -146,7 +146,7 @@ class SuccessScorePlotter:
 
         plt.xlabel('Iteration')
         plt.ylabel('Test Success Score')
-        plt.xlim(1, 30)
+        plt.xlim(1, 50)
         plt.ylim(0, 1)
         plt.legend()
         plt.title(f'Test Performance of Optimal Design over BO Iterations')
@@ -155,7 +155,7 @@ class SuccessScorePlotter:
         plt.close()
 
     def plot_all(self):
-        self.plot_with_mean_std(f'{self.base_path}/catch_bo_success_score.png')
+        self.plot_with_mean_std(f'{self.base_path}/catch_bo_success_score_run1.png')
 
 
 

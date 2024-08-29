@@ -9,6 +9,9 @@ random_seeds=(1 2 3)
 # Define perturbation values
 perturbs=(true false)
 
+# Define total timesteps
+total_timesteps=5000000  # 5e6
+
 # Function to run the command in a new VSCode terminal
 run_in_vscode_terminal() {
   local robustness=$1
@@ -21,6 +24,7 @@ run_in_vscode_terminal() {
         --using_robustness_reward $robustness \
         --render_mode rgb_array \
         --n_envs 1 \
+        --total_timesteps $total_timesteps \
         --random_seed $seed \
         --device cuda \
         --perturb $perturb "
