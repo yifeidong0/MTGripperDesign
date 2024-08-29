@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the random seeds
-random_seeds=(1 2 3 4)
+random_seeds=(1 2 3 4 5 6)
 
 # Function to run the command in a new VSCode terminal
 run_in_vscode_terminal() {
@@ -21,16 +21,16 @@ run_in_vscode_terminal() {
         --device cpu \
         --save_filename $csv_filename \
         --num_episodes_eval 15 \
-        --num_episodes_eval_best 30 \
-        --max_iterations 50 \
+        --num_episodes_eval_best 25 \
+        --max_iterations 30 \
         --random_seed $seed"
 
   # Open a new VSCode terminal and run the command
   gnome-terminal -- bash -c "$cmd; exec bash"
 }
 
-# Loop through each i={1,2,3,4}, corresponding to each random seed
-for i in {1..4}; do
+# Loop through each i={1,2,3,4,5,6}, corresponding to each random seed
+for i in {1..6}; do
   # Get the list of zip files in alphabetical order
   model_files=($(ls results/paper/catch/$i/*.zip | sort))
   echo "model files name ${model_files[0]}"
@@ -56,13 +56,13 @@ for i in {1..4}; do
 
   # Run the command for each zip file with the corresponding csv_filename
   run_in_vscode_terminal "${model_files[0]}" 1 1 ${random_seeds[$i-1]} $csv_file_a  # a.zip: robustness=1, perturb=1
-  sleep 60
+  sleep 1000
   run_in_vscode_terminal "${model_files[1]}" 0 1 ${random_seeds[$i-1]} $csv_file_b  # b.zip: robustness=0, perturb=1
-  sleep 60
+  sleep 1000
   run_in_vscode_terminal "${model_files[2]}" 1 0 ${random_seeds[$i-1]} $csv_file_c  # c.zip: robustness=1, perturb=0
-  sleep 60
+  sleep 1000
   run_in_vscode_terminal "${model_files[3]}" 0 0 ${random_seeds[$i-1]} $csv_file_d  # d.zip: robustness=0, perturb=0
-  sleep 60
+  sleep 1000
 done
 
 echo "All training scripts have been launched."

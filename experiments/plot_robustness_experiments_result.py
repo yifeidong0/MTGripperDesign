@@ -33,7 +33,7 @@ class TrainingCurvePlotter:
     def load_all_data(self):
         data = {}
 
-        for i in range(1, 5):
+        for i in range(1, 7):
             model_folders = sorted(glob(f"{self.base_path}/{i}/PPO_*"))
             data[i] = {}
 
@@ -57,7 +57,7 @@ class TrainingCurvePlotter:
             all_steps = []
             all_values = []
 
-            for i in range(1, 5):
+            for i in range(1, 7):
                 steps = data[i][label]['steps']
                 values = data[i][label][metric]
 
