@@ -4,7 +4,7 @@
 robustness_values=(true false)
 
 # Define the random seeds
-random_seeds=(5 6)
+random_seeds=(1 2)
 
 # Define perturbation values
 perturbs=(true false)
@@ -16,11 +16,11 @@ run_in_vscode_terminal() {
   local perturb=$3
 
   cmd="python3 experiments/train.py \
-        --env_id catch \
+        --env_id vpush \
         --algo ppo \
         --using_robustness_reward $robustness \
         --render_mode rgb_array \
-        --n_envs 24 \
+        --n_envs 1 \
         --random_seed $seed \
         --device cuda \
         --perturb $perturb "
@@ -34,7 +34,7 @@ for seed in "${random_seeds[@]}"; do
   for perturb in "${perturbs[@]}"; do
     for robustness in "${robustness_values[@]}"; do
       run_in_vscode_terminal "$robustness" "$seed" "$perturb"
-      sleep 1200 # sec
+      sleep 3600 # sec
     done
   done
 done

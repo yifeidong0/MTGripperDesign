@@ -84,8 +84,80 @@ class TrainingCurvePlotter:
         self.plot_with_mean_std('success_rates', 'Success Rate', f'{self.base_path}/catch_success_rate.png')
         self.plot_with_mean_std('rewards', 'Episode Reward Mean', f'{self.base_path}/catch_ep_rew_mean.png')
 
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
+class SuccessScorePlotter:
+    def __init__(self, base_path):
+        self.base_path = base_path
+        self.labels = [
+            "robustness=1, perturb=1",
+            "robustness=0, perturb=1",
+            "robustness=1, perturb=0",
+            "robustness=0, perturb=0"
+        ]
+        self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']  # Colors suitable for academic papers
+
+    def load_csv_data(self):
+        data = {}
+
+        for i in range(1, 7):  # For folders 1 to 6
+            csv_files = sorted(glob(f"{self.base_path}/{i}/*.csv"))
+            data[i] = {}
+
+            for j, csv_file in enumerate(csv_files):
+                df = pd.read_csv(csv_file)
+                steps = df['num_iter'].values
+                success_scores = df['success_score_true'].values
+                data[i][self.labels[j]] = {
+                    'steps': steps,
+                    'success_scores': success_scores
+                }
+
+        return data
+
+    def plot_with_mean_std(self, save_path):
+        data = self.load_csv_data()
+
+        plt.figure(figsize=(10, 6))
+
+        for label, color in zip(self.labels, self.colors):
+            all_steps = []
+            all_success_scores = []
+
+            for i in range(1, 7):
+                steps = data[i][label]['steps']
+                success_scores = data[i][label]['success_scores']
+
+                if len(all_steps) == 0:
+                    all_steps = steps
+                all_success_scores.append(np.interp(all_steps, steps, success_scores))
+
+            all_success_scores = np.array(all_success_scores)
+            mean_values = np.mean(all_success_scores, axis=0)
+            std_values = np.std(all_success_scores, axis=0)
+
+            plt.plot(all_steps, mean_values, label=label, color=color)
+            plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+
+        plt.xlabel('Iteration')
+        plt.ylabel('Success Score (True)')
+        plt.legend()
+        plt.title(f'Success Score (True) vs Iteration')
+        plt.grid(True)
+        plt.savefig(save_path)
+        plt.close()
+
+    def plot_all(self):
+        self.plot_with_mean_std(f'{self.base_path}/catch_success_score_true.png')
+
+
 
 if __name__ == "__main__":
     base_path = 'results/paper/catch'
-    plotter = TrainingCurvePlotter(base_path)
+    # plotter = TrainingCurvePlotter(base_path)
+    plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()
+
