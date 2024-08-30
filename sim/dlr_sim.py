@@ -194,17 +194,17 @@ class DLRSimulation:
         return final_score
 
 if __name__ == "__main__":
-    base_lengths = np.arange(60, 100, 5)
-    distal_lengths = np.arange(20, 60, 5)
-    design_params = [random.choice(base_lengths), 
-                     random.choice(distal_lengths),] # TODO: add curvature
-    simulation = DLRSimulation('cube', 0.1, design_params, use_gui=1) # fish
+    distal_lengths = np.arange(20, 65, 5)
+    distal_curvatures = np.arange(2, 10, 2)
+    design_params = [random.choice(distal_lengths),
+                     random.choice(distal_curvatures),]
+    simulation = DLRSimulation('cube', 0.1, design_params, use_gui=1)
     for i in range(5):
         print('Iteration %d' % i)
         final_score = simulation.run(1)
         print("Final Score:", final_score)
 
         # randomly select insole or pillow and new design parameters
-        design_params = [random.choice(base_lengths), 
-                         random.choice(distal_lengths),]
-        simulation.reset_task_and_design('cube', design_params,) # fish, cube
+        design_params = [random.choice(distal_lengths),
+                         random.choice(distal_curvatures),]
+        simulation.reset_task_and_design('cube', 0.1, design_params,) #cube
