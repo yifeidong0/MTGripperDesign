@@ -18,17 +18,16 @@ class VPush(Task):
         sim,
         reward_type="sparse",
         using_robustness_reward=False,
+        reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         distance_threshold=0.1,
-        goal_xy_range=0.3,
-        obj_xy_range=0.3,
     ) -> None:
         super().__init__(sim)
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.08 # if too smaller than the geometry of tool, the object geometry variation will not be demonstrated
-        self.goal_range_low = np.array([0.7, 0, 0])
+        self.goal_range_low = np.array([0.7, -0.1, 0])
         self.goal_range_high = np.array([0.75, 0.1, 0])
-        self.obj_range_low = np.array([0.4, 0, 0])
+        self.obj_range_low = np.array([0.45, -0.1, 0])
         self.obj_range_high = np.array([0.5, 0.1, 0])
         self.task_object_name = 'circle' # initial choice
         self.task_object_names = ['circle', 'square', 'polygon0', 'narrow', 'oval']
@@ -36,6 +35,7 @@ class VPush(Task):
         self.last_ee_object_distance = 0
         self.last_object_target_distance = 0
         self.using_robustness_reward = using_robustness_reward
+        self.reward_weights = reward_weights
         self.joint_limits = [
             (-2.8973, 2.8973),
             (-1.7628, 1.7628),
@@ -59,52 +59,52 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="object",
                 radius=self.object_size/2,
-                height=self.object_size/2,
-                mass=1.0,
-                position=np.array([0.0, 0.0, self.object_size/4]),
+                height=self.object_size/2*1.6, # 6.4cm
+                mass=0.05, # TODO: adapt it after printing the objects and weighing them
+                position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
                 lateral_friction=40/77,
             )
             self.sim.create_cylinder(
                 body_name="target",
                 radius=self.object_size/2,
-                height=self.object_size/2,
+                height=self.object_size/2*1.6,
                 mass=0.0,
                 ghost=True,
-                position=np.array([0.0, 0.0, self.object_size/4]),
+                position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
             )
         elif self.task_object_name == 'square':
             self.sim.create_box(
                 body_name="object",
-                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
-                mass=1.0,
-                position=np.array([0.0, 0.0, self.object_size / 4]),
+                half_extents=np.array([1,1,0.8]) * self.object_size / 2,
+                mass=0.05,
+                position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
                 lateral_friction=40/77,
             )
             self.sim.create_box(
                 body_name="target",
-                half_extents=np.array([1,1,0.5]) * self.object_size / 2,
+                half_extents=np.array([1,1,0.8]) * self.object_size / 2,
                 mass=0.0,
                 ghost=True,
-                position=np.array([0.0, 0.0, self.object_size / 4]),
+                position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
             )
         elif self.task_object_name == 'polygon0':
             file_name = "asset/polygons/poly0.obj"
-            mesh_scale = [1,] * 3
-            height = self.object_size / 2 # make sure the height is right in obj file
+            mesh_scale = [1,1,1.6]
+            height = self.object_size / 2 * mesh_scale[2] # make sure the height is right in obj file
             self._create_task_object_mesh(file_name, mesh_scale, height)
         elif self.task_object_name == 'narrow':
             file_name = "asset/polygons/narrow.obj"
-            mesh_scale = [1,] * 3
-            height = self.object_size / 2 # make sure the height is right in obj file
+            mesh_scale = [1,1,1.6]
+            height = self.object_size / 2 * mesh_scale[2] # make sure the height is right in obj file
             self._create_task_object_mesh(file_name, mesh_scale, height)
         elif self.task_object_name == 'oval':
             file_name = "asset/polygons/oval.obj"
-            mesh_scale = [1,] * 3
-            height = self.object_size / 2 # make sure the height is right in obj file
+            mesh_scale = [1,1,1.6]
+            height = self.object_size / 2 * mesh_scale[2] # make sure the height is right in obj file
             self._create_task_object_mesh(file_name, mesh_scale, height)
 
         # for caging escape computation
@@ -116,7 +116,7 @@ class VPush(Task):
             self.sim._create_geometry(
                 body_name="object",
                 geom_type=self.sim.physics_client.GEOM_MESH,
-                mass=1.0,
+                mass=0.05,
                 position=np.array([0.0, 0.0, height/2]),
                 visual_kwargs={
                         "fileName": file_name,
@@ -277,7 +277,7 @@ class VPush(Task):
         assert observation.shape[-1] == 21
         ee_position = observation[..., :2]
         ee_yaw = observation[..., 2:3]
-        arm_joint_angles = observation[..., 3:10]  # Joint angles
+        arm_joint_angles = observation[..., 3:10]
         design_params = observation[..., 10:14]
         object_position = observation[..., 14:16]
         object_rotation = observation[..., 16:17]
@@ -302,19 +302,19 @@ class VPush(Task):
         for i, angle in enumerate(arm_joint_angles[0]):
             lower_limit, upper_limit = self.joint_limits[i]
             if angle < lower_limit:
-                joint_violation_penalty += 1.0 * abs(lower_limit - angle)
+                joint_violation_penalty += self.reward_weights[0] * abs(lower_limit - angle)
             elif angle > upper_limit:
-                joint_violation_penalty += 1.0 * abs(angle - upper_limit)
+                joint_violation_penalty += self.reward_weights[0] * abs(angle - upper_limit)
             else:
                 # Apply a small penalty as the joint approaches the limit
                 if abs(angle - lower_limit) <= self.tolerance or abs(angle - upper_limit) <= self.tolerance:
                     proximity_to_limit = min(abs(angle - lower_limit), abs(angle - upper_limit))
-                    joint_violation_penalty += 0.01 * (self.tolerance - proximity_to_limit) / self.tolerance
+                    joint_violation_penalty += self.reward_weights[1] * (self.tolerance - proximity_to_limit) / self.tolerance
 
         # Return the combined reward
         # return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
-        reward = -np.array(d - self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
-        reward += 100 * np.array(d < self.distance_threshold, dtype=np.float32)
+        reward = -self.reward_weights[2]*np.array(d - self.distance_threshold, dtype=np.float32) + self.reward_weights[3]*robustness_score - joint_violation_penalty
+        reward += self.reward_weights[4] * np.array(d < self.distance_threshold, dtype=np.float32)
         return reward
 
     # def compute_reward(self, observation_dict, info) -> np.ndarray:

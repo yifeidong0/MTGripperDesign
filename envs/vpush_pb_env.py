@@ -25,7 +25,7 @@ class VPushPbSimulationEnv(gym.Env):
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
                  time_stamp: str = "2024-08-23_20-15-08",
-                 reward_weights: list = [],
+                 reward_weights: list = [5.0, 1.0, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
         ):
