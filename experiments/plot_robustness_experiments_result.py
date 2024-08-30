@@ -33,7 +33,7 @@ class TrainingCurvePlotter:
     def load_all_data(self):
         data = {}
 
-        for i in range(1, 7):
+        for i in range(1, 4):
             model_folders = sorted(glob(f"{self.base_path}/{i}/PPO_*"))
             data[i] = {}
 
@@ -57,7 +57,7 @@ class TrainingCurvePlotter:
             all_steps = []
             all_values = []
 
-            for i in range(1, 7):
+            for i in range(1, 4):
                 steps = data[i][label]['steps']
                 values = data[i][label][metric]
 
@@ -74,6 +74,8 @@ class TrainingCurvePlotter:
 
         plt.xlabel('Training Steps')
         plt.ylabel(ylabel)
+        plt.xlim(0, 3e6)
+        plt.ylim(0, 1) if metric == 'success_rates' else plt.ylim(0, 130)
         plt.legend()
         plt.title(f'{ylabel} vs Training Steps')
         plt.grid(True)
@@ -81,8 +83,8 @@ class TrainingCurvePlotter:
         plt.close()
 
     def plot_all(self):
-        self.plot_with_mean_std('success_rates', 'Success Rate', f'{self.base_path}/catch_success_rate.png')
-        self.plot_with_mean_std('rewards', 'Episode Reward Mean', f'{self.base_path}/catch_ep_rew_mean.png')
+        self.plot_with_mean_std('success_rates', 'Success Rate', f'{self.base_path}/success_rate.png')
+        self.plot_with_mean_std('rewards', 'Episode Reward Mean', f'{self.base_path}/ep_rew_mean.png')
 
 import os
 import numpy as np
@@ -160,8 +162,8 @@ class SuccessScorePlotter:
 
 
 if __name__ == "__main__":
-    base_path = 'results/paper/catch'
-    # plotter = TrainingCurvePlotter(base_path)
-    plotter = SuccessScorePlotter(base_path)
+    base_path = 'results/paper/vpush'
+    plotter = TrainingCurvePlotter(base_path)
+    # plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()
 
