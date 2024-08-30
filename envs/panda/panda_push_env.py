@@ -42,7 +42,8 @@ class PandaUPushEnv(RobotTaskEnv):
         obs_type: str = "pose",
         time_stamp: str = "2024-08-23_20-15-08",
         using_robustness_reward: bool = False,
-        reward_weights: list = [],
+        reward_weights: list = [1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
+        perturb: bool = False,
         reward_type: str = "sparse",
         control_type: str = "ee",
         renderer: str = "Tiny",
@@ -68,28 +69,27 @@ class PandaUPushEnv(RobotTaskEnv):
             render_pitch=render_pitch,
             render_roll=render_roll,
         )
+        self.perturb = perturb
+        self.obs_type = obs_type
+        self.reward_weights = reward_weights
         self.step_count = 0
-        self.canvas_min_x = 0.1
-        self.canvas_max_x = 0.9
+        self.canvas_min_x = 0.20
+        self.canvas_max_x = 0.75
         self.canvas_min_y = -0.40
         self.canvas_max_y = 0.40
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1
         self.robot.set_action(action)
+        if self.perturb:
+            p.applyExternalForce(self.sim._bodies_idx["object"], -1, [random.normalvariate(0, 1.8), random.normalvariate(0, 1.8), 0], [0, 0, 0], p.LINK_FRAME)
         self.sim.step()
         observation = self._get_obs()
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
-        # if terminated:
-        #     print(f"is_success: {self.step_count}")
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
-        
-        # reward = float(self.task.compute_reward(observation, info))
-        # time.sleep(40./240.)
-        # print( self.robot.get_ee_position())
-        # print( self.robot.get_arm_joint_angles())
+        # time.sleep(10./240.)
 
         # # pybullet take image
         # width, height, rgbPixels, _, _ = p.getCameraImage(256, 256, 
@@ -112,11 +112,11 @@ class PandaUPushEnv(RobotTaskEnv):
         self.task.task_object_name = random.choice(self.task.task_object_names)
         self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
         self.robot.v_angle = random.uniform(np.pi/6, np.pi*5/6)
-        self.robot.finger_length = random.uniform(0.07, 0.15)
+        self.robot.finger_length = random.uniform(0.05, 0.12)
         while True:
             self.robot.finger_angle = random.uniform(-np.pi/3, np.pi/3)
-            self.robot.distal_phalanx_length = random.uniform(0.00, 0.10)
-            if self._pusher_forward_kinematics()[1] > 0.02:
+            self.robot.distal_phalanx_length = random.uniform(0.00, 0.08)
+            if self._pusher_forward_kinematics()[1] > 0.02: # make sure the pusher does not self-intersect
                 break
 
         return super().reset(seed=seed, options=options)
@@ -140,7 +140,7 @@ class PandaUPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 500
+        time_ended = self.step_count > 1000
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         # if truncated:

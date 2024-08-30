@@ -38,7 +38,7 @@ class PandaCustom(PyBulletRobot):
         self.control_type = control_type
         n_action = 3 if self.control_type == "ee" else 7  # control (x, y, yaw) if "ee", else, control the 7 joints
         n_action += 0 if self.block_gripper else 1
-        action_space = spaces.Box(low=np.array([-.3,]*2+[-0.1,]), high=np.array([.3,]*2+[0.1,]), dtype=np.float32)
+        action_space = spaces.Box(low=np.array([-0.05,-0.10,-0.04,]), high=np.array([0.15,0.10,0.04,]), dtype=np.float32)
         # action_space = spaces.Box(low=np.array([0.,-0.3,0,]), high=np.array([0,0,0,]), dtype=np.float32)
         
         self.v_angle = 0.5
@@ -112,7 +112,7 @@ class PandaCustom(PyBulletRobot):
         ee_displacement = ee_displacement[:3] * 0.05  # limit maximum change in position
         ee_position = self.get_ee_position() # get the current position and the target position
         target_ee_position = ee_position + ee_displacement
-        target_ee_position[2] = 0.07 # corresponds to the liftup in urdf
+        target_ee_position[2] = 0.12 # gap between ee and table, to avoid collision in real world 
 
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
@@ -178,8 +178,8 @@ class PandaCustom(PyBulletRobot):
         self.set_joint_neutral() # set neutral first to avoid singularities
         init_ee_position = np.array([0.0, 0.0, 0.1])
         # push forward
-        init_ee_position[0] = np.random.uniform(0.1, 0.1) 
-        init_ee_position[1] = np.random.uniform(0, 0.1)
+        init_ee_position[0] = np.random.uniform(0.2, 0.21) 
+        init_ee_position[1] = np.random.uniform(-0.1, 0.1)
         init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/6, np.pi/6)]
         # # push from left side (larger workspace length sideways than upfront. but not wide enough table in robot lab?)
         # init_ee_position[0] = np.random.uniform(0.4, 0.5) 
@@ -212,7 +212,7 @@ class PandaCustom(PyBulletRobot):
             file.write(self.urdf_content)
 
         # Load the tool
-        ee_position_center = (self.get_ee_position() + self.get_link_position(self.ee_link-1)) / 2
+        ee_position_center = (self.get_ee_position() + self.get_link_position(self.ee_link-1)) / 2 # center of the two fingers
         ee_position_center[2] -= 0.05
         self.sim.loadURDF(
             body_name="tool",
