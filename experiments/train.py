@@ -68,6 +68,7 @@ def main():
     env_kwargs = {'obs_type': args.obs_type,
                   'using_robustness_reward': args.using_robustness_reward,
                   'perturb': args.perturb,
+                  'perturb_sigma': args.perturb_sigma,
                   'render_mode': args.render_mode, 
                   'time_stamp': args.time_stamp,
                   'reward_type': 'dense', # dense, sparse

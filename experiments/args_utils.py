@@ -24,6 +24,7 @@ def get_args():
     parser.add_argument('--obs_type', type=str, choices=['pose', 'image'], default='pose', help='Type of observations for the training')
     parser.add_argument('--using_robustness_reward', type=str2bool, nargs='?', const=True, default=True, help='Enable or disable the robustness reward')
     parser.add_argument('--perturb', type=str2bool, nargs='?', const=False, default=False, help='Add random perturbations to the target object')
+    parser.add_argument('--perturb_sigma', type=float, default=1.8, help='Random perturbations sigma')
     parser.add_argument('--checkpoint_freq', type=int, default=int(1e3), help='Frequency of saving checkpoints')
     parser.add_argument('--n_envs', type=int, default=1, help='Number of environments to run in parallel')
     parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')

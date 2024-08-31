@@ -5,14 +5,14 @@
 robustness_values=(true false)
 
 # Define the random seeds
-random_seeds=(3 4)
+random_seeds=(1 2 3 4 5 6)
 
 # Define perturbation values
-# perturbs=(true false)
-perturbs=(true)
+perturbs=(true false)
+perturb_sigma=2.5
 
 # Define total timesteps
-total_timesteps=5000000
+total_timesteps=4000000
 
 # Function to run the command in a new VSCode terminal
 run_in_vscode_terminal() {
@@ -24,13 +24,14 @@ run_in_vscode_terminal() {
         --env_id panda \
         --algo ppo \
         --using_robustness_reward $robustness \
-        --render_mode rgb_array \
         --n_envs 1 \
         --reward_weights 1.0 0.01 1.0 1.0 100.0 0.0 0.0 0.0 \
         --random_seed $seed \
         --total_timesteps $total_timesteps \
         --device cuda \
-        --perturb $perturb "
+        --perturb $perturb \
+        --perturb_sigma $perturb_sigma" 
+        
 
   # Open a new VSCode terminal and run the command
   gnome-terminal -- bash -c "$cmd; exec bash"
@@ -41,9 +42,8 @@ for seed in "${random_seeds[@]}"; do
   for perturb in "${perturbs[@]}"; do
     for robustness in "${robustness_values[@]}"; do
       run_in_vscode_terminal "$robustness" "$seed" "$perturb"
-      sleep 60 # sec
+      sleep 600 # sec
     done
-    sleep 14400 # 4 hours
   done
 done
 

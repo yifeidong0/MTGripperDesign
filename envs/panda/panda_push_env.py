@@ -44,6 +44,7 @@ class PandaUPushEnv(RobotTaskEnv):
         using_robustness_reward: bool = False,
         reward_weights: list = [1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         perturb: bool = False,
+        perturb_sigma: float = 1.8,
         reward_type: str = "sparse",
         control_type: str = "ee",
         renderer: str = "Tiny",
@@ -70,6 +71,7 @@ class PandaUPushEnv(RobotTaskEnv):
             render_roll=render_roll,
         )
         self.perturb = perturb
+        self.perturb_sigma = perturb_sigma
         self.obs_type = obs_type
         self.reward_weights = reward_weights
         self.step_count = 0
@@ -82,7 +84,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self.step_count += 1
         self.robot.set_action(action)
         if self.perturb:
-            p.applyExternalForce(self.sim._bodies_idx["object"], -1, [random.normalvariate(0, 1.8), random.normalvariate(0, 1.8), 0], [0, 0, 0], p.LINK_FRAME)
+            p.applyExternalForce(self.sim._bodies_idx["object"], -1, [random.normalvariate(0, self.perturb_sigma), random.normalvariate(0, self.perturb_sigma), 0], [0, 0, 0], p.LINK_FRAME)
         self.sim.step()
         observation = self._get_obs()
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))

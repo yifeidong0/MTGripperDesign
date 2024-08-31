@@ -24,6 +24,7 @@ class UCatchSimulationEnv(gym.Env):
                  reward_weights: list = [],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
+                 perturb_sigma: float = 1.8,
                  img_size=(42, 42), 
         ):
         super(UCatchSimulationEnv, self).__init__()
@@ -34,6 +35,7 @@ class UCatchSimulationEnv(gym.Env):
         self.img_size = img_size
         self.obs_type = obs_type
         self.perturb = perturb
+        self.perturb_sigma = perturb_sigma
         self.using_robustness_reward = using_robustness_reward
         self.task_int = 0 if self.obs_type == 'circle' else 1
         self.action_space = spaces.Box(low=np.array([-1]), high=np.array([1]), dtype=np.float32)
