@@ -19,3 +19,5 @@ asset/franka_panda_custom/vpusher_modified_*
 asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip_*
 
 wandb/
+
+.idea/
