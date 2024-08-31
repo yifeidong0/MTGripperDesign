@@ -76,28 +76,27 @@ def main():
                   }
     
     if args.wandb_mode != 'disabled':
+        os.environ["WANDB_RUN_GROUP"] = args.wandb_group_name
         wandb.init(
             project="MTGripperDesign",
-            name=f"{env_id}_{args.time_stamp}",
+            group=args.wandb_group_name,
+            name=wandb.util.generate_id(),
             config=vars(args),
             sync_tensorboard=True,
             save_code=True,
             mode=args.wandb_mode,
         )
     
-    if args.n_envs > 1:
-        env = make_vec_env(env_id, n_envs=args.n_envs, seed=args.random_seed, env_kwargs=env_kwargs)
-    else:
-        env = gym.make(env_id, **env_kwargs)
-        if env_id != 'PandaUPushEnv-v0':
-            check_env(env)
+    env = gym.make(env_id, **env_kwargs)
+    if env_id != 'PandaUPushEnv-v0':
+        check_env(env)
         
     custom_callback = CustomCallback(
         args=args,
         save_freq=args.checkpoint_freq,
         save_path=paths["model_save_path"],
         name_prefix=f"{env_id}_{args.time_stamp}",
-        # verbose=2,
+        verbose=2,
     )
 
     if env_id == 'PandaPushEnv-v0':
@@ -115,8 +114,9 @@ def main():
                     device=args.device,
                     seed=args.random_seed,
                     )            
-    elif args.algo == 'tqc':
-        model = TQC('MultiInputPolicy', 
+    elif args.algo == 'sac':
+        assert args.env_id == 'panda', "Only PandaUPushEnv-v0 is supported for SAC and HER"
+        model = SAC('MultiInputPolicy', 
                     env,
                     buffer_size=1000000,
                     batch_size=2048,
@@ -135,30 +135,7 @@ def main():
                     },
                     verbose=1,
                     tensorboard_log=paths["tensorboard_log"],
-                    device="auto",
-                    seed=args.random_seed,
-                    )
-    elif args.algo == 'sac':
-        model = SAC('MultiInputPolicy', 
-                    env,
-                    buffer_size=1000000,
-                    batch_size=2048,
-                    gamma=0.95,
-                    learning_rate=1e-3,
-                    learning_starts=10000,
-                    tau=0.05,
-                    replay_buffer_class=HerReplayBufferMod,
-                    replay_buffer_kwargs={
-                        "goal_selection_strategy": 'future',
-                        "n_sampled_goal": 4
-                    },
-                    policy_kwargs={
-                        "net_arch": [512, 512, 512],
-                        "n_critics": 2
-                    },
-                    verbose=0,
-                    tensorboard_log=paths["tensorboard_log"],
-                    device="auto",
+                    device=args.device,
                     seed=args.random_seed,
                     )  
     
