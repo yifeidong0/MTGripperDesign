@@ -33,7 +33,7 @@ class TrainingCurvePlotter:
     def load_all_data(self):
         data = {}
 
-        for i in range(1, 4):
+        for i in range(1, 3):
             model_folders = sorted(glob(f"{self.base_path}/{i}/PPO_*"))
             data[i] = {}
 
@@ -52,12 +52,12 @@ class TrainingCurvePlotter:
         data = self.load_all_data()
 
         plt.figure(figsize=(10, 6))
-
-        for label, color in zip(self.labels, self.colors):
+        k = 0
+        for label, color in zip(self.labels[::-1], self.colors[::-1]):
             all_steps = []
             all_values = []
 
-            for i in range(1, 4):
+            for i in range(1, 3):
                 steps = data[i][label]['steps']
                 values = data[i][label][metric]
 
@@ -70,12 +70,14 @@ class TrainingCurvePlotter:
             std_values = np.std(all_values, axis=0)
 
             plt.plot(all_steps, mean_values, label=label, color=color)
-            plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+            if k == 2 or k == 3:
+                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+            k += 1
 
         plt.xlabel('Training Steps')
         plt.ylabel(ylabel)
         plt.xlim(0, 3e6)
-        plt.ylim(0, 1) if metric == 'success_rates' else plt.ylim(0, 130)
+        plt.ylim(0.1, 0.72) if metric == 'success_rates' else plt.ylim(0, 80)
         plt.legend()
         plt.title(f'{ylabel} vs Training Steps')
         plt.grid(True)
@@ -162,7 +164,7 @@ class SuccessScorePlotter:
 
 
 if __name__ == "__main__":
-    base_path = 'results/paper/vpush'
+    base_path = 'results/paper/panda'
     plotter = TrainingCurvePlotter(base_path)
     # plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()
