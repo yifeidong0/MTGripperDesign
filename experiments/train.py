@@ -114,29 +114,6 @@ def main():
                     device=args.device,
                     seed=args.random_seed,
                     )            
-    elif args.algo == 'tqc':
-        model = TQC('MultiInputPolicy', 
-                    env,
-                    buffer_size=1000000,
-                    batch_size=2048,
-                    gamma=0.95,
-                    learning_rate=1e-3,
-                    learning_starts=10000,
-                    tau=0.05,
-                    replay_buffer_class=HerReplayBufferMod,
-                    replay_buffer_kwargs={
-                        "goal_selection_strategy": 'future',
-                        "n_sampled_goal": 4
-                    },
-                    policy_kwargs={
-                        "net_arch": [512, 512, 512],
-                        "n_critics": 2
-                    },
-                    verbose=1,
-                    tensorboard_log=paths["tensorboard_log"],
-                    device="auto",
-                    seed=args.random_seed,
-                    )
     elif args.algo == 'sac':
         model = SAC('MultiInputPolicy', 
                     env,
@@ -157,7 +134,7 @@ def main():
                     },
                     verbose=0,
                     tensorboard_log=paths["tensorboard_log"],
-                    device="auto",
+                    device=args.device,
                     seed=args.random_seed,
                     )  
     
