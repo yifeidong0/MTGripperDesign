@@ -1,4 +1,4 @@
-# !/bin/bash
+#!/bin/bash
 
 # panda
 # Define the values for reward_weights[4] and reward_weights[5]
@@ -26,6 +26,7 @@ run_in_vscode_terminal() {
         --using_robustness_reward $robustness \
         --n_envs 1 \
         --reward_weights 1.0 0.01 1.0 1.0 100.0 0.0 0.0 0.0 \
+        --checkpoint_freq 5000 \
         --random_seed $seed \
         --total_timesteps $total_timesteps \
         --device cuda \
@@ -42,7 +43,6 @@ for seed in "${random_seeds[@]}"; do
   for perturb in "${perturbs[@]}"; do
     for robustness in "${robustness_values[@]}"; do
       run_in_vscode_terminal "$robustness" "$seed" "$perturb"
-      sleep 600 # sec
     done
   done
 done

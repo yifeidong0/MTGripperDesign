@@ -1,4 +1,4 @@
-# !/bin/bash
+#!/bin/bash
 
 # panda
 # Define the values for reward_weights[4] and reward_weights[5]
@@ -46,7 +46,7 @@ for perturb in "${perturbs[@]}"; do
             for seed in "${random_seeds[@]}"; do
                 echo "Running training with using_robustness_reward=$robustness, random_seed=$seed, perturb=$perturb, algo=$rl_algo"
                 run_in_vscode_terminal "$robustness" "$seed" "$perturb" "$rl_algo" "$wandb_group_name"
-                sleep 1
+                sleep 1000
             done
         done
     done
