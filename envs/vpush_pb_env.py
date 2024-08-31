@@ -25,7 +25,7 @@ class VPushPbSimulationEnv(gym.Env):
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
                  time_stamp: str = "2024-08-23_20-15-08",
-                 reward_weights: list = [],
+                 reward_weights: list = [5.0, 1.0, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
         ):
@@ -38,6 +38,7 @@ class VPushPbSimulationEnv(gym.Env):
         self.img_size = img_size  # New parameter for image size
         self.obs_type = obs_type  # New parameter for observation type
         self.using_robustness_reward = using_robustness_reward
+        self.reward_weights = reward_weights
         self.perturb = perturb
         self.simulation.time_stamp = time_stamp
         self.action_space = spaces.Box(low=np.array([-1, -1, -0.4]), high=np.array([1, 1, 0.4]), dtype=np.float32)
@@ -182,23 +183,23 @@ class VPushPbSimulationEnv(gym.Env):
         current_angle_difference = abs(current_direction_angle - gripper_angle)
         
         if self.last_angle_difference is not None:
-            reward = (self.last_angle_difference - current_angle_difference) * 0.4
+            reward = (self.last_angle_difference - current_angle_difference) * self.reward_weights[0]
         self.last_angle_difference = current_angle_difference
         
         # Reward for approaching the object and the goal
         if not condition_approached:
             last_dist_gripper_to_object = np.linalg.norm(self.last_gripper_pose[:2] - self.last_object_pose[:2])
-            reward += (last_dist_gripper_to_object - current_dist_gripper_to_object) * 0.4
+            reward += (last_dist_gripper_to_object - current_dist_gripper_to_object) * self.reward_weights[1]
         else:
             last_dist_object_to_goal = np.linalg.norm(self.last_object_pose[:2] - self.goal_position)
-            reward += (last_dist_object_to_goal - current_dist_object_to_goal) * 0.4
+            reward += (last_dist_object_to_goal - current_dist_object_to_goal) * self.reward_weights[2]
         
         # Reward of caging robustness
         if self.using_robustness_reward:
-            reward += self.robustness * 5
+            reward += self.robustness * self.reward_weights[3]
 
         if self.is_success:
-            reward += 100
+            reward += self.reward_weights[4]
         return reward
 
     def _is_done(self):

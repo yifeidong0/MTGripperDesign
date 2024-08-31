@@ -23,17 +23,19 @@ class DLRSimulationEnv(gym.Env):
                  using_robustness_reward: bool = False, 
                  reward_weights: list = [0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0],
                  reward_type: str = "dense", # dense, sparse
+                 perturb: bool = False,
                  img_size=(42, 42), 
         ):
         super(DLRSimulationEnv, self).__init__()
         self.task = 'cube' # fish, cube
         self.task_param = np.random.uniform(0.1, 0.2)
-        self.design_params = [60,60]        
+        self.design_params = [60,2]        
         self.gui = True if render_mode == 'human' else False
         self.img_size = img_size
         self.obs_type = obs_type
         self.reward_type = reward_type
         self.reward_weights = reward_weights
+        self.perturb = perturb
         self.using_robustness_reward = using_robustness_reward
         self.action_space = spaces.Box(low=np.array([-1e-5,-1e-5,-0.0005,-1e-5,-0.001,-0.001,]), 
                                        high=np.array([1e-5,1e-5,0.0005,1e-5,0.001,0.001,]), 
@@ -82,14 +84,12 @@ class DLRSimulationEnv(gym.Env):
             print(f"INFO: episode {self.count_episodes}")
 
         self.simulation.step_count = 0
-        self.task = 'cube' # cube, fish
+        self.task = 'cube' # cube
         self.task_param = np.random.uniform(0.08, 0.14)
-        # base_lengths = np.arange(60, 100, 5)
-        distal_lengths = np.arange(20, 60, 5)
-        # distal_curvature = np.arange(1, 5, 1) # TODO: add curvature as design parameter
-        self.design_params = [60, # random.choice(base_lengths), 
-                              random.choice(distal_lengths),]
-        # self.design_params = [60,30]
+        distal_lengths = np.arange(30, 65, 5)
+        distal_curvature = np.arange(2, 10, 2)
+        self.design_params = [random.choice(distal_lengths),
+                              random.choice(distal_curvature),]
         self.simulation.reset_task_and_design(self.task, self.task_param, self.design_params)
         obs = self._get_obs()
         self.num_end_steps = 0
