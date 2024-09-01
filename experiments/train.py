@@ -98,6 +98,8 @@ class SaveBestModelCallback(BaseCallback):
 def main():
     args = get_args()
     
+    run_id = wandb.util.generate_id()
+    
     env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
               'catch':'UCatchSimulationEnv-v0',
               'dlr':'DLRSimulationEnv-v0',
@@ -111,14 +113,14 @@ def main():
         "monitor_dir": f"results/monitor/{env_id}/",
     }
     
-    os.system(f"mkdir asset/{args.time_stamp}")
+    os.system(f"mkdir asset/{run_id}")
 
     env_kwargs = {'obs_type': args.obs_type,
                   'using_robustness_reward': args.using_robustness_reward,
                   'perturb': args.perturb,
                   'perturb_sigma': args.perturb_sigma,
                   'render_mode': args.render_mode, 
-                  'time_stamp': args.time_stamp,
+                  'run_id': run_id,
                   'reward_type': 'dense', # dense, sparse
                   'reward_weights': args.reward_weights,
                   }
@@ -130,7 +132,6 @@ def main():
             project="MTGripperDesign",
             group=args.wandb_group_name,
             name=custom_run_name,  # Set the custom run name here
-            name=wandb.util.generate_id(),
             config=vars(args),
             sync_tensorboard=True,
             save_code=True,
@@ -138,15 +139,18 @@ def main():
         )
     
     env = gym.make(env_id, **env_kwargs)
-    if env_id != 'PandaUPushEnv-v0':
-        check_env(env)
+    if args.wandb_mode == 'disabled':
+        try:
+            check_env(env)
+        finally:
+            os.system(f"rm -rf asset/{run_id}")
         
     custom_callback = CustomCallback(
         args=args,
         save_freq=args.checkpoint_freq,
         save_path=paths["model_save_path"],
-        name_prefix=f"{env_id}_{args.time_stamp}",
-        verbose=0,
+        name_prefix=run_id,
+        verbose=2,
     )
 
     if env_id == 'PandaPushEnv-v0':
@@ -206,7 +210,7 @@ def main():
     finally:
         # model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final_{args.using_robustness_reward}_{args.perturb}") # last model
         model.save(os.path.join(paths["model_save_path"], f"final_model_{args.total_timesteps}_steps.zip"))
-        os.system(f"rm -rf asset/{args.time_stamp}")
+        os.system(f"rm -rf asset/{run_id}")
 
 if __name__ == "__main__":
     main()

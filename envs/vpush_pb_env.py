@@ -24,7 +24,7 @@ class VPushPbSimulationEnv(gym.Env):
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
                  img_size=(42, 42), 
-                 time_stamp: str = "2024-08-23_20-15-08",
+                 run_id: str = "default",
                  reward_weights: list = [5.0, 1.0, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
@@ -42,7 +42,7 @@ class VPushPbSimulationEnv(gym.Env):
         self.reward_weights = reward_weights
         self.perturb = perturb
         self.perturb_sigma = perturb_sigma
-        self.simulation.time_stamp = time_stamp
+        self.simulation.run_id = run_id
         self.action_space = spaces.Box(low=np.array([-1, -1, -0.4]), high=np.array([1, 1, 0.4]), dtype=np.float32)
         self.canvas_min_x, self.canvas_max_x = 0, 5
         self.canvas_min_y, self.canvas_max_y = 0, 5

@@ -13,7 +13,7 @@ from utils.vhacd import decompose_mesh
 from shapely.geometry import Polygon, Point
 
 class VPushPbSimulation:
-    def __init__(self, object_type='circle', v_angle=np.pi/3, use_gui=True):
+    def __init__(self, object_type='circle', v_angle=np.pi/3, use_gui=True, run_id="default"):
         self.v_angle = v_angle
         self.object_type = object_type
         self.use_gui = use_gui
@@ -50,7 +50,7 @@ class VPushPbSimulation:
         self.robot_id = None
         self.object_id = None
         self.goal_id = None
-        self.time_stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+        self.run_id = run_id
 
     def setup(self, reset_task_and_design=False, reset_pose=False, min_distance=1.1):
         """ Setup the simulation environment.
@@ -134,17 +134,17 @@ class VPushPbSimulation:
 
     def create_v_shape(self,):
         # make dir if not exist
-        os.makedirs(f"asset/vpusher_{self.time_stamp}", exist_ok=True)
+        os.makedirs(f"asset/vpusher_{self.run_id}", exist_ok=True)
 
         # Remove previous obj and urdf files
-        os.system(f"rm -rf asset/vpusher_{self.time_stamp}/*")
+        os.system(f"rm -rf asset/vpusher_{self.run_id}/*")
 
         # Generate V-shaped pusher obj file
         unique_obj_filename = f"v_pusher_{self.v_angle:.3f}.obj"
-        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher_{self.time_stamp}/{unique_obj_filename}")
+        generate_v_shape_pusher(self.finger_length, self.v_angle, self.finger_thickness, self.body_height, f"asset/vpusher_{self.run_id}/{unique_obj_filename}")
 
         # Decompose the mesh
-        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher_{self.time_stamp}/{unique_obj_filename}")
+        decompose_mesh(pb_connected=True, input_file=f"asset/vpusher_{self.run_id}/{unique_obj_filename}")
 
         # Create a new URDF file with the updated OBJ file path
         unique_urdf_filename = f"v_pusher_{self.v_angle:.3f}.urdf"
@@ -181,10 +181,10 @@ class VPushPbSimulation:
             </robot>
         """
 
-        with open(f"asset/vpusher_{self.time_stamp}/{unique_urdf_filename}", "w") as urdf_file:
+        with open(f"asset/vpusher_{self.run_id}/{unique_urdf_filename}", "w") as urdf_file:
             urdf_file.write(urdf_template)
 
-        self.robot_id = p.loadURDF(f"asset/vpusher_{self.time_stamp}/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=self.robot_orientation)
+        self.robot_id = p.loadURDF(f"asset/vpusher_{self.run_id}/{unique_urdf_filename}", basePosition=self.robot_position, baseOrientation=self.robot_orientation)
 
         # Load urdf
         p.changeVisualShape(self.robot_id, -1, rgbaColor=[0, 0, 1, 1])

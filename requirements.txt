@@ -1,0 +1,6 @@
+urdf_parser_py
+shapely
+stable-baselines3[extra]
+panda-gym
+wandb
+pyyaml

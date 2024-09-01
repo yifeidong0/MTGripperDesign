@@ -21,7 +21,7 @@ def main():
     env_kwargs = {'obs_type': args.obs_type, 
                   'using_robustness_reward': args.using_robustness_reward, 
                   'render_mode': args.render_mode,
-                  'time_stamp': args.time_stamp,
+                  'run_id': args.run_id,
                   'perturb': args.perturb,
                   }
     env = gym.make(env_id, **env_kwargs)

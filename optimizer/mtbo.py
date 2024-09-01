@@ -68,7 +68,6 @@ class BayesianOptimizationMultiTask:
         self.env_id = env_ids[self.args.env]
         env_kwargs = {'obs_type': self.args.obs_type, 
                         'render_mode': self.args.render_mode,
-                        'time_stamp': self.args.time_stamp,
                         'perturb': self.args.perturb,
                         }
         self.env = gym.make(self.env_id, **env_kwargs)

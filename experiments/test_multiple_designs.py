@@ -34,7 +34,7 @@ def evaluate_design(env_name, design=[1,], num_episodes=10, gui=0,
         env_kwargs = {'obs_type': args.obs_type, 
                     'using_robustness_reward': args.using_robustness_reward, 
                     'render_mode': args.render_mode,
-                    'time_stamp': args.time_stamp,
+                    'run_id': args.run_id,
                     'perturb': args.perturb,
                     }
         env = gym.make(env_id, **env_kwargs)
