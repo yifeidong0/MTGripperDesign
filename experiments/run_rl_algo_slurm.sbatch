@@ -7,13 +7,17 @@
 #SBATCH --array=0-11%12                  
 #SBATCH --mail-type FAIL
 #SBATCH --mail-user shaohang@kth.se
-#SBATCH --output /Midgard/home/%u/MTGripperDesign/logs/%J_slurm.out
-#SBATCH --error  /Midgard/home/%u/MTGripperDesign/logs/%J_slurm.err
+#SBATCH --output /Midgard/home/%u/workspace/MTGripperDesign/logs/%J_slurm.out
+#SBATCH --error  /Midgard/home/%u/workspace/MTGripperDesign/logs/%J_slurm.err
 
 
 nvidia-smi
-. ~/miniconda3/etc/profile.d/conda.sh
-conda activate project_env
+source /Midgard/home/shaohang/mambaforge/etc/profile.d/conda.sh
+conda info --envs
+conda activate cuda12
+export LD_LIBRARY_PATH=$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64:$CONDA_PREFIX/x86_64-conda_cos6-linux-gnu/sysroot/usr/lib64:$LD_LIBRARY_PATH
+cd /Midgard/home/shaohang/workspace/MTGripperDesign
+
 
 # Define parameters
 robustness_values=(true false)
@@ -53,7 +57,7 @@ python3 experiments/train.py \
     --env_id panda \
     --algo sac \
     --using_robustness_reward $robustness \
-    --reward_weights 1.0 0.01 1.0 1.0 100.0 0.0 0.0 0.0 \
+    --reward_weights 1.0 0.01 0.0 1.0 100.0 0.0 0.0 0.0 \
     --random_seed $seed \
     --total_timesteps $total_timesteps \
     --device cpu \
