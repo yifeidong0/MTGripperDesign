@@ -47,6 +47,57 @@ class CustomCallback(CheckpointCallback):
         return True
 
 
+from stable_baselines3.common.callbacks import BaseCallback
+import numpy as np
+from collections import deque
+
+class SaveBestModelCallback(BaseCallback):
+    def __init__(self, save_path, verbose=0, n_episodes=100):
+        super(SaveBestModelCallback, self).__init__(verbose)
+        self.save_path = save_path
+        self.best_success_rate = -np.inf
+        self.ep_success_buffer = deque(maxlen=n_episodes)  # Only keep the last `n_episodes`
+        self.best_model_path = None  # Track the best model path
+
+    def _init_callback(self) -> None:
+        if self.save_path is not None:
+            os.makedirs(self.save_path, exist_ok=True)
+
+    def _on_step(self) -> bool:
+        # Check if an episode has ended
+        if self.locals['dones'][0]:
+            # Fetch the 'is_success' values from the current environment step
+            success = self.locals['infos'][0].get('is_success', 0)
+            self.ep_success_buffer.append(success)
+
+            # Calculate the average success rate over the last `n_episodes` episodes
+            avg_success_rate = np.mean(self.ep_success_buffer)
+            print(f"avg_success_rate: {avg_success_rate:.4f}")
+            
+            if avg_success_rate > self.best_success_rate:
+                self.best_success_rate = avg_success_rate
+                # Create a new model file name with the success rate included
+                model_save_path = os.path.join(self.save_path, f"best_model_{self.num_timesteps}_steps_{avg_success_rate:.4f}.zip")
+                
+                # Save the new best model
+                self.model.save(model_save_path)
+                wandb.save(model_save_path)  # Upload the best model to WandB
+                
+                if self.verbose > 0:
+                    print(f"New best model saved with avg success rate: {avg_success_rate:.4f} at step {self.num_timesteps}")
+
+                # Remove the previous best model if it exists
+                if self.best_model_path is not None and os.path.exists(self.best_model_path):
+                    os.remove(self.best_model_path)
+                    if self.verbose > 0:
+                        print(f"Removed previous best model: {self.best_model_path}")
+                
+                # Update the path to the new best model
+                self.best_model_path = model_save_path
+
+        return True
+
+
 def main():
     args = get_args()
     
@@ -59,7 +110,7 @@ def main():
     paths = {
         "tensorboard_log": f"results/runs/{env_id}/",
         "log_path": f"results/logs/{env_id}/",
-        "model_save_path": f"results/models/{env_id}/",
+        "model_save_path": f"results/models/{env_id}/{args.time_stamp}_{args.random_seed}_{args.using_robustness_reward}_{args.perturb}/",
         "monitor_dir": f"results/monitor/{env_id}/",
     }
     
@@ -96,7 +147,7 @@ def main():
         save_freq=args.checkpoint_freq,
         save_path=paths["model_save_path"],
         name_prefix=f"{env_id}_{args.time_stamp}",
-        verbose=2,
+        verbose=0,
     )
 
     if env_id == 'PandaPushEnv-v0':
@@ -138,22 +189,24 @@ def main():
                     device=args.device,
                     seed=args.random_seed,
                     )  
-    
+
+    best_model_callback = SaveBestModelCallback(
+        save_path=paths["model_save_path"],
+        verbose=1,
+        n_episodes=100,  # Track the last 100 episodes
+    )
     try:
         model.learn(
             total_timesteps=args.total_timesteps,
             progress_bar=1,
             log_interval=5,
-            callback=WandbCallback(
-                gradient_save_freq=100,
-                model_save_freq=args.checkpoint_freq,
-                model_save_path=paths["model_save_path"],
-            ) if args.wandb_mode != 'disabled' else custom_callback,
+            callback=[best_model_callback] if args.wandb_mode != 'disabled' else custom_callback,
         )
     except KeyboardInterrupt:
         print("Training interrupted")
     finally:
-        model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final_{args.using_robustness_reward}_{args.perturb}") # last model
+        # model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final_{args.using_robustness_reward}_{args.perturb}") # last model
+        model.save(os.path.join(paths["model_save_path"], f"final_model_{args.total_timesteps}_steps.zip"))
         os.system(f"rm -rf asset/{args.time_stamp}")
 
 if __name__ == "__main__":
