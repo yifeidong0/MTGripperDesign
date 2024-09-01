@@ -109,7 +109,7 @@ def main():
     paths = {
         "tensorboard_log": f"results/runs/{env_id}/",
         "log_path": f"results/logs/{env_id}/",
-        "model_save_path": f"results/models/{env_id}/{args.time_stamp}_{args.random_seed}_{args.using_robustness_reward}_{args.perturb}/",
+        "model_save_path": f"results/models/{env_id}/{run_id}_{args.random_seed}_{args.using_robustness_reward}_{args.perturb}/",
         "monitor_dir": f"results/monitor/{env_id}/",
     }
     
@@ -127,7 +127,7 @@ def main():
     
     if args.wandb_mode != 'disabled':
         os.environ["WANDB_RUN_GROUP"] = args.wandb_group_name
-        custom_run_name = f"{args.env_id}_seed{args.random_seed}_robust{args.using_robustness_reward}_perturb{args.perturb}_{args.time_stamp}"
+        custom_run_name = f"{args.env_id}_seed{args.random_seed}_robust{args.using_robustness_reward}_perturb{args.perturb}_{run_id}"
         wandb.init(
             project="MTGripperDesign",
             group=args.wandb_group_name,
@@ -208,7 +208,7 @@ def main():
     except KeyboardInterrupt:
         print("Training interrupted")
     finally:
-        # model.save(f"results/models/{env_id}_{args.total_timesteps}_{args.time_stamp}_final_{args.using_robustness_reward}_{args.perturb}") # last model
+        # model.save(f"results/models/{env_id}_{args.total_timesteps}_{run_id}_final_{args.using_robustness_reward}_{args.perturb}") # last model
         model.save(os.path.join(paths["model_save_path"], f"final_model_{args.total_timesteps}_steps.zip"))
         os.system(f"rm -rf asset/{run_id}")
 
