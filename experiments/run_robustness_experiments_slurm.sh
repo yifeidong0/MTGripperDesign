@@ -4,7 +4,7 @@
 #SBATCH --gpus-per-node=A40:1           # Number and type of GPU (1 A100 per task)
 #SBATCH --cpus-per-task=4                # Number of CPU cores per task
 #SBATCH --time=48:00:00                   # Time limit for each task
-#SBATCH --array=0-23%12                   # Array jobs: 24 tasks, run 12 simultaneously
+#SBATCH --array=0-23%24                   # Array jobs: 24 tasks, run 12 simultaneously
 
 # Load necessary modules
 # module load Python/3.10.8-GCCcore-12.2.0
@@ -22,13 +22,22 @@ total_timesteps=4000000
 checkpoint_freq=5000
 
 # Calculate indices based on SLURM_ARRAY_TASK_ID
-robustness_idx=$(( SLURM_ARRAY_TASK_ID % 2 ))
-seed_idx=$(( (SLURM_ARRAY_TASK_ID / 2) % 6 ))
-perturb_idx=$(( (SLURM_ARRAY_TASK_ID / 12) % 2 ))
+total_robustness=${#robustness_values[@]}
+total_perturbs=${#perturbs[@]}
+total_seeds=${#random_seeds[@]}
 
-robustness=${robustness_values[$robustness_idx]}
+# Calculate indices for each parameter
+seed_idx=$(( SLURM_ARRAY_TASK_ID / (total_robustness * total_perturbs) ))
+perturb_idx=$(( (SLURM_ARRAY_TASK_ID / total_robustness) % total_perturbs ))
+robustness_idx=$(( SLURM_ARRAY_TASK_ID % total_robustness ))
+
+# Assign values based on calculated indices
 seed=${random_seeds[$seed_idx]}
 perturb=${perturbs[$perturb_idx]}
+robustness=${robustness_values[$robustness_idx]}
+
+# Construct the wandb group name
+wandb_group_name="ppo with robustness: ${robustness}, perturb: ${perturb}, random seed: ${seed}"
 
 # Print configuration for logging
 echo "Running experiment with:"
@@ -36,10 +45,6 @@ echo "  Robustness: $robustness"
 echo "  Seed: $seed"
 echo "  Perturb: $perturb"
 echo "  Perturb Sigma: $perturb_sigma"
-
-
-# Add a delay before starting the task
-sleep $SLURM_ARRAY_TASK_ID
 
 # Execute the training command
 python3 experiments/train.py \
@@ -54,4 +59,6 @@ python3 experiments/train.py \
     --perturb $perturb \
     --perturb_sigma $perturb_sigma \
     --checkpoint_freq $checkpoint_freq \
+    --wandb_group_name "$wandb_group_name" \
+    --wandb_mode online \
     --time_stamp $time_stamp
