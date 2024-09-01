@@ -1,9 +1,8 @@
 #!/bin/bash
 #SBATCH -A NAISS2024-5-401 -p alvis
 #SBATCH --nodes=4                        # Number of nodes (1 node is sufficient)
-#SBATCH --gpus-per-node=A40:1           # Number and type of GPU (1 A100 per task)
-#SBATCH --cpus-per-task=4                # Number of CPU cores per task
-#SBATCH --time=48:00:00                   # Time limit for each task
+#SBATCH --cpus-per-task=64                # Number of CPU cores per task
+#SBATCH --time=72:00:00                   # Time limit for each task
 #SBATCH --array=0-23%24                   # Array jobs: 24 tasks, run 12 simultaneously
 
 # Load necessary modules
@@ -54,7 +53,7 @@ python3 experiments/train.py \
     --reward_weights 1.0 0.01 1.0 1.0 100.0 0.0 0.0 0.0 \
     --random_seed $seed \
     --total_timesteps $total_timesteps \
-    --device cuda \
+    --device cpu \
     --render_mode rgb_array \
     --perturb $perturb \
     --perturb_sigma $perturb_sigma \

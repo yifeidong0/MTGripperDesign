@@ -72,7 +72,6 @@ class SaveBestModelCallback(BaseCallback):
 
             # Calculate the average success rate over the last `n_episodes` episodes
             avg_success_rate = np.mean(self.ep_success_buffer)
-            print(f"avg_success_rate: {avg_success_rate:.4f}")
             
             if avg_success_rate > self.best_success_rate:
                 self.best_success_rate = avg_success_rate
@@ -89,8 +88,6 @@ class SaveBestModelCallback(BaseCallback):
                 # Remove the previous best model if it exists
                 if self.best_model_path is not None and os.path.exists(self.best_model_path):
                     os.remove(self.best_model_path)
-                    if self.verbose > 0:
-                        print(f"Removed previous best model: {self.best_model_path}")
                 
                 # Update the path to the new best model
                 self.best_model_path = model_save_path
@@ -128,9 +125,11 @@ def main():
     
     if args.wandb_mode != 'disabled':
         os.environ["WANDB_RUN_GROUP"] = args.wandb_group_name
+        custom_run_name = f"{args.env_id}_seed{args.random_seed}_robust{args.using_robustness_reward}_perturb{args.perturb}_{args.time_stamp}"
         wandb.init(
             project="MTGripperDesign",
             group=args.wandb_group_name,
+            name=custom_run_name,  # Set the custom run name here
             name=wandb.util.generate_id(),
             config=vars(args),
             sync_tensorboard=True,
