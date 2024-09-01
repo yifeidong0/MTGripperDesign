@@ -96,7 +96,7 @@ def main():
         save_freq=args.checkpoint_freq,
         save_path=paths["model_save_path"],
         name_prefix=f"{env_id}_{args.time_stamp}",
-        verbose=2,
+        verbose=0,
     )
 
     if env_id == 'PandaPushEnv-v0':
