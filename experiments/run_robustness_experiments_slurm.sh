@@ -1,42 +1,22 @@
 #!/bin/bash
 #SBATCH -A NAISS2024-5-401 -p alvis
-#SBATCH --nodes=4                        # Number of nodes (1 node is sufficient)
-#SBATCH --cpus-per-task=64                # Number of CPU cores per task
 #SBATCH --time=72:00:00                   # Time limit for each task
-#SBATCH --array=0-23%24                   # Array jobs: 24 tasks, run 12 simultaneously
+#SBATCH --gpus-per-node=T4:4 -N 2 --cpus-per-task=32
 
 # Load necessary modules
-# module load Python/3.10.8-GCCcore-12.2.0
 source /mimer/NOBACKUP/groups/softenable-design/mtbo/bin/activate
 
 # Generate a unique identifier for each task
-time_stamp=$(date +'%Y-%m-%d_%H-%M-%S')_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}
 
 # Define parameters
 robustness_values=(true false)
-random_seeds=(1 2 3 4 5 6)
+random_seeds=(1 2 3)
 perturbs=(true false)
-perturb_sigma=2.5
-total_timesteps=4000000
-checkpoint_freq=5000
-
-# Calculate indices based on SLURM_ARRAY_TASK_ID
-total_robustness=${#robustness_values[@]}
-total_perturbs=${#perturbs[@]}
-total_seeds=${#random_seeds[@]}
-
-# Calculate indices for each parameter
-seed_idx=$(( SLURM_ARRAY_TASK_ID / (total_robustness * total_perturbs) ))
-perturb_idx=$(( (SLURM_ARRAY_TASK_ID / total_robustness) % total_perturbs ))
-robustness_idx=$(( SLURM_ARRAY_TASK_ID % total_robustness ))
-
-# Assign values based on calculated indices
-seed=${random_seeds[$seed_idx]}
-perturb=${perturbs[$perturb_idx]}
-robustness=${robustness_values[$robustness_idx]}
+perturb_sigma=1.8
+total_timesteps=2500000
 
 # Construct the wandb group name
-wandb_group_name="ppo with robustness: ${robustness}, perturb: ${perturb}, random seed: ${seed}"
+wandb_group_name="robustness-reward-weight 10, perturb 1.8, PPO"
 
 # Print configuration for logging
 echo "Running experiment with:"
@@ -45,19 +25,39 @@ echo "  Seed: $seed"
 echo "  Perturb: $perturb"
 echo "  Perturb Sigma: $perturb_sigma"
 
-# Execute the training command
-python3 experiments/train.py \
-    --env_id panda \
-    --algo ppo \
-    --using_robustness_reward $robustness \
-    --reward_weights 1.0 0.01 1.0 1.0 100.0 0.0 0.0 0.0 \
-    --random_seed $seed \
-    --total_timesteps $total_timesteps \
-    --device cpu \
-    --render_mode rgb_array \
-    --perturb $perturb \
-    --perturb_sigma $perturb_sigma \
-    --checkpoint_freq $checkpoint_freq \
-    --wandb_group_name "$wandb_group_name" \
-    --wandb_mode online \
-    --time_stamp $time_stamp
+# Function to run the command in a new VSCode terminal
+run_in_vscode_terminal() {
+  local robustness=$1
+  local seed=$2
+  local perturb=$3
+  local time_stamp=$4
+
+  cmd="python3 experiments/train.py \
+        --env_id panda \
+        --algo ppo \
+        --using_robustness_reward $robustness \
+        --reward_weights 1.0 0.01 1.0 10.0 100.0 0.0 0.0 0.0 \
+        --random_seed $seed \
+        --total_timesteps $total_timesteps \
+        --device cuda \
+        --render_mode rgb_array \
+        --perturb $perturb \
+        --perturb_sigma $perturb_sigma \
+        --wandb_group_name "$wandb_group_name" \
+        --wandb_mode online \
+        --time_stamp $time_stamp" 
+        
+  # Open a new VSCode terminal and run the command
+  gnome-terminal -- bash -c "$cmd; exec bash"
+}
+
+# Loop through each combination of robustness, perturb, and random seeds
+for seed in "${random_seeds[@]}"; do
+  for perturb in "${perturbs[@]}"; do
+    for robustness in "${robustness_values[@]}"; do
+      time_stamp=$(date +'%Y-%m-%d_%H-%M-%S')
+      run_in_vscode_terminal "$robustness" "$seed" "$perturb" "$time_stamp"
+      sleep 10 # sec
+    done
+  done
+done
