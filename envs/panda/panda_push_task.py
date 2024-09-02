@@ -7,6 +7,7 @@ from panda_gym.envs.core import Task
 from panda_gym.utils import distance
 import pybullet as p
 from shapely.geometry import Polygon, Point
+from polygon import is_point_inside_polygon
 
 def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
@@ -204,23 +205,23 @@ class VPush(Task):
         d = distance(achieved_goal, desired_goal)
         return np.array(d < self.distance_threshold, dtype=bool)
         
-    def _is_point_inside_polygon(self, points, vertices, slack=2):
-        """
-        Batch processing version of _is_point_inside_polygon.
-        points: numpy array of shape [N, 2]
-        polygons: numpy array of shape [N, 5, 2] where 5 is the number of vertices in each U shape polygon
-        slack: tolerance distance for considering a point inside the polygon
-        returns: boolean array of shape [N] indicating whether each point is inside the polygon or within slack distance
-        """
-        results = np.zeros(points.shape[0], dtype=bool)
-        for i in range(points.shape[0]):
-            polygon = Polygon(vertices[i])
-            point = Point(points[i])
-            if polygon.contains(point):
-                results[i] = True
-            elif polygon.distance(point) <= slack:
-                results[i] = True
-        return results
+    # def _is_point_inside_polygon(self, points, vertices, slack=2):
+    #     """
+    #     Batch processing version of _is_point_inside_polygon.
+    #     points: numpy array of shape [N, 2]
+    #     polygons: numpy array of shape [N, 5, 2] where 5 is the number of vertices in each U shape polygon
+    #     slack: tolerance distance for considering a point inside the polygon
+    #     returns: boolean array of shape [N] indicating whether each point is inside the polygon or within slack distance
+    #     """
+    #     results = np.zeros(points.shape[0], dtype=bool)
+    #     for i in range(points.shape[0]):
+    #         polygon = Polygon(vertices[i])
+    #         point = Point(points[i])
+    #         if polygon.contains(point):
+    #             results[i] = True
+    #         elif polygon.distance(point) <= slack:
+    #             results[i] = True
+    #     return results
 
     def _eval_robustness(self, tool_positions, tool_angles, object_positions, design_params, object_rad, slack=0.0):
         """
@@ -261,9 +262,9 @@ class VPush(Task):
 
         robot_vertices = np.stack([vertex_1, vertex_2, vertex_3, vertex_4, vertex_5], axis=1)  # (N, 5, 2)
         assert robot_vertices.shape == (N, 5, 2) and object_pos_R.shape == (N, 2)
-        
         # Check if each object position is inside the corresponding robot polygon
-        is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
+        # is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
+        is_inside = is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
         # Calculate robustness for each evaluation
         soft_fixture_metric = l1 * np.cos(a1/2) + l2 * np.cos(a2) - object_pos_R[:, 0] + object_rad[:, 0]
         robustness_depth = np.maximum(0.0, soft_fixture_metric)

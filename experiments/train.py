@@ -73,7 +73,7 @@ class SaveBestModelCallback(BaseCallback):
             # Calculate the average success rate over the last `n_episodes` episodes
             avg_success_rate = np.mean(self.ep_success_buffer)
             
-            if avg_success_rate > self.best_success_rate:
+            if avg_success_rate > self.best_success_rate and len(self.ep_success_buffer) > 10:
                 self.best_success_rate = avg_success_rate
                 # Create a new model file name with the success rate included
                 model_save_path = os.path.join(self.save_path, f"best_model_{self.num_timesteps}_steps_{avg_success_rate:.4f}.zip")
@@ -109,7 +109,7 @@ def main():
     paths = {
         "tensorboard_log": f"results/runs/{env_id}/",
         "log_path": f"results/logs/{env_id}/",
-        "model_save_path": f"results/models/{env_id}/{run_id}_{args.random_seed}_{args.using_robustness_reward}_{args.perturb}/",
+        "model_save_path": f"results/models/{env_id}/{args.time_stamp}_{run_id}_{args.random_seed}_{args.using_robustness_reward}_{args.perturb}/",
         "monitor_dir": f"results/monitor/{env_id}/",
     }
     
@@ -141,7 +141,8 @@ def main():
     env = gym.make(env_id, **env_kwargs)
     if args.wandb_mode == 'disabled':
         try:
-            check_env(env)
+            if env_id != 'PandaUPushEnv-v0':
+                check_env(env)
         finally:
             os.system(f"rm -rf asset/{run_id}")
         

@@ -1,63 +1,60 @@
-#!/bin/bash
-#SBATCH -A NAISS2024-5-401 -p alvis
-#SBATCH --nodes=4                        # Number of nodes (1 node is sufficient)
-#SBATCH --cpus-per-task=64                # Number of CPU cores per task
-#SBATCH --time=72:00:00                   # Time limit for each task
-#SBATCH --array=0-23%24                   # Array jobs: 24 tasks, run 12 simultaneously
+#!/usr/bin/env bash
+#SBATCH -A NAISS2024-5-401              # Replace with your project ID
+#SBATCH -p alvis                        # Partition to use
+#SBATCH --nodes=1                       # Request 1 node
+#SBATCH --gpus-per-node=A40:1           # Request 4 GPUs on that node
+#SBATCH --cpus-per-gpu=16               # Request 8 CPUs per GPU (adjust as needed)
+#SBATCH --time=72:00:00                 # Time limit for the job
+#SBATCH --array=0-15                    # 16 tasks in total (4 GPUs * 4 tasks per GPU)
 
-# Load necessary modules
-# module load Python/3.10.8-GCCcore-12.2.0
+# Load necessary modules or environment
 source /mimer/NOBACKUP/groups/softenable-design/mtbo/bin/activate
-
-# Generate a unique identifier for each task
-time_stamp=$(date +'%Y-%m-%d_%H-%M-%S')_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}
 
 # Define parameters
 robustness_values=(true false)
-random_seeds=(1 2 3 4 5 6)
 perturbs=(true false)
-perturb_sigma=2.5
-total_timesteps=4000000
-checkpoint_freq=5000
+random_seeds=(1 2 3 4)
+perturb_sigma=1.8
+total_timesteps=2500000
 
 # Calculate indices based on SLURM_ARRAY_TASK_ID
-total_robustness=${#robustness_values[@]}
-total_perturbs=${#perturbs[@]}
-total_seeds=${#random_seeds[@]}
+gpu_id=$(( SLURM_ARRAY_TASK_ID / 4 ))          # Calculate which GPU to use
+task_id=$(( SLURM_ARRAY_TASK_ID % 4 ))         # Determine which task to run on that GPU
 
-# Calculate indices for each parameter
-seed_idx=$(( SLURM_ARRAY_TASK_ID / (total_robustness * total_perturbs) ))
-perturb_idx=$(( (SLURM_ARRAY_TASK_ID / total_robustness) % total_perturbs ))
-robustness_idx=$(( SLURM_ARRAY_TASK_ID % total_robustness ))
-
-# Assign values based on calculated indices
-seed=${random_seeds[$seed_idx]}
-perturb=${perturbs[$perturb_idx]}
-robustness=${robustness_values[$robustness_idx]}
+# Determine the specific combination of parameters for this task
+robustness=${robustness_values[$((task_id / 2))]}
+perturb=${perturbs[$((task_id % 2))]}
+seed=${random_seeds[$gpu_id]}
 
 # Construct the wandb group name
-wandb_group_name="ppo with robustness: ${robustness}, perturb: ${perturb}, random seed: ${seed}"
+wandb_group_name="robustness-reward-weight 10, perturb ${perturb_sigma}, panda, PPO"
+
+# Generate the time stamp
+time_stamp=$(date +'%Y-%m-%d_%H-%M-%S')_${SLURM_ARRAY_TASK_ID}
 
 # Print configuration for logging
-echo "Running experiment with:"
+echo "Running experiment on GPU $gpu_id with:"
 echo "  Robustness: $robustness"
-echo "  Seed: $seed"
 echo "  Perturb: $perturb"
+echo "  Seed: $seed"
 echo "  Perturb Sigma: $perturb_sigma"
+echo "  Timestamp: $time_stamp"
+
+# Set CUDA device to the assigned GPU
+export CUDA_VISIBLE_DEVICES=$gpu_id
 
 # Execute the training command
 python3 experiments/train.py \
-    --env_id panda \
-    --algo ppo \
-    --using_robustness_reward $robustness \
-    --reward_weights 1.0 0.01 1.0 1.0 100.0 0.0 0.0 0.0 \
-    --random_seed $seed \
-    --total_timesteps $total_timesteps \
-    --device cpu \
-    --render_mode rgb_array \
-    --perturb $perturb \
-    --perturb_sigma $perturb_sigma \
-    --checkpoint_freq $checkpoint_freq \
-    --wandb_group_name "$wandb_group_name" \
-    --wandb_mode online \
-    --time_stamp $time_stamp
+  --env_id panda \
+  --algo ppo \
+  --using_robustness_reward $robustness \
+  --reward_weights 1.0 0.01 1.0 10.0 100.0 0.0 0.0 0.0 \
+  --random_seed $seed \
+  --total_timesteps $total_timesteps \
+  --device cuda \
+  --render_mode rgb_array \
+  --perturb $perturb \
+  --perturb_sigma $perturb_sigma \
+  --wandb_group_name "$wandb_group_name" \
+  --wandb_mode online \
+  --time_stamp $time_stamp
