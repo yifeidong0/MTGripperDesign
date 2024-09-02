@@ -43,7 +43,7 @@ perturb=${perturbs[$perturb_idx]}
 robustness=${robustness_values[$robustness_idx]}
 
 # Construct the wandb group name
-wandb_group_name="ppo with robustness: ${robustness}, perturb: ${perturb}, random seed: ${seed}"
+wandb_group_name="sac with robustness: ${robustness}, perturb: ${perturb}"
 
 # Print configuration for logging
 echo "Running experiment with:"
@@ -60,7 +60,7 @@ python3 experiments/train.py \
     --reward_weights 1.0 0.01 0.0 1.0 100.0 0.0 0.0 0.0 \
     --random_seed $seed \
     --total_timesteps $total_timesteps \
-    --device cpu \
+    --device auto \
     --render_mode rgb_array \
     --perturb $perturb \
     --perturb_sigma $perturb_sigma \
