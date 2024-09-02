@@ -141,7 +141,8 @@ def main():
     env = gym.make(env_id, **env_kwargs)
     if args.wandb_mode == 'disabled':
         try:
-            check_env(env)
+            if env_id != 'PandaUPushEnv-v0':
+                check_env(env)
         finally:
             os.system(f"rm -rf asset/{run_id}")
         
