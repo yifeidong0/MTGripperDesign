@@ -21,7 +21,7 @@ class DLRSimulationEnv(gym.Env):
                  run_id: str = "default",
                  obs_type: str = "pose",
                  using_robustness_reward: bool = False, 
-                 reward_weights: list = [0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0],
+                 reward_weights: list = [0.1, 0.001, -0.03, 1.0, 50.0, 50.0, 5e-3, 100.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
                  perturb_sigma: float = 1.8,
@@ -38,9 +38,10 @@ class DLRSimulationEnv(gym.Env):
         self.reward_weights = reward_weights
         self.perturb = perturb
         self.perturb_sigma = perturb_sigma
+        self.run_id = run_id
         self.using_robustness_reward = using_robustness_reward
-        self.action_space = spaces.Box(low=np.array([-1e-5,-1e-5,-0.0005,-1e-5,-0.001,-0.001,]), 
-                                       high=np.array([1e-5,1e-5,0.0005,1e-5,0.001,0.001,]), 
+        self.action_space = spaces.Box(low=np.array([-1e-5,-1e-5,-0.0005,-1e-5,-0.003,-0.002,]), 
+                                       high=np.array([1e-5,1e-5,0.0005,1e-5,0.003,0.002,]), 
                                        dtype=np.float32) # x, y, z, rot_z, a02, a13
         self.simulation = DLRSimulation(self.task, self.task_param, self.design_params, self.gui)
 
@@ -56,13 +57,13 @@ class DLRSimulationEnv(gym.Env):
                     #                             high=np.array([1,1,1]+[1,]*4+[0.5,]*9+[1,1]+[1,]*4+[1,1,1]), 
                     #                             dtype=np.float64),
                     observation=spaces.Box(low=np.array([-1,-1,0]+[-1,]*4+[0,-1]+[-1,]*4+[0,0,0]),
-                                                high=np.array([1,1,1]+[1,]*4+[1,1]+[1.2]*4+[1,1,1]), 
+                                                high=np.array([1,1,1]+[1,]*4+[1,1]+[1.75]*4+[1,1,1]), 
                                                 dtype=np.float64),
                     desired_goal=spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
                     achieved_goal=spaces.Box(0.0, 1.0, shape=(1,), dtype=np.float32),
                 )
             )
-        self.robot_joint_limits = [[-0.3,0.3], [0.0,1.2],]
+        self.robot_joint_limits = [[0.2,0.4], [math.pi/4,1.74],]
         self.robot_base_limits = [[-0.5,0.5], [-0.5,0.5], [1.5,4]]
         self.desired_goal_height = 0.5
 
@@ -87,7 +88,7 @@ class DLRSimulationEnv(gym.Env):
 
         self.simulation.step_count = 0
         self.task = 'cube' # cube
-        self.task_param = np.random.uniform(0.08, 0.14)
+        self.task_param = np.random.uniform(0.1, 0.2)
         distal_lengths = np.arange(30, 65, 5)
         distal_curvature = np.arange(2, 10, 2)
         self.design_params = [random.choice(distal_lengths),
@@ -279,8 +280,6 @@ class DLRSimulationEnv(gym.Env):
             # Reward of caging robustness
             if self.using_robustness_reward and object_position[2]>0.5*self.desired_goal_height and np.random.rand() < 0.004:
                 reward_robustness = self.reward_weights[6] * self.simulation.eval_robustness(0.5*object_position[2])
-                if reward_robustness is not None:
-                    print("!!!!!!!!!!!!reward robustness", round(reward_robustness, 3))
                 reward += reward_robustness
 
             # Reward of success and caging robustness
@@ -288,20 +287,20 @@ class DLRSimulationEnv(gym.Env):
                 reward += self.reward_weights[7]
 
             # Debugging, show rewards with 2 digits after the decimal point
-            # if np.random.rand() < 3e-4:
-            #     if reward1 is not None:
-            #         print("reward object-tip distance", round(reward1, 3))
-            #     if reward2 is not None:
-            #         print("reward object-gripper-base distance", round(reward2, 3))
-            #     if reward3 is not None:
-            #         print("reward penetration", round(reward3, 3))
-            #     if reward4 is not None:
-            #         print("reward object-tip relative height", round(reward4, 3))
-            #     if reward5 is not None:
-            #         print("reward gripper-tip distance", round(reward5, 3))
-            #     if reward6 is not None:
-            #         print("reward lift", round(reward6, 3))
-            #     print("")
+            if np.random.rand() < 3e-4:
+                if reward1 is not None:
+                    print("reward object-tip distance", round(reward1, 3))
+                if reward2 is not None:
+                    print("reward object-gripper-base distance", round(reward2, 3))
+                if reward3 is not None:
+                    print("reward penetration", round(reward3, 3))
+                if reward4 is not None:
+                    print("reward object-tip relative height", round(reward4, 3))
+                if reward5 is not None:
+                    print("reward gripper-tip distance", round(reward5, 3))
+                if reward6 is not None:
+                    print("reward lift", round(reward6, 3))
+                print("")
 
             return reward * np.ones(desired_goal.shape).squeeze()
         
@@ -323,7 +322,7 @@ class DLRSimulationEnv(gym.Env):
                                     and -1 <= object_position[1] <= 1)
     
         time_ended = self.simulation.step_count >= 8000  # Maximum number of steps
-        too_many_penetrations = self.count_penetration > 100
+        too_many_penetrations = self.count_penetration > 500
         if too_many_penetrations:
             print("INFO: Penetration count exceeded 100!")
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the random seeds
-random_seeds=(1 2 3 4 5 6)
+random_seeds=(1 2 3 4 5)
 
 # Function to run the command in a new VSCode terminal
 run_in_vscode_terminal() {
@@ -12,7 +12,7 @@ run_in_vscode_terminal() {
   local csv_filename=$5
 
   cmd="python3 optimizer/mtbo.py \
-        --env catch \
+        --env vpush \
         --model_path $model_path \
         --model_with_robustness_reward $model_with_robustness_reward \
         --perturb $perturb \
@@ -29,11 +29,11 @@ run_in_vscode_terminal() {
   gnome-terminal -- bash -c "$cmd; exec bash"
 }
 
-# Loop through each i={1,2,3,4,5,6}, corresponding to each random seed
-for i in {1..6}; do
+# Loop through each i={1,2,3,4,5}, corresponding to each random seed
+for i in {1..5}; do
   # Get the list of zip files in alphabetical order
-  # model_files=($(ls results/paper/catch/$i/*.zip | sort))
-  model_files=($(ls results/paper/catch/1/*.zip | sort)) # remove randomness from RL training
+  # model_files=($(ls results/paper/vpush/1/*.zip | sort)) # remove randomness from RL training
+  model_files=($(ls results/paper/vpush/$i/*.zip | sort))
   echo "model files name ${model_files[0]}"
   echo "model files name ${model_files[1]}"
   echo "model files name ${model_files[2]}"
@@ -41,26 +41,26 @@ for i in {1..6}; do
   
   # Ensure there are exactly 4 zip files
   if [ ${#model_files[@]} -ne 4 ]; then
-    echo "Error: Expected 4 zip files in results/paper/catch/$i/"
+    echo "Error: Expected 4 zip files in results/paper/vpush/$i/"
     exit 1
   fi
 
   # Generate csv_filename paths based on the required format
   timestamp=$(date +%Y%m%d_%H%M%S)
-  csv_file_a="results/paper/catch/$i/catch_mtbo_results_${timestamp}_1_1_run_rl_rand_fix.csv"
-  csv_file_b="results/paper/catch/$i/catch_mtbo_results_${timestamp}_0_1_run_rl_rand_fix.csv"
-  csv_file_c="results/paper/catch/$i/catch_mtbo_results_${timestamp}_1_0_run_rl_rand_fix.csv"
-  csv_file_d="results/paper/catch/$i/catch_mtbo_results_${timestamp}_0_0_run_rl_rand_fix.csv"
+  csv_file_a="results/paper/vpush/$i/vpush_mtbo_results_${timestamp}_1_1.csv"
+  csv_file_b="results/paper/vpush/$i/vpush_mtbo_results_${timestamp}_0_1.csv"
+  csv_file_c="results/paper/vpush/$i/vpush_mtbo_results_${timestamp}_1_0.csv"
+  csv_file_d="results/paper/vpush/$i/vpush_mtbo_results_${timestamp}_0_0.csv"
 
   # Run the command for each zip file with the corresponding csv_filename
   run_in_vscode_terminal "${model_files[0]}" 1 1 ${random_seeds[$i-1]} $csv_file_a  # a.zip: robustness=1, perturb=1
-  sleep 3000
+  sleep 900
   run_in_vscode_terminal "${model_files[1]}" 0 1 ${random_seeds[$i-1]} $csv_file_b  # b.zip: robustness=0, perturb=1
-  sleep 3000
+  sleep 900
   run_in_vscode_terminal "${model_files[2]}" 1 0 ${random_seeds[$i-1]} $csv_file_c  # c.zip: robustness=1, perturb=0
-  sleep 3000
+  sleep 900
   run_in_vscode_terminal "${model_files[3]}" 0 0 ${random_seeds[$i-1]} $csv_file_d  # d.zip: robustness=0, perturb=0
-  sleep 3000
+  sleep 900
 done
 
 echo "All training scripts have been launched."

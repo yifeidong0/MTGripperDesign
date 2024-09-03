@@ -349,9 +349,13 @@ class BayesianOptimizationMultiTask:
         """
         filename = self.args.save_filename
         if not os.path.exists(filename):
-            headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
-                    "best_design_3", "best_design_4", "best_score_estimated", "score_true", 
-                    "success_score_true", "robustness_score_true"]
+            if self.args.env == "catch":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
+                        "best_design_3", "best_design_4", "best_score_estimated", "score_true", 
+                        "success_score_true", "robustness_score_true"]
+            elif self.args.env == "vpush":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_score_estimated", 
+                        "score_true", "success_score_true", "robustness_score_true"]
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, 'w', newline='') as f:
                 writer = csv.writer(f)
