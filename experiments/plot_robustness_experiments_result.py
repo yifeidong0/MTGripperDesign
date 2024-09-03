@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from glob import glob
+import pandas as pd
 
 class TrainingCurvePlotter:
     def __init__(self, base_path):
@@ -88,19 +89,15 @@ class TrainingCurvePlotter:
         self.plot_with_mean_std('success_rates', 'Success Rate', f'{self.base_path}/success_rate.png')
         self.plot_with_mean_std('rewards', 'Episode Reward Mean', f'{self.base_path}/ep_rew_mean.png')
 
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
 
 class SuccessScorePlotter:
     def __init__(self, base_path):
         self.base_path = base_path
         self.labels = [
-            "robustness=1, perturb=1",
+            "robustness=0, perturb=0",
             "robustness=0, perturb=1",
             "robustness=1, perturb=0",
-            "robustness=0, perturb=0"
+            "robustness=1, perturb=1",
         ]
         self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']  # Colors suitable for academic papers
 
@@ -144,14 +141,14 @@ class SuccessScorePlotter:
             std_values = np.std(all_success_scores, axis=0)
 
             plt.plot(all_steps, mean_values, label=label, color=color)
-            if k == 0 or k == 1:
+            if k == 1 or k == 3:
                 plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
             k += 1
 
         plt.xlabel('Iteration')
         plt.ylabel('Test Success Score')
         plt.xlim(1, 50)
-        plt.ylim(0, 1)
+        plt.ylim(0.1, 1)
         plt.legend()
         plt.title(f'Test Performance of Optimal Design over BO Iterations')
         plt.grid(True)
@@ -159,13 +156,11 @@ class SuccessScorePlotter:
         plt.close()
 
     def plot_all(self):
-        self.plot_with_mean_std(f'{self.base_path}/catch_bo_success_score_run1.png')
-
+        self.plot_with_mean_std(f'{self.base_path}/catch_bo_success_score.png')
 
 
 if __name__ == "__main__":
-    base_path = 'results/paper/panda'
-    plotter = TrainingCurvePlotter(base_path)
-    # plotter = SuccessScorePlotter(base_path)
+    base_path = 'results/paper/catch'
+    # plotter = TrainingCurvePlotter(base_path)
+    plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()
-

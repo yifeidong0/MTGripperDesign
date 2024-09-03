@@ -25,8 +25,8 @@ class VPush(Task):
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.08 # if too smaller than the geometry of tool, the object geometry variation will not be demonstrated
-        self.goal_range_low = np.array([0.7, -0.06, 0])
-        self.goal_range_high = np.array([0.75, 0.06, 0])
+        self.goal_range_low = np.array([0.7, -0.1, 0])
+        self.goal_range_high = np.array([0.75, 0.1, 0])
         self.obj_range_low = np.array([0.45, -0.1, 0])
         self.obj_range_high = np.array([0.5, 0.1, 0])
         self.task_object_name = 'circle' # initial choice
