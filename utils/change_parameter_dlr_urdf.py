@@ -20,7 +20,7 @@ def change_parameter_lsc_urdf(tip_length,
     if curve_value==0:
         curve_value=2
  
-    filename_tl='meshes/right_distal_'+str(tip_length)+'_'+str(curve_value)+'.stl'
+    filename_tl='asset/lc_soft_enable_wide_grip/meshes/right_distal_'+str(tip_length)+'_'+str(curve_value)+'.stl'
     print ("filename for tip length:",filename_tl)
     if os.path.isfile(filename_tl) == False:
         print ("wrong file - probably length not in range")

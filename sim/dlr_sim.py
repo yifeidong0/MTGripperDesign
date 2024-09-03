@@ -84,27 +84,39 @@ class DLRSimulation:
 
         self.setup(reset_task_and_design=True)
 
-    def create_gripper(self,):
-        # Remove previous obj and urdf files
-        os.system("rm -rf asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip_*")
-
-        template_urdf = 'asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip.urdf'
-        with open(template_urdf, 'r') as file:
-            urdf_content = file.read()
-
+    def create_gripper(self):
+        # Define the unique URDF filename based on design parameters
         unique_urdf_filename = f"asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip_{self.design_params[0]:.0f}_{self.design_params[1]:.0f}.urdf"
-        with open(unique_urdf_filename, 'w') as file:
-            file.write(urdf_content)
-        change_parameter_lsc_urdf(self.design_params[0], self.design_params[1],
-                                  urdf_path=unique_urdf_filename)
 
+        # Check if the unique URDF file already exists
+        if not os.path.isfile(unique_urdf_filename):
+            print(f"Creating new URDF file: {unique_urdf_filename}")
+            
+            # Load the template URDF
+            template_urdf = 'asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip.urdf'
+            with open(template_urdf, 'r') as file:
+                urdf_content = file.read()
+
+            # Write the URDF content to the new unique file
+            with open(unique_urdf_filename, 'w') as file:
+                file.write(urdf_content)
+
+            # Modify the URDF parameters based on the design parameters
+            change_parameter_lsc_urdf(self.design_params[0], self.design_params[1],
+                                    urdf_path=unique_urdf_filename)
+
+        # Load the URDF in PyBullet
         self.robot_id = p.loadURDF(fileName=unique_urdf_filename,
                                 basePosition=self.robot_position,
-                                baseOrientation=self.robot_orientation, # p.getQuaternionFromEuler([1*math.pi,0,0]),
+                                baseOrientation=self.robot_orientation,
                                 globalScaling=10,
                                 useFixedBase=1,
-                                flags=p.URDF_USE_SELF_COLLISION, # | p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS,
-                                )
+                                flags=p.URDF_USE_SELF_COLLISION)
+        
+        # Reset joint states
+        self.robot_joint_states_init = [0.2, math.pi/4, 0.2, math.pi/4]
+        for i in range(p.getNumJoints(self.robot_id)):
+            p.resetJointState(self.robot_id, i, self.robot_joint_states_init[i])
 
     def load_fish(self):
         self.object_id = p.loadURDF(

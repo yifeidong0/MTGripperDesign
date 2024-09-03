@@ -34,7 +34,7 @@ class TrainingCurvePlotter:
     def load_all_data(self):
         data = {}
 
-        for i in range(1, 3):
+        for i in range(1, 6):
             model_folders = sorted(glob(f"{self.base_path}/{i}/PPO_*"))
             data[i] = {}
 
@@ -54,11 +54,11 @@ class TrainingCurvePlotter:
 
         plt.figure(figsize=(10, 6))
         k = 0
-        for label, color in zip(self.labels[::-1], self.colors[::-1]):
+        for label, color in zip(self.labels, self.colors):
             all_steps = []
             all_values = []
 
-            for i in range(1, 3):
+            for i in range(1, 6):
                 steps = data[i][label]['steps']
                 values = data[i][label][metric]
 
@@ -71,14 +71,13 @@ class TrainingCurvePlotter:
             std_values = np.std(all_values, axis=0)
 
             plt.plot(all_steps, mean_values, label=label, color=color)
-            if k == 2 or k == 3:
-                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+            plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
             k += 1
 
         plt.xlabel('Training Steps')
         plt.ylabel(ylabel)
-        plt.xlim(0, 3e6)
-        plt.ylim(0.1, 0.72) if metric == 'success_rates' else plt.ylim(0, 80)
+        plt.xlim(0, 2e6)
+        plt.ylim(0.1, 0.85) if metric == 'success_rates' else plt.ylim(0, 120)
         plt.legend()
         plt.title(f'{ylabel} vs Training Steps')
         plt.grid(True)
@@ -104,8 +103,9 @@ class SuccessScorePlotter:
     def load_csv_data(self):
         data = {}
 
-        for i in range(1, 7):  # For folders 1 to 6
-            csv_files = sorted(glob(f"{self.base_path}/{i}/*run1.csv"))
+        for i in range(1, 4):  # For folders 1 to 6
+            csv_files = sorted(glob(f"{self.base_path}/{i}/*.csv"))
+            print(csv_files)
             data[i] = {}
 
             for j, csv_file in enumerate(csv_files):
@@ -128,7 +128,7 @@ class SuccessScorePlotter:
             all_steps = []
             all_success_scores = []
 
-            for i in range(1, 7):
+            for i in range(1, 4):
                 steps = data[i][label]['steps']
                 success_scores = data[i][label]['success_scores']
 
