@@ -21,3 +21,6 @@ asset/lc_soft_enable_wide_grip/lc_soft_enable_wide_grip_*
 wandb/
 
 .idea/
+
+envs/panda/polygon/polygon.egg-info
+envs/panda/polygon/build

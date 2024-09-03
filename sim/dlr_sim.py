@@ -53,7 +53,8 @@ class DLRSimulation:
             self.object_position = [0,-0.8,0.35]
         elif self.object_type == 'cube':
             self.object_orientation = p.getQuaternionFromEuler([0, 0, 0])
-            self.object_position = [0,0,self.task_param]
+            # self.object_position = [0,0,self.task_param]
+            self.object_position = [0,0,1]
         self.robot_position = [0,0,4]
         self.robot_orientation = p.getQuaternionFromEuler([math.pi,0,0])
 
@@ -114,7 +115,7 @@ class DLRSimulation:
                                 flags=p.URDF_USE_SELF_COLLISION)
         
         # Reset joint states
-        self.robot_joint_states_init = [0.2, math.pi/4, 0.2, math.pi/4]
+        self.robot_joint_states_init = [0.2, math.pi/6, 0.2, math.pi/6]
         for i in range(p.getNumJoints(self.robot_id)):
             p.resetJointState(self.robot_id, i, self.robot_joint_states_init[i])
 
