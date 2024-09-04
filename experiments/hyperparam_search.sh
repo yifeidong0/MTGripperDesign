@@ -5,11 +5,11 @@ reward_weight_2_values=(-0.05)
 reward_weight_4_values=(50)
 reward_weight_5_values=(50)
 robustness_values=(true false)
-total_timesteps=1000000
+total_timesteps=2000000
 perturb_values=(true false)
 
 # Define the random seeds
-random_seeds=(0)
+random_seeds=(1 2 3 4 5 6)
 
 # Function to run the Python training script in a new gnome terminal
 run_in_gnome_terminal() {
@@ -28,8 +28,9 @@ run_in_gnome_terminal() {
         --random_seed $seed \
         --device cuda \
         --perturb $perturb \
+        --perturb_sigma 0.15 \
         --render_mode rgb_array \
-        --reward_weights 0.1 0.001 $rw2 1.0 $rw4 $rw5 2e-3 100.0"
+        --reward_weights 0.1 0.001 $rw2 10.0 $rw4 $rw5 2e-3 100.0"
 
   # Open a new gnome terminal and run the command
   gnome-terminal -- bash -c "$cmd; exec bash"
@@ -37,8 +38,8 @@ run_in_gnome_terminal() {
 
 # Loop through each combination
 for seed in "${random_seeds[@]}"; do
-  for robustness in "${robustness_values[@]}"; do
-    for perturb in "${perturb_values[@]}"; do
+  for perturb in "${perturb_values[@]}"; do
+    for robustness in "${robustness_values[@]}"; do
       for rw2 in "${reward_weight_2_values[@]}"; do
         for rw4 in "${reward_weight_4_values[@]}"; do
           for rw5 in "${reward_weight_5_values[@]}"; do
@@ -46,7 +47,7 @@ for seed in "${random_seeds[@]}"; do
             run_in_gnome_terminal "$rw2" "$rw4" "$rw5" "$seed" "$robustness" "$perturb"
             
             # Wait for 1 second before the next run
-            sleep 60
+            sleep 900
           done
         done
       done

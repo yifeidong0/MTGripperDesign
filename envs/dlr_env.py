@@ -24,7 +24,7 @@ class DLRSimulationEnv(gym.Env):
                  reward_weights: list = [0.1, 0.001, -0.03, 1.0, 50.0, 50.0, 1e-3, 100.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
-                 perturb_sigma: float = 1.8,
+                 perturb_sigma: float = 0.15,
                  img_size=(42, 42), 
         ):
         super(DLRSimulationEnv, self).__init__()
@@ -113,11 +113,15 @@ class DLRSimulationEnv(gym.Env):
             p.stepSimulation()
 
             # Reset joint angles
-            for i in range(2):
+            for i in [1,0]:
                 joint_position = p.getJointState(self.simulation.robot_id, i)[0]
                 new_joint_position = np.clip(joint_position+da[i], self.robot_joint_limits[i][0], self.robot_joint_limits[i][1])
                 p.resetJointState(self.simulation.robot_id, i, new_joint_position)
                 p.resetJointState(self.simulation.robot_id, i+2, new_joint_position)
+                while i==0 and len(p.getClosestPoints(self.simulation.robot_id, self.simulation.robot_id, 0.0, 3, 1))>0:
+                    new_joint_position -= 0.01
+                    p.resetJointState(self.simulation.robot_id, i, new_joint_position)
+                    p.resetJointState(self.simulation.robot_id, i+2, new_joint_position)
                 
             # Reset gripper base
             gripper_position, gripper_orientation = p.getBasePositionAndOrientation(self.simulation.robot_id)
@@ -131,7 +135,13 @@ class DLRSimulationEnv(gym.Env):
                                               p.getQuaternionFromEuler([math.pi, 0, pi_2_pi(gripper_orientation[2]+drot_z)]))
 
             if self.perturb:
-                p.applyExternalForce(self.simulation.object_id, -1, [random.normalvariate(0, 0.45), random.normalvariate(0, 0.45), random.normalvariate(0, 0.45)], [0, 0, 0], p.LINK_FRAME)
+                p.applyExternalForce(self.simulation.object_id, 
+                                     -1, 
+                                     [random.normalvariate(0, self.perturb_sigma), 
+                                      random.normalvariate(0, self.perturb_sigma), 
+                                      random.normalvariate(0, self.perturb_sigma)], 
+                                     [0, 0, 0], 
+                                     p.LINK_FRAME)
 
         # # Visualize the simulation
         # width, height, rgbPixels, _, _ = p.getCameraImage(128, 128, 
