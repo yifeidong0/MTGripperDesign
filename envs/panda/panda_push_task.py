@@ -32,7 +32,9 @@ class VPush(Task):
         self.obj_range_high = np.array([0.5, 0.1, 0])
         self.task_object_name = 'circle' # initial choice
         self.task_object_names = ['circle', 'square', 'polygon0', 'narrow', 'oval']
-        self.task_int = 0 if self.task_object_name == 'circle' else 1
+        self.task_object_names_dict = {0: 'circle', 1: 'square', 2: 'polygon0', 3: 'narrow', 4: 'oval'}
+        self.task_ints = {'circle': 0, 'square': 1, 'polygon0': 2, 'narrow': 3, 'oval': 4}
+        self.task_int = self.task_ints[self.task_object_name]
         self.last_ee_object_distance = 0
         self.last_object_target_distance = 0
         self.using_robustness_reward = using_robustness_reward
@@ -287,16 +289,16 @@ class VPush(Task):
         object_rad = observation[..., 20:21]
 
         # Robustness score
-        robustness_score = 0
+        self.robustness = 0
         if self.using_robustness_reward:
-            robustness_score = self._eval_robustness(ee_position[:, :2],
+            self.robustness = self._eval_robustness(ee_position[:, :2],
                                                      ee_yaw,
                                                      object_position[:, :2],
                                                      design_params,
                                                      object_rad,
                                                      slack=self.object_size/2,)
-            if robustness_score.shape[0] == 1:
-                robustness_score = np.squeeze(robustness_score, axis=0)  # Converts (1,) to ()
+            if self.robustness.shape[0] == 1:
+                self.robustness = np.squeeze(self.robustness, axis=0)  # Converts (1,) to ()
     
         # Joint violation penalty
         joint_violation_penalty = 0.0
@@ -313,8 +315,8 @@ class VPush(Task):
                     joint_violation_penalty += self.reward_weights[1] * (self.tolerance - proximity_to_limit) / self.tolerance
 
         # Return the combined reward
-        # return -np.array(d > self.distance_threshold, dtype=np.float32) + robustness_score - joint_violation_penalty
-        reward = -self.reward_weights[2]*np.array(d - self.distance_threshold, dtype=np.float32) + self.reward_weights[3]*robustness_score - joint_violation_penalty
+        # return -np.array(d > self.distance_threshold, dtype=np.float32) + self.robustness - joint_violation_penalty
+        reward = -self.reward_weights[2]*np.array(d - self.distance_threshold, dtype=np.float32) + self.reward_weights[3]*self.robustness - joint_violation_penalty
         reward += self.reward_weights[4] * np.array(d < self.distance_threshold, dtype=np.float32)
         return reward
 
@@ -339,7 +341,7 @@ class VPush(Task):
     #     # Caging robostness
     #     if self.design_params is not None and self.robustness_opening is None:
     #         self._compute_robustness_opening()
-    #     robustness_score = self._eval_robustness(ee_position[:2], 
+    #     self.robustness = self._eval_robustness(ee_position[:2], 
     #                                             ee_yaw[0],
     #                                             object_position[:2],
     #                                             self.design_params,
@@ -369,6 +371,6 @@ class VPush(Task):
     #         reward += 500
         
     #     if self.using_robustness_reward:
-    #         reward += robustness_score
+    #         reward += self.robustness
     #     return reward
     

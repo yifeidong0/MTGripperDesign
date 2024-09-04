@@ -15,6 +15,72 @@ import envs
 import time
 import csv
 from experiments.args_utils import get_args_bo
+from GPyOpt.acquisitions.base import AcquisitionBase
+
+class MyAcquisition(AcquisitionBase):
+    analytical_gradient_prediction = False
+
+    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=2, num_outputs=2):
+        """
+        Initialize the custom acquisition function.
+
+        Args:
+            model (GPyOpt.models.GPModel): The GP model.
+            space (GPyOpt.Design_space): The design space.
+            optimizer (GPyOpt.optimization.AcquisitionOptimizer): The optimizer.
+            cost_withGradients (function): The cost function with gradients.
+            exploration_weight (float): The weight for exploration in acquisition.
+        """
+        self.optimizer = optimizer
+        self.num_outputs = num_outputs
+        super(MyAcquisition, self).__init__(model, space, optimizer, cost_withGradients=cost_withGradients)
+        self.exploration_weight = exploration_weight
+
+    def _compute_acq(self, x):
+        """
+        Compute the acquisition function.
+
+        Args:
+            x (np.array): The input points for acquisition.
+
+        Returns:
+            np.array: The acquisition values for the input points.
+        """
+        def eval_scale(task_no):
+            X1 = self.model.model.X
+            X1 = X1[X1[:, -1] == task_no]
+            try:
+                mean, var = self.model.model.predict(X1)
+                std = np.sqrt(var)
+                return (mean.max() - mean.min()) + 1e-6
+            except:
+                return 1.0
+        m, s = self.model.predict(x)
+        f_acqu = self.exploration_weight * s
+
+        # c0 = eval_scale(task_no=0)
+        # c1 = eval_scale(task_no=1)
+        # try:
+        #     f_acqu[x[:, -1] == 1] = f_acqu[x[:, -1] == 1] / c1
+        # except:
+        #     pass
+        # try:
+        #     f_acqu[x[:, -1] == 0] = f_acqu[x[:, -1] == 0] / c0
+        # except:
+        #     pass
+
+        # Adjust acquisition function for an arbitrary number of tasks
+        for t in range(self.num_outputs):
+            try:
+                scale_factor = eval_scale(task_no=t)
+                f_acqu[x[:, -1] == t] = f_acqu[x[:, -1] == t] / scale_factor
+            except:
+                pass
+            
+        # Penalize high variance (potential outliers)
+        penalized_acq = f_acqu - (s / 2.0)
+        return penalized_acq
+
 
 class BayesianOptimizationMultiTask:
     def __init__(self, initial_iter=1, num_episodes=1):
@@ -50,13 +116,13 @@ class BayesianOptimizationMultiTask:
             self.num_outputs = 2
             self.robustness_score_weight = 0.1
         elif self.env_type == "panda":
-            self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds
-                        {'name': 'finger_length', 'type': 'continuous', 'domain': (0.07, 0.15)},
-                        {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
-                        {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.10)},
-                        {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 5
-            self.robustness_score_weight = 0.1
+            self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds, make sure it aligns with reset in panda_push_env
+                        {'name': 'finger_length', 'type': 'continuous', 'domain': (0.05, 0.12)}, 
+                        {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
+                        {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.08)},
+                        {'name': 'task', 'type': 'discrete', 'domain': tuple(range(self.num_outputs))}]
+            self.robustness_score_weight = 1.0
         elif self.env_type == "dlr":
             pass
 
@@ -119,9 +185,10 @@ class BayesianOptimizationMultiTask:
         # print('xt: ', xt)
         assert len(xt) == 1
         xt = xt[0]
-        assert xt[-1] == 0.0 or xt[-1] == 1.0
+        print('!!!', xt)
+        # assert xt[-1] == 0.0 or xt[-1] == 1.0
         x, t = xt[:-1], int(xt[-1])
-        self.task_counter[t] = self.task_counter.get(t, 0) + 1
+        # self.task_counter[t] = self.task_counter.get(t, 0) + 1
         
         avg_score = 0
         obs, _ = self.env.reset(seed=0)
@@ -160,11 +227,22 @@ class BayesianOptimizationMultiTask:
         Returns:
             tuple: The costs and gradients for the input.
         """
-        C0, C1 = 1.0, 1.0
-        t2c = {0: C0, 1: C1}
-        t2g = {0: [0.0, (C1 - C0)], 1: [0.0, (C1 - C0)]}
-        costs = np.array([[t2c[int(t)]] for t in xt[:, -1]])
-        gradients = np.array([t2g[int(t)] for t in xt[:, -1]])
+        # C0, C1 = 1.0, 1.0
+        # t2c = {0: C0, 1: C1}
+        # t2g = {0: [0.0, (C1 - C0)], 1: [0.0, (C1 - C0)]}
+        # costs = np.array([[t2c[int(t)]] for t in xt[:, -1]])
+        # gradients = np.array([t2g[int(t)] for t in xt[:, -1]])
+        # return costs, gradients
+
+        num_tasks = self.num_outputs
+        costs = np.zeros((xt.shape[0], 1))
+        gradients = np.zeros((xt.shape[0], len(self.bounds)))
+
+        # Assign costs and gradients for each task dynamically
+        for t in range(num_tasks):
+            costs[xt[:, -1] == t] = 1.0  # You can modify the cost function for each task if necessary
+            gradients[xt[:, -1] == t] = [0.0] * len(self.bounds)  # Modify if task-specific gradients are needed
+
         return costs, gradients
 
     def setup_bo(self):
@@ -177,62 +255,7 @@ class BayesianOptimizationMultiTask:
         self.acquisition_optimizer = GPyOpt.optimization.AcquisitionOptimizer(self.space)
         self.initial_design = GPyOpt.experiment_design.initial_design('random', self.space, self.initial_iter)
 
-        from GPyOpt.acquisitions.base import AcquisitionBase
-        class MyAcquisition(AcquisitionBase):
-            analytical_gradient_prediction = False
-
-            def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=2):
-                """
-                Initialize the custom acquisition function.
-
-                Args:
-                    model (GPyOpt.models.GPModel): The GP model.
-                    space (GPyOpt.Design_space): The design space.
-                    optimizer (GPyOpt.optimization.AcquisitionOptimizer): The optimizer.
-                    cost_withGradients (function): The cost function with gradients.
-                    exploration_weight (float): The weight for exploration in acquisition.
-                """
-                self.optimizer = optimizer
-                super(MyAcquisition, self).__init__(model, space, optimizer, cost_withGradients=cost_withGradients)
-                self.exploration_weight = exploration_weight
-
-            def _compute_acq(self, x):
-                """
-                Compute the acquisition function.
-
-                Args:
-                    x (np.array): The input points for acquisition.
-
-                Returns:
-                    np.array: The acquisition values for the input points.
-                """
-                def eval_scale(task_no):
-                    X1 = self.model.model.X
-                    X1 = X1[X1[:, -1] == task_no]
-                    try:
-                        mean, var = self.model.model.predict(X1)
-                        std = np.sqrt(var)
-                        return (mean.max() - mean.min()) + 1e-6
-                    except:
-                        return 1.0
-                m, s = self.model.predict(x)
-                f_acqu = self.exploration_weight * s
-                c0 = eval_scale(task_no=0)
-                c1 = eval_scale(task_no=1)
-                try:
-                    f_acqu[x[:, -1] == 1] = f_acqu[x[:, -1] == 1] / c1
-                except:
-                    pass
-                try:
-                    f_acqu[x[:, -1] == 0] = f_acqu[x[:, -1] == 0] / c0
-                except:
-                    pass
-
-                # Penalize high variance (potential outliers)
-                penalized_acq = f_acqu - (s / 2.0)
-                return penalized_acq
-
-        self.acquisition = MyAcquisition(self.model, self.space, optimizer=self.acquisition_optimizer, cost_withGradients=self.cost_mt)
+        self.acquisition = MyAcquisition(self.model, self.space, optimizer=self.acquisition_optimizer, cost_withGradients=self.cost_mt, num_outputs=self.num_outputs)
         self.evaluator = GPyOpt.core.evaluators.Sequential(self.acquisition)
         self.bo = GPyOpt.methods.ModularBayesianOptimization(self.model, self.space, self.objective, self.acquisition, self.evaluator, self.initial_design, normalize_Y=False)
 
@@ -290,7 +313,7 @@ class BayesianOptimizationMultiTask:
         obs, _ = self.env.reset(seed=0)
 
         for episode in range(self.args.num_episodes_eval_best):
-            task = np.random.choice([0, 1])  # Randomly select a task
+            task = np.random.choice(list(range(self.num_outputs)))  # Randomly select a task
             obs, _ = self.env.reset_task_and_design(task, design, seed=0)
             done, truncated = False, False
             avg_robustness = 0
@@ -356,6 +379,9 @@ class BayesianOptimizationMultiTask:
             elif self.args.env == "vpush":
                 headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_score_estimated", 
                         "score_true", "success_score_true", "robustness_score_true"]
+            elif self.args.env == "panda":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
+                        "best_design_3", "best_score_estimated", "score_true", "success_score_true", "robustness_score_true"]
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, 'w', newline='') as f:
                 writer = csv.writer(f)

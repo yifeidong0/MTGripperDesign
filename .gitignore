@@ -24,3 +24,4 @@ wandb/
 
 envs/panda/polygon/polygon.egg-info
 envs/panda/polygon/build
+asset/default
