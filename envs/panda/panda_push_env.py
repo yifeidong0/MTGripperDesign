@@ -41,7 +41,7 @@ class PandaUPushEnv(RobotTaskEnv):
         render_mode: str = "human",
         obs_type: str = "pose",
         run_id: str = "default",
-        using_robustness_reward: bool = False,
+        using_robustness_reward: bool = True,
         reward_weights: list = [1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         perturb: bool = False,
         perturb_sigma: float = 1.8,
@@ -135,12 +135,15 @@ class PandaUPushEnv(RobotTaskEnv):
         self.step_count = 0
 
         # Reset task and design parameters
+        self.is_invalid_design = True
         self.task.task_int = task_int
         self.task.task_object_name = self.task.task_object_names_dict[task_int]
         self.robot.v_angle = design_params[0]
         self.robot.finger_length = design_params[1]
         self.robot.finger_angle = design_params[2]
         self.robot.distal_phalanx_length = design_params[3]
+        if self._pusher_forward_kinematics()[1] > 0.0: # make sure the pusher does not self-intersect
+            self.is_invalid_design = False
 
         return super().reset(seed=seed, options=options)
     
@@ -166,8 +169,9 @@ class PandaUPushEnv(RobotTaskEnv):
         time_ended = self.step_count > 1000
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
-        # if truncated:
-        #     print(f"step count: {self.step_count}")
-        #     print(f"gripper: {ee_position}")
-        #     print(f"object: {object_position}")
+        if truncated:
+            print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
+            print(f"object_out_of_canvas") if object_out_of_canvas else None
+            print(f"time_ended") if time_ended else None
+
         return truncated

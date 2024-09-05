@@ -14,13 +14,14 @@ from stable_baselines3 import PPO
 import envs
 import time
 import csv
+import wandb
 from experiments.args_utils import get_args_bo
 from GPyOpt.acquisitions.base import AcquisitionBase
 
 class MyAcquisition(AcquisitionBase):
     analytical_gradient_prediction = False
 
-    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=2, num_outputs=2):
+    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=10, num_outputs=2):
         """
         Initialize the custom acquisition function.
 
@@ -56,7 +57,7 @@ class MyAcquisition(AcquisitionBase):
             except:
                 return 1.0
         m, s = self.model.predict(x)
-        f_acqu = self.exploration_weight * s
+        f_acqu = m + self.exploration_weight * s
 
         # c0 = eval_scale(task_no=0)
         # c1 = eval_scale(task_no=1)
@@ -122,7 +123,7 @@ class BayesianOptimizationMultiTask:
                         {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
                         {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.08)},
                         {'name': 'task', 'type': 'discrete', 'domain': tuple(range(self.num_outputs))}]
-            self.robustness_score_weight = 1.0
+            self.robustness_score_weight = 0.3
         elif self.env_type == "dlr":
             pass
 
@@ -132,9 +133,12 @@ class BayesianOptimizationMultiTask:
                     'dlr':'DLRSimulationEnv-v0',
                     'panda':'PandaUPushEnv-v0'}
         self.env_id = env_ids[self.args.env]
+        run_id = wandb.util.generate_id()
+
         env_kwargs = {'obs_type': self.args.obs_type, 
                         'render_mode': self.args.render_mode,
                         'perturb': self.args.perturb,
+                        'run_id': run_id,
                         }
         self.env = gym.make(self.env_id, **env_kwargs)
         self.rl_model = PPO.load(self.model_path)
@@ -185,15 +189,17 @@ class BayesianOptimizationMultiTask:
         # print('xt: ', xt)
         assert len(xt) == 1
         xt = xt[0]
-        print('!!!', xt)
         # assert xt[-1] == 0.0 or xt[-1] == 1.0
         x, t = xt[:-1], int(xt[-1])
-        # self.task_counter[t] = self.task_counter.get(t, 0) + 1
+        self.task_counter[t] = self.task_counter.get(t, 0) + 1
         
         avg_score = 0
-        obs, _ = self.env.reset(seed=0)
+        obs, _ = self.env.reset(seed=self.args.random_seed)
         for episode in range(self.num_episodes):
-            obs, _ = self.env.reset_task_and_design(t, x, seed=0)
+            obs, _ = self.env.reset_task_and_design(t, x, seed=self.args.random_seed)
+            if self.args.env == "panda" and self.env.is_invalid_design:
+                print(f"Invalid design: {x}")
+                return 0
             done, truncated = False, False
             avg_robustness = 0
             num_robustness_step = 0
@@ -204,7 +210,7 @@ class BayesianOptimizationMultiTask:
                     num_robustness_step += 1
                     weight = self.robustness_score_weight if self.args.model_with_robustness_reward else 0.0
                     avg_robustness += info['robustness'] * weight
-                self.env.render()
+                # self.env.render()
             success_score = 1.0 if done else 0.0
             robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
             # print(f"Success: {success_score}, Robustness: {robustness_score}")
@@ -310,11 +316,12 @@ class BayesianOptimizationMultiTask:
         avg_score = 0
         avg_success_score = 0
         avg_robustness_score = 0
-        obs, _ = self.env.reset(seed=0)
+        obs, _ = self.env.reset(seed=self.args.random_seed)
+        print('!!!start evaluation!!!')
 
         for episode in range(self.args.num_episodes_eval_best):
             task = np.random.choice(list(range(self.num_outputs)))  # Randomly select a task
-            obs, _ = self.env.reset_task_and_design(task, design, seed=0)
+            obs, _ = self.env.reset_task_and_design(task, design, seed=self.args.random_seed)
             done, truncated = False, False
             avg_robustness = 0
             num_robustness_step = 0
@@ -325,8 +332,9 @@ class BayesianOptimizationMultiTask:
                 if info.get('robustness') is not None and info['robustness'] > 0:
                     num_robustness_step += 1
                     avg_robustness += info['robustness'] * self.robustness_score_weight
-                self.env.render()
+                # self.env.render()
 
+            print("Done!" if done else "Truncated.")
             success_score = 1.0 if done else 0.0
             robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
             score = success_score + robustness_score
@@ -337,6 +345,7 @@ class BayesianOptimizationMultiTask:
         avg_score /= self.args.num_episodes_eval_best
         avg_success_score /= self.args.num_episodes_eval_best
         avg_robustness_score /= self.args.num_episodes_eval_best
+        print(f"Design: {design}, Score: {avg_score}, Success: {avg_success_score}, Robustness: {avg_robustness_score}")
 
         return avg_score, avg_success_score, avg_robustness_score
 

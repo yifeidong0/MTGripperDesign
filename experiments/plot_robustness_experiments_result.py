@@ -98,13 +98,13 @@ class SuccessScorePlotter:
             "robustness=1, perturb=0",
             "robustness=1, perturb=1",
         ]
-        self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']  # Colors suitable for academic papers
+        self.colors = ['#d62728', '#ff7f0e', '#2ca02c', '#1f77b4',]  # Colors suitable for academic papers
 
     def load_csv_data(self):
         data = {}
 
         for i in range(1, 4):  # For folders 1 to 6
-            csv_files = sorted(glob(f"{self.base_path}/{i}/*.csv"))
+            csv_files = sorted(glob(f"{self.base_path}/{i}/*design.csv"))
             print(csv_files)
             data[i] = {}
 
@@ -142,7 +142,7 @@ class SuccessScorePlotter:
 
             plt.plot(all_steps, mean_values, label=label, color=color)
             if k == 1 or k == 3:
-                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.2)
             k += 1
 
         plt.xlabel('Iteration')
@@ -156,11 +156,11 @@ class SuccessScorePlotter:
         plt.close()
 
     def plot_all(self):
-        self.plot_with_mean_std(f'{self.base_path}/catch_bo_success_score.png')
+        self.plot_with_mean_std(f'{self.base_path}/bo_success_score1.png')
 
 
 if __name__ == "__main__":
-    base_path = 'results/paper/catch'
+    base_path = 'results/paper/panda'
     # plotter = TrainingCurvePlotter(base_path)
     plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()

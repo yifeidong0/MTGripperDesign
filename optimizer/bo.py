@@ -88,7 +88,6 @@ class BayesianOptimization:
         Returns:
             float: The average score for the given design across all tasks.
         """
-        print(f"!!!!Objective: {x}")
         x = x[0]
         scores = []
         for t in range(self.num_tasks):

@@ -18,7 +18,7 @@ class VPush(Task):
         self,
         sim,
         reward_type="sparse",
-        using_robustness_reward=False,
+        using_robustness_reward=True,
         reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         distance_threshold=0.1,
     ) -> None:
@@ -299,7 +299,7 @@ class VPush(Task):
                                                      slack=self.object_size/2,)
             if self.robustness.shape[0] == 1:
                 self.robustness = np.squeeze(self.robustness, axis=0)  # Converts (1,) to ()
-    
+        
         # Joint violation penalty
         joint_violation_penalty = 0.0
         for i, angle in enumerate(arm_joint_angles[0]):
