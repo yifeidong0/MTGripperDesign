@@ -89,8 +89,10 @@ class PandaUPushEnv(RobotTaskEnv):
         observation = self._get_obs()
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         info = {"is_success": terminated}
+
         truncated = self._is_truncated()
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
+        info['robustness'] = self.task.robustness
         # time.sleep(10./240.)
 
         # # pybullet take image
@@ -112,7 +114,7 @@ class PandaUPushEnv(RobotTaskEnv):
 
         # Reset task and design parameters
         self.task.task_object_name = random.choice(self.task.task_object_names)
-        self.task.task_int = 0 if self.task.task_object_name == 'circle' else 1
+        self.task.task_int = self.task.task_ints[self.task.task_object_name]
         self.robot.v_angle = random.uniform(np.pi/6, np.pi*5/6)
         self.robot.finger_length = random.uniform(0.05, 0.12)
         while True:
@@ -120,6 +122,25 @@ class PandaUPushEnv(RobotTaskEnv):
             self.robot.distal_phalanx_length = random.uniform(0.00, 0.08)
             if self._pusher_forward_kinematics()[1] > 0.02: # make sure the pusher does not self-intersect
                 break
+
+        return super().reset(seed=seed, options=options)
+
+    def reset_task_and_design(
+        self, 
+        task_int: int,
+        design_params: list,
+        seed: Optional[int] = None, 
+        options: Optional[dict] = None
+    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+        self.step_count = 0
+
+        # Reset task and design parameters
+        self.task.task_int = task_int
+        self.task.task_object_name = self.task.task_object_names_dict[task_int]
+        self.robot.v_angle = design_params[0]
+        self.robot.finger_length = design_params[1]
+        self.robot.finger_angle = design_params[2]
+        self.robot.distal_phalanx_length = design_params[3]
 
         return super().reset(seed=seed, options=options)
     
