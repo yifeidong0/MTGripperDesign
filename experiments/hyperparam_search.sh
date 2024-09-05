@@ -9,7 +9,7 @@ total_timesteps=2000000
 perturb_values=(true false)
 
 # Define the random seeds
-random_seeds=(1 2 3 4 5 6)
+random_seeds=(16 17 18)
 
 # Function to run the Python training script in a new gnome terminal
 run_in_gnome_terminal() {
@@ -28,7 +28,7 @@ run_in_gnome_terminal() {
         --random_seed $seed \
         --device cuda \
         --perturb $perturb \
-        --perturb_sigma 0.15 \
+        --perturb_sigma 0.1 \
         --render_mode rgb_array \
         --reward_weights 0.1 0.001 $rw2 10.0 $rw4 $rw5 2e-3 100.0"
 
@@ -47,12 +47,13 @@ for seed in "${random_seeds[@]}"; do
             run_in_gnome_terminal "$rw2" "$rw4" "$rw5" "$seed" "$robustness" "$perturb"
             
             # Wait for 1 second before the next run
-            sleep 900
+            sleep 60
           done
         done
       done
     done
   done
+  sleep 5400
 done
 
 echo "All training scripts have been launched."

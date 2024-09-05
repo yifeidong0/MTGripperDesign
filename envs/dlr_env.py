@@ -65,7 +65,7 @@ class DLRSimulationEnv(gym.Env):
             )
         self.robot_joint_limits = [[0.2,0.5], [math.pi/6,1.74],]
         self.robot_base_limits = [[-0.5,0.5], [-0.5,0.5], [1.5,4]]
-        self.desired_goal_height = 0.5
+        self.desired_goal_height = 0.6
 
         self.last_object_position = None
         self.last_tip_object_distance = None
@@ -292,7 +292,7 @@ class DLRSimulationEnv(gym.Env):
             self.last_object_position = object_position
 
             # Reward of caging robustness
-            if self.using_robustness_reward and object_position[2]>0.6*self.desired_goal_height and np.random.rand() < 0.003:
+            if self.using_robustness_reward and object_position[2]>0.7*self.desired_goal_height and np.random.rand() < 1e-3:
                 reward_robustness = self.reward_weights[6] * self.simulation.eval_robustness(max(0.5*object_position[2], self.task_param_range[1]*1.01))
                 print('reward_robustness', reward_robustness)
                 reward += reward_robustness

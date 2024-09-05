@@ -21,7 +21,6 @@ def main():
     env_kwargs = {'obs_type': args.obs_type, 
                   'using_robustness_reward': args.using_robustness_reward, 
                   'render_mode': args.render_mode,
-                  'run_id': args.run_id,
                   'perturb': args.perturb,
                   }
     env = gym.make(env_id, **env_kwargs)
@@ -36,11 +35,11 @@ def main():
     elif env_id == 'PandaUPushEnv-v0':
         model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-26_10-38-59_809000_steps.zip")
     elif env_id == 'DLRSimulationEnv-v0':
-        model = PPO.load("results/models/DLRSimulationEnv-v0/DLRSimulationEnv-v0_2024-08-23_09-38-01_4000_steps.zip")
+        model = PPO.load("results/models/DLRSimulationEnv-v0/2024-09-04_15-47-56_z0v28fzm_2_False_True/z0v28fzm_1720000_steps.zip")
     
     success_rate = 0
     for episode in range(10):
-        obs, _ = env.reset(seed=0)
+        obs, _ = env.reset(seed=1)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
         while not (done or truncated):
