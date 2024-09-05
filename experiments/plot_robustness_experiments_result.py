@@ -34,7 +34,7 @@ class TrainingCurvePlotter:
     def load_all_data(self):
         data = {}
 
-        for i in range(1, 6):
+        for i in range(1, 8):
             model_folders = sorted(glob(f"{self.base_path}/{i}/PPO_*"))
             data[i] = {}
 
@@ -58,7 +58,7 @@ class TrainingCurvePlotter:
             all_steps = []
             all_values = []
 
-            for i in range(1, 6):
+            for i in range(1, 8):
                 steps = data[i][label]['steps']
                 values = data[i][label][metric]
 
@@ -71,13 +71,14 @@ class TrainingCurvePlotter:
             std_values = np.std(all_values, axis=0)
 
             plt.plot(all_steps, mean_values, label=label, color=color)
-            plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.3)
+            if k==0 or k==1:
+                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.2)
             k += 1
 
         plt.xlabel('Training Steps')
         plt.ylabel(ylabel)
-        plt.xlim(0, 2e6)
-        plt.ylim(0.1, 0.85) if metric == 'success_rates' else plt.ylim(0, 120)
+        plt.xlim(0, 1.25e6)
+        plt.ylim(0.0, 0.95) if metric == 'success_rates' else plt.ylim(0, 450)
         plt.legend()
         plt.title(f'{ylabel} vs Training Steps')
         plt.grid(True)
