@@ -21,7 +21,7 @@ from GPyOpt.acquisitions.base import AcquisitionBase
 class MyAcquisition(AcquisitionBase):
     analytical_gradient_prediction = False
 
-    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=10, num_outputs=2):
+    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=1, num_outputs=2):
         """
         Initialize the custom acquisition function.
 
@@ -401,6 +401,6 @@ class BayesianOptimizationMultiTask:
             writer.writerow(row_data)
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(initial_iter=1) # initial_iter has to be more than 0 
+    pipeline = BayesianOptimizationMultiTask(initial_iter=3) # initial_iter has to be more than 0 
     pipeline.run()
     pipeline.env.close()
