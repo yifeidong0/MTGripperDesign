@@ -20,7 +20,7 @@ class DLRSimulationEnv(gym.Env):
                  render_mode: str = "human",
                  run_id: str = "default",
                  obs_type: str = "pose",
-                 using_robustness_reward: bool = False, 
+                 using_robustness_reward: bool = 1, 
                  reward_weights: list = [0.1, 0.001, -0.03, 1.0, 50.0, 50.0, 1e-3, 100.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
@@ -40,6 +40,7 @@ class DLRSimulationEnv(gym.Env):
         self.perturb_sigma = perturb_sigma
         self.run_id = run_id
         self.using_robustness_reward = using_robustness_reward
+        self.mode = 'mtbo' # TODO: mtbo, bo
         self.action_space = spaces.Box(low=np.array([-1e-5,-1e-5,-0.0005,-1e-5,-0.003,-0.002,]), 
                                        high=np.array([1e-5,1e-5,0.0005,1e-5,0.003,0.002,]), 
                                        dtype=np.float32) # x, y, z, rot_z, a02, a13
@@ -66,6 +67,7 @@ class DLRSimulationEnv(gym.Env):
         self.robot_joint_limits = [[0.2,0.5], [math.pi/6,1.74],]
         self.robot_base_limits = [[-0.5,0.5], [-0.5,0.5], [1.5,4]]
         self.desired_goal_height = 0.6
+        self.task_param_range = [0.1, 0.2]
 
         self.last_object_position = None
         self.last_tip_object_distance = None
@@ -76,19 +78,21 @@ class DLRSimulationEnv(gym.Env):
         self.num_end_steps = 0
         self.is_success = False
         self.count_episodes = 0
+        self.num_discrete_tasks = 11
+        self.robustness = 0
+        self.num_max_truncate_steps = 2500 if self.mode=='mtbo' else 15000 # 15000 steps for training
+        self.robustness_check_freq = 1e-2 if self.mode=='mtbo' else 1e-3
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
         # Reset the simulation environment to avoid memory leak (Pybullet bug)
-        if (self.count_episodes+1) % 9 == 0:
+        if self.gui and (self.count_episodes+1) % 9 == 0:
             self.close()
             self.simulation = DLRSimulation(self.task, self.task_param, self.design_params, self.gui)
             print(f"INFO: episode {self.count_episodes}")
 
         self.simulation.step_count = 0
-        self.task = 'cube' # cube
-        self.task_param_range = [0.1, 0.2]
         self.task_param = np.random.uniform(self.task_param_range[0], self.task_param_range[1])
         distal_lengths = np.arange(30, 65, 5)
         distal_curvature = np.arange(2, 10, 2)
@@ -102,6 +106,24 @@ class DLRSimulationEnv(gym.Env):
         self.is_success = False
         return obs, {}
 
+    def reset_task_and_design(self, task_int, design_params, seed=None):
+        super().reset(seed=seed)
+        if self.gui and (self.count_episodes+1) % 9 == 0:
+            self.close()
+            self.simulation = DLRSimulation(self.task, self.task_param, self.design_params, self.gui)
+            print(f"INFO: episode {self.count_episodes}")
+
+        self.simulation.step_count = 0
+        self.task_param = self.task_param_range[0] + (self.task_param_range[1]-self.task_param_range[0]) * task_int / (self.num_discrete_tasks-1)
+        self.design_params = design_params
+        self.simulation.reset_task_and_design(self.task, self.task_param, self.design_params)
+        obs = self._get_obs()
+        self.num_end_steps = 0
+        self.count_penetration = 0
+        self.count_episodes += 1
+        self.is_success = False
+        return obs, {}
+    
     def step(self, action):
         dxyz = action[:3]
         drot_z = action[3]
@@ -160,6 +182,8 @@ class DLRSimulationEnv(gym.Env):
         if done or truncated:
             info['is_success'] = self.is_success
         reward = float(self.compute_reward(obs["achieved_goal"], obs["desired_goal"], info))
+        info['robustness'] = self.robustness
+        self.robustness = 0
         self.last_action = action
         
         return obs, reward, done, truncated, info
@@ -292,9 +316,10 @@ class DLRSimulationEnv(gym.Env):
             self.last_object_position = object_position
 
             # Reward of caging robustness
-            if self.using_robustness_reward and object_position[2]>0.7*self.desired_goal_height and np.random.rand() < 1e-3:
-                reward_robustness = self.reward_weights[6] * self.simulation.eval_robustness(max(0.5*object_position[2], self.task_param_range[1]*1.01))
-                print('reward_robustness', reward_robustness)
+            if self.using_robustness_reward and object_position[2]>0.7*self.desired_goal_height and np.random.rand() < self.robustness_check_freq:
+                self.robustness = self.simulation.eval_robustness(max(0.5*object_position[2], self.task_param_range[1]*1.01))
+                reward_robustness = self.reward_weights[6] * self.robustness
+                # print('reward_robustness', reward_robustness)
                 reward += reward_robustness
 
             # Reward of success and caging robustness
@@ -336,7 +361,7 @@ class DLRSimulationEnv(gym.Env):
         object_out_of_canvas = not (-1 <= object_position[0] <= 1
                                     and -1 <= object_position[1] <= 1)
     
-        time_ended = self.simulation.step_count >= 15000  # Maximum number of steps
+        time_ended = self.simulation.step_count >= self.num_max_truncate_steps  # Maximum number of steps
         too_many_penetrations = self.count_penetration > 1500
         if too_many_penetrations:
             print("INFO: Penetration count exceeded 1500!")

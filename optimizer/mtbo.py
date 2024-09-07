@@ -21,7 +21,7 @@ from GPyOpt.acquisitions.base import AcquisitionBase
 class MyAcquisition(AcquisitionBase):
     analytical_gradient_prediction = False
 
-    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=10, num_outputs=2):
+    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=2, num_outputs=2):
         """
         Initialize the custom acquisition function.
 
@@ -125,7 +125,11 @@ class BayesianOptimizationMultiTask:
                         {'name': 'task', 'type': 'discrete', 'domain': tuple(range(self.num_outputs))}]
             self.robustness_score_weight = 0.3
         elif self.env_type == "dlr":
-            pass
+            self.num_outputs = 11
+            self.bounds = [{'name': 'l', 'type': 'discrete', 'domain': list(np.arange(30, 65, 5))},
+                           {'name': 'c', 'type': 'discrete', 'domain': list(np.arange(2, 10, 2))},
+                           {'name': 'task', 'type': 'discrete', 'domain': list(range(self.num_outputs))}]
+            self.robustness_score_weight = 1/2000
 
         # Create the environment and RL model
         env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
@@ -196,10 +200,13 @@ class BayesianOptimizationMultiTask:
         avg_score = 0
         obs, _ = self.env.reset(seed=self.args.random_seed)
         for episode in range(self.num_episodes):
+            if self.env_type == "dlr":
+                self.env.num_discrete_tasks = self.num_outputs
             obs, _ = self.env.reset_task_and_design(t, x, seed=self.args.random_seed)
             if self.args.env == "panda" and self.env.is_invalid_design:
                 print(f"Invalid design: {x}")
                 return 0
+            
             done, truncated = False, False
             avg_robustness = 0
             num_robustness_step = 0
@@ -209,6 +216,7 @@ class BayesianOptimizationMultiTask:
                 if info['robustness'] is not None and info['robustness'] > 0:
                     num_robustness_step += 1
                     weight = self.robustness_score_weight if self.args.model_with_robustness_reward else 0.0
+                    # print(f"!!!!!!!Robustness: {info['robustness']}")
                     avg_robustness += info['robustness'] * weight
                 # self.env.render()
             success_score = 1.0 if done else 0.0
@@ -300,6 +308,11 @@ class BayesianOptimizationMultiTask:
         best_idx = np.argmax(avg_scores)
         best_design = grid_points[best_idx]
         best_score = avg_scores[best_idx]
+
+        # make best_design to be the closest grid point
+        if self.args.env == "dlr":
+            best_design[0] = np.round(best_design[0] / 5) * 5
+            best_design[1] = np.round(best_design[1] / 2) * 2
         
         return best_design, best_score, grid_points, means, vars
 
@@ -320,6 +333,8 @@ class BayesianOptimizationMultiTask:
         print('!!!start evaluation!!!')
 
         for episode in range(self.args.num_episodes_eval_best):
+            if self.env_type == "dlr":
+                self.env.num_discrete_tasks = self.num_outputs
             task = np.random.choice(list(range(self.num_outputs)))  # Randomly select a task
             obs, _ = self.env.reset_task_and_design(task, design, seed=self.args.random_seed)
             done, truncated = False, False
@@ -391,6 +406,9 @@ class BayesianOptimizationMultiTask:
             elif self.args.env == "panda":
                 headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
                         "best_design_3", "best_score_estimated", "score_true", "success_score_true", "robustness_score_true"]
+            elif self.args.env == "dlr":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_score_estimated", 
+                        "score_true", "success_score_true", "robustness_score_true"]
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, 'w', newline='') as f:
                 writer = csv.writer(f)
