@@ -54,13 +54,13 @@ for i in {7..8}; do
 
   # Run the command for each zip file with the corresponding csv_filename
   run_in_vscode_terminal "${model_files[0]}" 1 1 ${random_seeds[$i-1]} $csv_file_a  # a.zip: robustness=1, perturb=1
-  sleep 900
+  sleep 2000
   run_in_vscode_terminal "${model_files[1]}" 0 1 ${random_seeds[$i-1]} $csv_file_b  # b.zip: robustness=0, perturb=1
-  sleep 900
+  sleep 2000
   run_in_vscode_terminal "${model_files[2]}" 1 0 ${random_seeds[$i-1]} $csv_file_c  # c.zip: robustness=1, perturb=0
-  sleep 900
+  sleep 2000
   run_in_vscode_terminal "${model_files[3]}" 0 0 ${random_seeds[$i-1]} $csv_file_d  # d.zip: robustness=0, perturb=0
-  sleep 900
+  sleep 2000
 done
 
 echo "All training scripts have been launched."
