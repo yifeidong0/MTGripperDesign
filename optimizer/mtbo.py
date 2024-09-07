@@ -21,11 +21,7 @@ from GPyOpt.acquisitions.base import AcquisitionBase
 class MyAcquisition(AcquisitionBase):
     analytical_gradient_prediction = False
 
-<<<<<<< HEAD
-    def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=2, num_outputs=2):
-=======
     def __init__(self, model, space, optimizer=None, cost_withGradients=None, exploration_weight=1, num_outputs=2):
->>>>>>> bc091fbbd9cd173ff9e5870faba61891c1311e51
         """
         Initialize the custom acquisition function.
 
