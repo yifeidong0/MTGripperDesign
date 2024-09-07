@@ -22,7 +22,7 @@ class VPushPbSimulationEnv(gym.Env):
     def __init__(self, 
                  render_mode: str = "human",
                  obs_type: str = "pose",
-                 using_robustness_reward: bool = False, 
+                 using_robustness_reward: bool = 1, 
                  img_size=(42, 42), 
                  run_id: str = "default",
                  reward_weights: list = [5.0, 1.0, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],

@@ -129,7 +129,7 @@ class BayesianOptimizationMultiTask:
             self.bounds = [{'name': 'l', 'type': 'discrete', 'domain': list(np.arange(30, 65, 5))},
                            {'name': 'c', 'type': 'discrete', 'domain': list(np.arange(2, 10, 2))},
                            {'name': 'task', 'type': 'discrete', 'domain': list(range(self.num_outputs))}]
-            self.robustness_score_weight = 1/2000
+            self.robustness_score_weight = 1.0 / 2000.0
 
         # Create the environment and RL model
         env_ids = {'vpush':'VPushPbSimulationEnv-v0', 

@@ -19,7 +19,7 @@ class UCatchSimulationEnv(gym.Env):
     def __init__(self, 
                  render_mode: str = "human",
                  obs_type: str = "pose",
-                 using_robustness_reward: bool = False, 
+                 using_robustness_reward: bool = 1, 
                  run_id: str = "default",
                  reward_weights: list = [],
                  reward_type: str = "dense", # dense, sparse

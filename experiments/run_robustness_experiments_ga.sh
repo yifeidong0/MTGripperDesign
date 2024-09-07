@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the random seeds
-random_seeds=(1 2 3 4 5 6 7 8)
+random_seeds=(1 2 3 4 5 6)
 
 # Function to run the command in a new VSCode terminal
 run_in_vscode_terminal() {
@@ -11,18 +11,19 @@ run_in_vscode_terminal() {
   local seed=$4
   local csv_filename=$5
 
-  cmd="python3 optimizer/mtbo.py \
-        --env dlr \
+  cmd="python3 optimizer/ga.py \
+        --env panda \
         --model_path $model_path \
         --model_with_robustness_reward $model_with_robustness_reward \
         --perturb $perturb \
-        --algo ppo \
         --device cpu \
         --save_filename $csv_filename \
-        --num_episodes_eval 10 \
-        --num_episodes_eval_best 20 \
+        --num_episodes_eval 5 \
+        --num_episodes_eval_best 32 \
         --render_mode rgb_array \
-        --max_iterations 30 \
+        --population_size 16 \
+        --num_generations 60 \
+        --mutation_rate 0.1 \
         --random_seed $seed"
 
   # Open a new VSCode terminal and run the command
@@ -30,10 +31,10 @@ run_in_vscode_terminal() {
 }
 
 # Loop through each i={1,2,3,4,5}, corresponding to each random seed
-for i in {1..5}; do
+for i in {1..6}; do
   # Get the list of zip files in alphabetical order
-  # model_files=($(ls results/paper/dlr/1/*.zip | sort)) # remove randomness from RL training
-  model_files=($(ls results/paper/dlr/$i/*.zip | sort))
+  # model_files=($(ls results/paper/panda/1/*.zip | sort)) # remove randomness from RL training
+  model_files=($(ls results/paper/panda/$i/*.zip | sort))
   echo "model files name ${model_files[0]}"
   echo "model files name ${model_files[1]}"
   echo "model files name ${model_files[2]}"
@@ -41,16 +42,16 @@ for i in {1..5}; do
   
   # Ensure there are exactly 4 zip files
   if [ ${#model_files[@]} -ne 4 ]; then
-    echo "Error: Expected 4 zip files in results/paper/dlr/$i/"
+    echo "Error: Expected 4 zip files in results/paper/panda/$i/"
     exit 1
   fi
 
   # Generate csv_filename paths based on the required format
   timestamp=$(date +%Y%m%d_%H%M%S)
-  csv_file_a="results/paper/dlr/$i/dlr_mtbo_results_${timestamp}_1_1_10simga_0.3robreward.csv"
-  csv_file_b="results/paper/dlr/$i/dlr_mtbo_results_${timestamp}_0_1_10simga_0.3robreward.csv"
-  csv_file_c="results/paper/dlr/$i/dlr_mtbo_results_${timestamp}_1_0_10simga_0.3robreward.csv"
-  csv_file_d="results/paper/dlr/$i/dlr_mtbo_results_${timestamp}_0_0_10simga_0.3robreward.csv"
+  csv_file_a="results/paper/panda/$i/panda_ga_results_${timestamp}_1_1.csv"
+  csv_file_b="results/paper/panda/$i/panda_ga_results_${timestamp}_0_1.csv"
+  csv_file_c="results/paper/panda/$i/panda_ga_results_${timestamp}_1_0.csv"
+  csv_file_d="results/paper/panda/$i/panda_ga_results_${timestamp}_0_0.csv"
 
   # Run the command for each zip file with the corresponding csv_filename
   run_in_vscode_terminal "${model_files[0]}" 1 1 ${random_seeds[$i-1]} $csv_file_a  # a.zip: robustness=1, perturb=1

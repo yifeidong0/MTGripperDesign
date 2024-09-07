@@ -8,9 +8,12 @@ from stable_baselines3 import PPO
 import envs
 import gymnasium as gym
 import time
+import wandb
+from experiments.args_utils import get_args_ga
+import csv
 
 class GeneticAlgorithmPipeline:
-    def __init__(self, env_type="push", population_size=20, generations=50, mutation_rate=0.1, num_episodes=1, gui=False, policy="heuristic"):
+    def __init__(self, ):
         """
         Initialize the Genetic Algorithm Pipeline with the given parameters.
 
@@ -20,23 +23,16 @@ class GeneticAlgorithmPipeline:
             generations (int): The number of generations to run the genetic algorithm.
             mutation_rate (float): The mutation rate for the genetic algorithm.
             num_episodes (int): The number of episodes to run for each evaluation.
-            gui (bool): Whether to use GUI for the simulations.
         """
-        self.env_type = env_type
-        self.gui = gui
-        self.policy = policy  # "heuristic" or "rl"
+        self.args = get_args_ga()
+        self.env_type = self.args.env
+        self.model_path = self.args.model_path
 
-        if self.env_type == "push":
-            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0.1, 1.2)},
-                        {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
-            self.num_outputs = 2
-        elif self.env_type == "vpush":
+        if self.env_type == "vpush":
             self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (0, np.pi)},
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
-            self.env_id = 'VPushPbSimulationEnv-v0'
-            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip"
         elif self.env_type == "ucatch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'd1', 'type': 'continuous', 'domain': (5, 10)},
@@ -46,21 +42,42 @@ class GeneticAlgorithmPipeline:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 0.1
-            self.env_id = 'UCatchSimulationEnv-v0'
-            self.model_path = "results/models/best_model_ucatch_w_robustness_reward.zip"
+        elif self.env_type == "panda":
+            self.num_outputs = 5
+            self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds, make sure it aligns with reset in panda_push_env
+                        {'name': 'finger_length', 'type': 'continuous', 'domain': (0.05, 0.12)}, 
+                        {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
+                        {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.08)},
+                        {'name': 'task', 'type': 'discrete', 'domain': tuple(range(self.num_outputs))}]
+            self.robustness_score_weight = 0.3
+        elif self.env_type == "dlr":
+            self.num_outputs = 11
+            self.bounds = [{'name': 'l', 'type': 'discrete', 'domain': list(np.arange(30, 65, 5))},
+                           {'name': 'c', 'type': 'discrete', 'domain': list(np.arange(2, 10, 2))},
+                           {'name': 'task', 'type': 'discrete', 'domain': list(range(self.num_outputs))}]
+            self.robustness_score_weight = 1.0 / 2000.0
 
-        if self.policy == "heuristic":
-            if self.env_type == "vpush":
-                from sim.vpush_pb_sim import VPushPbSimulation as Simulation
-                self.sim = Simulation('circle', 1, self.gui)
-        elif self.policy == "rl":
-            self.env = gym.make(self.env_id, gui=self.gui, obs_type='pose')
-            self.model = PPO.load(self.model_path)
+        # Create the environment and RL model
+        env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+                    'catch':'UCatchSimulationEnv-v0',
+                    'dlr':'DLRSimulationEnv-v0',
+                    'panda':'PandaUPushEnv-v0'}
+        self.env_id = env_ids[self.env_type]
+        run_id = wandb.util.generate_id()
 
-        self.population_size = population_size
-        self.generations = generations
-        self.mutation_rate = mutation_rate
-        self.num_episodes = num_episodes
+        env_kwargs = {'obs_type': self.args.obs_type, 
+                        'render_mode': self.args.render_mode,
+                        'perturb': self.args.perturb,
+                        'run_id': run_id,
+                        }
+        self.env = gym.make(self.env_id, **env_kwargs)
+        print('#@@@@@@@@@@@self.model_path',self.model_path)
+        self.model = PPO.load(self.model_path)
+
+        self.population_size = self.args.population_size
+        self.num_generations = self.args.num_generations
+        self.mutation_rate = self.args.mutation_rate
+        self.num_episodes = self.args.num_episodes_eval
         self.population = self.generate_initial_population()
 
     def generate_initial_population(self):
@@ -92,49 +109,31 @@ class GeneticAlgorithmPipeline:
             float: The score for the given design and task.
         """
         x, t = xt[:-1], int(xt[-1])
-        
-        if self.policy == "heuristic":
-            if self.env_type == "push":
-                from sim.push_sim import ForwardSimulationPlanePush as Simulation
-                task = 'ball' if t == 0 else 'box'
-                sim = Simulation(task, x, self.gui)
-                score = sim.run()
-            elif self.env_type == "vpush":
-                # from sim.vpush_sim import VPushSimulation as Simulation
-                task = 'circle' if int(t) == 0 else 'polygon'
-                self.sim.reset_task_and_design(task, x[0])
-                score = self.sim.run(self.num_episodes)
-            elif self.env_type == "ucatch":
-                from sim.ucatch_sim import UCatchSimulation as Simulation
-                task = 'circle' if t == 0 else 'polygon'
-                sim = Simulation(task, x, self.gui)
-                score = sim.run(self.num_episodes)
-        elif self.policy == "rl":
-            avg_score = 0
-            obs, _ = self.env.reset(seed=0)
-            for episode in range(self.num_episodes):
-                obs, _ = self.env.reset_task_and_design(t, x, seed=0)
-                # print(f"Episode {episode + 1} begins")
-                done, truncated = False, False
-                avg_robustness = 0
-                num_robustness_step = 0
-                while not (done or truncated):
-                    action = self.model.predict(obs)[0]
-                    obs, reward, done, truncated, info = self.env.step(action)
-                    if info['robustness'] is not None and info['robustness'] > 0:
-                        num_robustness_step += 1
-                        avg_robustness += info['robustness'] * self.robustness_score_weight
-                    self.env.render()
-                success_score = 0.5 if done else 0.1
-                robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
-                # print(f"Success: {success_score}, Robustness: {robustness_score}")
-                score = success_score + robustness_score
-                avg_score += score
-                print("Done!" if done else "Truncated.")
-                # print(f"Episode {episode + 1} finished")
-            score = avg_score / self.num_episodes
-            # time.sleep(1)
-            # self.env.close()
+        avg_score = 0
+        obs, _ = self.env.reset(seed=0)
+        for episode in range(self.num_episodes):
+            obs, _ = self.env.reset_task_and_design(t, x, seed=0)
+            # print(f"Episode {episode + 1} begins")
+            done, truncated = False, False
+            avg_robustness = 0
+            num_robustness_step = 0
+            while not (done or truncated):
+                action = self.model.predict(obs)[0]
+                obs, reward, done, truncated, info = self.env.step(action)
+                if info['robustness'] is not None and info['robustness'] > 0:
+                    num_robustness_step += 1
+                    avg_robustness += info['robustness'] * self.robustness_score_weight
+                self.env.render()
+            success_score = 0.5 if done else 0.1
+            robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+            # print(f"Success: {success_score}, Robustness: {robustness_score}")
+            score = success_score + robustness_score
+            avg_score += score
+            print("Done!" if done else "Truncated.")
+            # print(f"Episode {episode + 1} finished")
+        score = avg_score / self.num_episodes
+        # time.sleep(1)
+        # self.env.close()
 
         return score
 
@@ -202,21 +201,78 @@ class GeneticAlgorithmPipeline:
                 individual[i] = random.uniform(*bound)
         return individual
 
-    def save_to_csv(self, filename, csv_buffer):
+    def save_to_csv(self, filename, data):
         """
-        Save the results of num_iter, best_design, best_score to a csv file.
+        Save results to a CSV file after each iteration, appending to the file.
+        Args:
+            filename (str): Path to the CSV file.
+            data (list): Row data to be written (single row).
         """
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as f:
-            if self.env_type in ["vpush"]:
-                f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
-                for line in csv_buffer:
-                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[3]}\n")
-            elif self.env_type in ["ucatch",]:
-                f.write("num_iter,num_episodes_so_far,best_design_0,best_design_1,best_design_2,best_design_3,best_design_4,best_score_estimated\n")
-                for line in csv_buffer:
-                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[2][1]},{line[2][2]},{line[2][3]},{line[2][4]},{line[3]}\n")
 
+        # Check if the file already exists
+        file_exists = os.path.isfile(filename)
+
+        with open(filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            # Write the header only if the file does not exist
+            if not file_exists:
+                if self.env_type in ["vpush"]:
+                    writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])
+                elif self.env_type in ["ucatch"]:
+                    writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", "best_design_3", "best_design_4", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])
+                elif self.env_type in ["panda"]:
+                    writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", "best_design_3", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])
+                elif self.env_type in ["dlr"]:
+                    writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])
+
+            # Write the row data
+            writer.writerow(data)
+            
+    def evaluate_optimal_design(self, design):
+        """
+        Evaluate the optimal design found by the GA algorithm.
+
+        Args:
+            design (list): The design parameters to evaluate.
+
+        Returns:
+            tuple: The average score, success score, and robustness score over the evaluation episodes.
+        """
+        avg_score = 0
+        avg_success_score = 0
+        avg_robustness_score = 0
+        obs, _ = self.env.reset(seed=0)
+        print('Evaluating optimal design...')
+
+        for episode in range(self.args.num_episodes_eval_best):
+            task = np.random.choice(list(range(self.num_outputs)))  # Randomly select a task
+            obs, _ = self.env.reset_task_and_design(task, design, seed=0)
+            done, truncated = False, False
+            avg_robustness = 0
+            num_robustness_step = 0
+
+            while not (done or truncated):
+                action = self.model.predict(obs)[0]
+                obs, reward, done, truncated, info = self.env.step(action)
+                if info.get('robustness') is not None and info['robustness'] > 0:
+                    num_robustness_step += 1
+                    avg_robustness += info['robustness'] * self.robustness_score_weight
+
+            success_score = 1.0 if done else 0.0
+            robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+            score = success_score + robustness_score
+            avg_score += score
+            avg_success_score += success_score
+            avg_robustness_score += robustness_score
+
+        avg_score /= self.args.num_episodes_eval_best
+        avg_success_score /= self.args.num_episodes_eval_best
+        avg_robustness_score /= self.args.num_episodes_eval_best
+        print(f"Evaluated Design: {design}, Score: {avg_score}, Success: {avg_success_score}, Robustness: {avg_robustness_score}")
+
+        return avg_score, avg_success_score, avg_robustness_score
+    
     def find_optimal_design(self):
         """
         Run the genetic algorithm to find the optimal design.
@@ -227,17 +283,10 @@ class GeneticAlgorithmPipeline:
         best_design = None
         best_score = -np.inf
 
-        # Create a file with unique name
-        k = 0
-        while True:     
-            csv_filename = f"results/csv/{self.env_type}_ga_results_{k}.csv"
-            if os.path.exists(csv_filename):
-                k += 1
-            else:
-                break
+        # Create a unique file name
+        csv_filename = self.args.save_filename
 
-        csv_buffer = []
-        for generation in range(self.generations):
+        for generation in range(self.num_generations):
             fitness = np.array([self.evaluate_fitness(individual) for individual in self.population])
             best_gen_design = self.population[np.argmax(fitness)]
             best_gen_score = np.max(fitness)
@@ -259,12 +308,13 @@ class GeneticAlgorithmPipeline:
 
             self.population = np.array(next_population)
 
-            # Write to CSV file
-            num_episodes_so_far = self.population_size * self.num_episodes * self.num_outputs * (generation + 1)
-            csv_buffer.append([i, num_episodes_so_far, best_design, best_score])
+            # Evaluate the optimal design after each generation
+            evaluated_score, success_rate, robustness_score = self.evaluate_optimal_design(best_design)
 
-        # Save intermediate designs to a csv file
-        self.save_to_csv(csv_filename, csv_buffer)
+            # Write results to the CSV after each iteration
+            num_episodes_so_far = self.population_size * self.num_episodes * self.num_outputs * (generation + 1)
+            row_data = [generation, num_episodes_so_far] + best_design.tolist() + [best_gen_score, evaluated_score, success_rate, robustness_score]
+            self.save_to_csv(csv_filename, row_data)
 
         return best_design, best_score
 
@@ -279,12 +329,6 @@ class GeneticAlgorithmPipeline:
 if __name__ == "__main__":
     num_run = 10
     for r in range(num_run):
-        pipeline = GeneticAlgorithmPipeline(env_type="vpush",  # ucatch, vpush
-                                            population_size=8, # has to be even
-                                            generations=20, 
-                                            mutation_rate=0.1, 
-                                            num_episodes=4, 
-                                            gui=0,
-                                            policy="rl")  # heuristic, rl
+        pipeline = GeneticAlgorithmPipeline()
         pipeline.run()
         pipeline.env.close()
