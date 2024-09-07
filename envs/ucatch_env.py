@@ -24,7 +24,7 @@ class UCatchSimulationEnv(gym.Env):
                  reward_weights: list = [],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
-                 perturb_sigma: float = 1.8,
+                 perturb_sigma: float = 0.5,
                  img_size=(42, 42), 
         ):
         super(UCatchSimulationEnv, self).__init__()
@@ -100,7 +100,7 @@ class UCatchSimulationEnv(gym.Env):
             # pygame.time.Clock().tick(260)
             # Add horizontal perturbation force to the object
             if self.perturb:
-                perturb = (random.normalvariate(0, 0.5), 0) # 1.0 is too high
+                perturb = (random.normalvariate(0, self.perturb_sigma), 0) # 1.0 is too high
                 self.simulation.object_body.linearVelocity = self.simulation.object_body.linearVelocity + perturb
         self.simulation.world.ClearForces()
         self.simulation.step_count += 1

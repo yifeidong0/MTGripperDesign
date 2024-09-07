@@ -24,7 +24,7 @@ class DLRSimulationEnv(gym.Env):
                  reward_weights: list = [0.1, 0.001, -0.03, 1.0, 50.0, 50.0, 1e-3, 100.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
-                 perturb_sigma: float = 0.15,
+                 perturb_sigma: float = 0.1,
                  img_size=(42, 42), 
         ):
         super(DLRSimulationEnv, self).__init__()

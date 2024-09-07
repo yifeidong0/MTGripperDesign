@@ -26,7 +26,7 @@ def get_args():
     parser.add_argument('--perturb', type=str2bool, nargs='?', const=False, default=False, help='Add random perturbations to the target object')
     parser.add_argument('--perturb_sigma', type=float, default=1.8, help='Random perturbations sigma')
     parser.add_argument('--checkpoint_freq', type=int, default=int(5e3), help='Frequency of saving checkpoints')
-    parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
+    parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='rgb_array', help='Rendering mode for the simulation')
     parser.add_argument('--algo', type=str, choices=['ppo', 'tqc', 'sac'], default='ppo', help='RL algorithm to use for training')
     parser.add_argument('--reward_weights', type=float, nargs='+', default=[0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0], help='List of reward weights to use during training')
     parser.add_argument('--wandb_mode', type=str, choices=['online', 'offline', 'disabled'], default='disabled', help='Wandb mode for logging')

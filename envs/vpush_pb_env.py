@@ -28,7 +28,7 @@ class VPushPbSimulationEnv(gym.Env):
                  reward_weights: list = [5.0, 1.0, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
                  reward_type: str = "dense", # dense, sparse
                  perturb: bool = False,
-                 perturb_sigma: float = 1.8,
+                 perturb_sigma: float = 0.5,
         ):
         super(VPushPbSimulationEnv, self).__init__()
         self.task = 'circle' 
@@ -118,7 +118,7 @@ class VPushPbSimulationEnv(gym.Env):
         for _ in range(sim_steps):
             # add random perturbation force to the target object
             if self.perturb:
-                p.applyExternalForce(self.simulation.object_id, -1, [random.normalvariate(0, 0.5), random.normalvariate(0, 0.5), 0], [0, 0, 0], p.LINK_FRAME)
+                p.applyExternalForce(self.simulation.object_id, -1, [random.normalvariate(0, self.perturb_sigma), random.normalvariate(0, self.perturb_sigma), 0], [0, 0, 0], p.LINK_FRAME)
             p.stepSimulation()
 
         # width, height, rgbPixels, _, _ = p.getCameraImage(64, 64, 
