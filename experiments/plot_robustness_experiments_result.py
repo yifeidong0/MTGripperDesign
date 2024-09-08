@@ -104,15 +104,15 @@ class SuccessScorePlotter:
     def load_csv_data(self):
         data = {}
 
-        for i in range(1, 7):  # For folders 1 to 6
-            csv_files = sorted(glob(f"{self.base_path}/{i}/*.csv"))
+        for i in range(1, 4):  # For folders 1 to 6
+            csv_files = sorted(glob(f"{self.base_path}/{i}/panda_ga*.csv"))
             print(csv_files[0])
             data[i] = {}
 
             for j, csv_file in enumerate(csv_files):
                 df = pd.read_csv(csv_file)
                 steps = df['num_iter'].values
-                success_scores = df['success_score_true'].values
+                success_scores = df['success_rate'].values
                 data[i][self.labels[j]] = {
                     'steps': steps,
                     'success_scores': success_scores
@@ -129,7 +129,7 @@ class SuccessScorePlotter:
             all_steps = []
             all_success_scores = []
 
-            for i in range(1, 7):
+            for i in range(1, 4):
                 steps = data[i][label]['steps']
                 success_scores = data[i][label]['success_scores']
 
@@ -148,20 +148,20 @@ class SuccessScorePlotter:
 
         plt.xlabel('Iteration')
         plt.ylabel('Test Success Score')
-        plt.xlim(1, 25)
+        plt.xlim(1, 35)
         plt.ylim(0.3, 1.1)
         plt.legend()
-        plt.title(f'Test Performance of Optimal Design over BO Iterations')
+        plt.title(f'Test Performance of Optimal Design over GA Iterations')
         plt.grid(True)
         plt.savefig(save_path)
         plt.close()
 
     def plot_all(self):
-        self.plot_with_mean_std(f'{self.base_path}/bo_success_score.png')
+        self.plot_with_mean_std(f'{self.base_path}/ga_success_score.png')
 
 
 if __name__ == "__main__":
-    base_path = 'results/paper/dlr'
+    base_path = 'results/paper/panda'
     # plotter = TrainingCurvePlotter(base_path)
     plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()
