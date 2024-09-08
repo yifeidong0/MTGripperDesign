@@ -21,8 +21,8 @@ run_in_vscode_terminal() {
         --num_episodes_eval 5 \
         --num_episodes_eval_best 32 \
         --render_mode rgb_array \
-        --population_size 16 \
-        --num_generations 60 \
+        --population_size 4 \
+        --num_generations 35 \
         --mutation_rate 0.1 \
         --random_seed $seed"
 

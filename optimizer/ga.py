@@ -71,7 +71,6 @@ class GeneticAlgorithmPipeline:
                         'run_id': run_id,
                         }
         self.env = gym.make(self.env_id, **env_kwargs)
-        print('#@@@@@@@@@@@self.model_path',self.model_path)
         self.model = PPO.load(self.model_path)
 
         self.population_size = self.args.population_size
@@ -122,9 +121,10 @@ class GeneticAlgorithmPipeline:
                 obs, reward, done, truncated, info = self.env.step(action)
                 if info['robustness'] is not None and info['robustness'] > 0:
                     num_robustness_step += 1
-                    avg_robustness += info['robustness'] * self.robustness_score_weight
-                self.env.render()
-            success_score = 0.5 if done else 0.1
+                    weight = self.robustness_score_weight if self.args.model_with_robustness_reward else 0.0
+                    avg_robustness += info['robustness'] * weight
+                # self.env.render()
+            success_score = 1 if done else 0
             robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
             # print(f"Success: {success_score}, Robustness: {robustness_score}")
             score = success_score + robustness_score
@@ -327,7 +327,7 @@ class GeneticAlgorithmPipeline:
 
 
 if __name__ == "__main__":
-    num_run = 10
+    num_run = 1
     for r in range(num_run):
         pipeline = GeneticAlgorithmPipeline()
         pipeline.run()
