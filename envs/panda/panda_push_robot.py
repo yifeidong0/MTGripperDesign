@@ -28,19 +28,17 @@ class PandaCustom(PyBulletRobot):
     def __init__(
         self,
         sim: PyBullet,
-        block_gripper: bool = False,
+        block_gripper: bool = True, # Not using gripper
         base_position: Optional[np.ndarray] = None,
         control_type: str = "ee",
         run_id: str = "",
     ) -> None:
         self.base_position = base_position if base_position is not None else np.zeros(3)
-        self.block_gripper = block_gripper
         self.control_type = control_type
-        n_action = 3 if self.control_type == "ee" else 7  # control (x, y, yaw) if "ee", else, control the 7 joints
-        n_action += 0 if self.block_gripper else 1
-        action_space = spaces.Box(low=np.array([-0.05,-0.10,-0.04,]), high=np.array([0.15,0.10,0.04,]), dtype=np.float32)
-        # action_space = spaces.Box(low=np.array([0.,-0.3,0,]), high=np.array([0,0,0,]), dtype=np.float32)
-        
+        # action space (dx, dy, dyaw)
+        # action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05,]), high=np.array([0.01, 0.01, 0.05,]), dtype=np.float32)
+        action_space = spaces.Box(low=np.array([-0.03, -0.03,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
+
         self.v_angle = 0.5
         self.panda_file_name = "asset/franka_panda_custom/panda_template.urdf"
         self.finger_length = 0.2
@@ -60,7 +58,7 @@ class PandaCustom(PyBulletRobot):
             base_position=self.base_position,
             action_space=action_space,
             joint_indices=np.array([0, 1, 2, 3, 4, 5, 6, 9, 10]),
-            joint_forces=np.array([87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0]),
+            joint_forces=np.array([87.0, 87.0, 87.0, 87.0, 12.0, 120.0, 120.0, 170.0, 170.0]), # TODO
         )
 
         self.fingers_indices = np.array([9, 10])
@@ -74,26 +72,31 @@ class PandaCustom(PyBulletRobot):
         self.sim.set_lateral_friction(self.body_name, self.fingers_indices[1], lateral_friction=1.0)
         self.sim.set_spinning_friction(self.body_name, self.fingers_indices[0], spinning_friction=0.001)
         self.sim.set_spinning_friction(self.body_name, self.fingers_indices[1], spinning_friction=0.001)
-        
+        self.joint_limits = [
+            (-2.8973, 2.8973),
+            (-1.7628, 1.7628),
+            (-2.8973, 2.8973),
+            (-3.0718, -0.0698),
+            (-2.8973, 2.8973),
+            (-0.0175, 3.7525),
+            (-2.8973, 2.8973),
+        ]
+        self.z_offset = 0.12
+        self.ee_init_pos_2d = np.zeros(2)
 
     def set_action(self, action: np.ndarray) -> None:
         action = action.copy()  # ensure action don't change
         action = np.clip(action, self.action_space.low, self.action_space.high)
         if self.control_type == "ee":
             ee_displacement = np.array([action[0], action[1], 0])
-            ee_orientation_change = np.array([action[2],])
+            ee_orientation_change = 0.0
             target_arm_angles = self.ee_displacement_to_target_arm_angles(ee_displacement, ee_orientation_change)
         else:
             arm_joint_ctrl = action[:7]
-            target_arm_angles = self.arm_joint_ctrl_to_target_arm_angles(arm_joint_ctrl)
-
-        if self.block_gripper:
-            target_fingers_width = 0.02
-        else:
-            fingers_ctrl = action[-1] * 0.2  # limit maximum change in position
-            fingers_width = self.get_fingers_width()
-            target_fingers_width = fingers_width + fingers_ctrl
-
+            target_arm_angles = self.arm_joint_ctrl_to_target_arm_angles(arm_joint_ctrl)            
+        for i, (lower, upper) in enumerate(self.joint_limits):
+            target_arm_angles[i] = np.clip(target_arm_angles[i], lower, upper)
+        target_fingers_width = 0.02 # fixed fingers width
         target_angles = np.concatenate((target_arm_angles, [target_fingers_width / 2, target_fingers_width / 2]))
         self.control_joints(target_angles=target_angles)
 
@@ -109,15 +112,16 @@ class PandaCustom(PyBulletRobot):
             np.ndarray: Target arm angles, as the angles of the 7 arm joints.
         """
         # Set target end-effector position
-        ee_displacement = ee_displacement[:3] * 0.05  # limit maximum change in position
+        ee_displacement = ee_displacement[:3]  # limit maximum change in position
         ee_position = self.get_ee_position() # get the current position and the target position
         target_ee_position = ee_position + ee_displacement
-        target_ee_position[2] = 0.12 # gap between ee and table, to avoid collision in real world 
+        target_ee_position[2] = self.z_offset # gap between ee and table, to avoid collision in real world 
 
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
         ee_euler = list(p.getEulerFromQuaternion(ee_quaternion)) # tuple
-        target_ee_euler = [-np.pi, 0, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
+        target_ee_euler = [-np.pi, 0, 0]
+        # target_ee_euler = [-np.pi, 0, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
         target_ee_quaternion = np.array(list(p.getQuaternionFromEuler(target_ee_euler)))
 
         # Clip the height target. For some reason, it has a great impact on learning
@@ -126,6 +130,8 @@ class PandaCustom(PyBulletRobot):
             link=self.ee_link, position=target_ee_position, orientation=target_ee_quaternion
         )
         target_arm_angles = target_arm_angles[:7]  # remove fingers angles
+        # clip the target joint angles according to the joint limits
+
         return target_arm_angles
 
     def arm_joint_ctrl_to_target_arm_angles(self, arm_joint_ctrl: np.ndarray) -> np.ndarray:
@@ -145,18 +151,13 @@ class PandaCustom(PyBulletRobot):
 
     def get_obs(self) -> np.ndarray:
         # end-effector position and velocity
-        ee_position = np.array(self.get_ee_position())[:2]
+        ee_position_2d = np.array(self.get_ee_position())[:2]
         ee_velocity = np.array(self.get_ee_velocity())
         ee_yaw = list(p.getEulerFromQuaternion(self.get_ee_orientation()))[-1]
         arm_joint_angles = self.get_arm_joint_angles()
-
         # fingers opening
-        if not self.block_gripper:
-            fingers_width = self.get_fingers_width()
-            observation = np.concatenate((ee_position, ee_velocity, [fingers_width]))
-        else:
-            self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
-            observation = np.concatenate((ee_position, [ee_yaw,], arm_joint_angles, self.design_params))
+        self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
+        observation = np.concatenate((ee_position_2d, [ee_yaw,], self.design_params))
         return observation
 
     def reset(self) -> None:
@@ -169,28 +170,24 @@ class PandaCustom(PyBulletRobot):
             p.removeBody(self.sim._bodies_idx["tool"])
         # if self.constraint_id is not None:
         #     p.removeConstraint(self.constraint_id)
-
         self._set_random_ee_pose()
         self._attach_tool_to_ee()
 
     def _set_random_ee_pose(self) -> None:
         """Set the robot to a random end-effector initial pose after reset."""
         self.set_joint_neutral() # set neutral first to avoid singularities
-        init_ee_position = np.array([0.0, 0.0, 0.1])
-        # push forward
-        init_ee_position[0] = np.random.uniform(0.2, 0.21) 
-        init_ee_position[1] = np.random.uniform(-0.1, 0.1)
-        init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/6, np.pi/6)]
-        # # push from left side (larger workspace length sideways than upfront. but not wide enough table in robot lab?)
-        # init_ee_position[0] = np.random.uniform(0.4, 0.5) 
-        # init_ee_position[1] = np.random.uniform(0.5, 0.6)
-        # init_ee_euler = [-np.pi, 0,  np.random.uniform(-np.pi/3, -2*np.pi/3)]
-
+        init_ee_position = np.array([0.0, 0.0, self.z_offset])
+        init_ee_position[0] = np.random.uniform(0.35, 0.55) 
+        init_ee_position[1] = np.random.uniform(0.2, 0.3)
+        self.ee_init_pos_2d = init_ee_position[:2]
+        init_ee_euler = [-np.pi, 0, 0]
         init_ee_quaternion = np.array(list(p.getQuaternionFromEuler(init_ee_euler)))
         init_arm_angles = self.inverse_kinematics(
             link=self.ee_link, position=init_ee_position, orientation=init_ee_quaternion
         )
         init_arm_angles = init_arm_angles[:7]  # remove fingers angles
+        for i, (lower, upper) in enumerate(self.joint_limits):
+            init_arm_angles[i] = np.clip(init_arm_angles[i], lower, upper)
         init_arm_angles = np.concatenate((init_arm_angles, [0.02, 0.02])) 
         self.set_joint_angles(init_arm_angles)
 
@@ -232,7 +229,7 @@ class PandaCustom(PyBulletRobot):
             jointAxis=[0, 0, 0],
             parentFramePosition=[0.0, 0.02, 0.075], # align with center of two parallel jaw fingers (z: leave space for handle in real world)
             childFramePosition=[0, 0, 0],
-            childFrameOrientation=p.getQuaternionFromEuler([3.14, 0, 0]), # important to avoid arm jerk when adding constraint
+            childFrameOrientation=p.getQuaternionFromEuler([3.14, 0, np.pi/2]), # important to avoid arm jerk when adding constraint
         )
     
     def set_joint_neutral(self) -> None:

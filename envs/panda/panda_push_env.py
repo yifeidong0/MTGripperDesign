@@ -1,19 +1,19 @@
-from typing import Optional, Any, Dict, Optional, Tuple
+# import os
+# import sys
+# # add parent parent directory to path
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from typing import Any, Dict, Optional, Tuple
+import time
 
 import numpy as np
-import time
 import random
 import pybullet as p
 from panda_gym.envs.core import RobotTaskEnv
 from panda_gym.pybullet import PyBullet
-from panda_gym.envs.tasks.push import Push
-from typing import Any, Dict, Optional, Tuple
-from gymnasium.utils import seeding
 
 from .panda_push_robot import PandaCustom
 from .panda_push_task import VPush
-import os
-import cv2
 import gc
 
 class PandaUPushEnv(RobotTaskEnv):
@@ -59,6 +59,7 @@ class PandaUPushEnv(RobotTaskEnv):
         sim = PyBullet(render_mode=render_mode, renderer=renderer)
         robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type, run_id=run_id)
         task = VPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward)
+        task.ee_init_pos_2d = robot.ee_init_pos_2d
         super().__init__(
             robot,
             task,
@@ -75,10 +76,11 @@ class PandaUPushEnv(RobotTaskEnv):
         self.obs_type = obs_type
         self.reward_weights = reward_weights
         self.step_count = 0
-        self.canvas_min_x = 0.20
-        self.canvas_max_x = 0.75
-        self.canvas_min_y = -0.40
-        self.canvas_max_y = 0.40
+        self.canvas_min_x = 0.25
+        self.canvas_max_x = 0.6
+        self.canvas_min_y = -0.4
+        self.canvas_max_y = 0.4
+        self.is_safe = True
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1
@@ -89,11 +91,10 @@ class PandaUPushEnv(RobotTaskEnv):
         observation = self._get_obs()
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         info = {"is_success": terminated}
-
         truncated = self._is_truncated()
+        self.task.is_safe = self.is_safe
         reward = float(self.task.compute_reward(observation["achieved_goal"], self.task.get_goal(), observation["observation"]))
-        info['robustness'] = self.task.robustness
-        # time.sleep(10./240.)
+        info['robustness'] = self.task.robustness_score
 
         # # pybullet take image
         # width, height, rgbPixels, _, _ = p.getCameraImage(256, 256, 
@@ -111,6 +112,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self, seed: Optional[int] = None, options: Optional[dict] = None
     ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
         self.step_count = 0
+        self.is_safe = True
 
         # Reset task and design parameters
         self.task.task_object_name = random.choice(self.task.task_object_names)
@@ -122,7 +124,7 @@ class PandaUPushEnv(RobotTaskEnv):
             self.robot.distal_phalanx_length = random.uniform(0.00, 0.08)
             if self._pusher_forward_kinematics()[1] > 0.02: # make sure the pusher does not self-intersect
                 break
-
+        
         return super().reset(seed=seed, options=options)
 
     def reset_task_and_design(
@@ -169,9 +171,33 @@ class PandaUPushEnv(RobotTaskEnv):
         time_ended = self.step_count > 1000
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
-        # if truncated:
-        #     print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
-        #     print(f"object_out_of_canvas") if object_out_of_canvas else None
-        #     print(f"time_ended") if time_ended else None
+        if (gripper_out_of_canvas or object_out_of_canvas):
+            self.is_safe = False
+        if truncated:
+            print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
+            print(f"object_out_of_canvas") if object_out_of_canvas else None
+            print(f"time_ended") if time_ended else None
 
         return truncated
+
+
+if __name__ == "__main__":
+    env = PandaUPushEnv(render_mode="human")
+    n_episodes = 5
+    n_steps = 1000
+    import time
+    for i in range(n_episodes):
+        observation = env.reset()
+        done = False
+        for _ in range(n_steps):
+            action = env.action_space.sample()
+            action[0] = 0
+            action[1] = -0.02
+            observation, reward, terminated, truncated, info = env.step(action)
+            if truncated or terminated:
+                print("Truncated") if truncated else None
+                print("Terminated") if terminated else None
+                break
+    del env
+    gc.collect()
+    print("Done")
