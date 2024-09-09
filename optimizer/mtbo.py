@@ -84,7 +84,7 @@ class MyAcquisition(AcquisitionBase):
 
 
 class BayesianOptimizationMultiTask:
-    def __init__(self, initial_iter=1, num_episodes=1):
+    def __init__(self, initial_iter=1):
         """
         Initialize the Bayesian Optimization Pipeline with the given parameters.
 
@@ -161,8 +161,6 @@ class BayesianOptimizationMultiTask:
         Returns:
             GPy.kern: The basic kernel for GP.
         """
-        # return GPy.kern.Matern52(input_dim, ARD=1) + GPy.kern.Bias(input_dim)
-
         # length scale helps to smooth the function and avoid overfitting
         return GPy.kern.Matern52(input_dim, ARD=1, lengthscale=10.0) + GPy.kern.White(input_dim, variance=1.0) 
 
@@ -190,7 +188,6 @@ class BayesianOptimizationMultiTask:
         Returns:
             float: The score for the given design and task.
         """
-        # print('xt: ', xt)
         assert len(xt) == 1
         xt = xt[0]
         # assert xt[-1] == 0.0 or xt[-1] == 1.0
@@ -241,19 +238,11 @@ class BayesianOptimizationMultiTask:
         Returns:
             tuple: The costs and gradients for the input.
         """
-        # C0, C1 = 1.0, 1.0
-        # t2c = {0: C0, 1: C1}
-        # t2g = {0: [0.0, (C1 - C0)], 1: [0.0, (C1 - C0)]}
-        # costs = np.array([[t2c[int(t)]] for t in xt[:, -1]])
-        # gradients = np.array([t2g[int(t)] for t in xt[:, -1]])
-        # return costs, gradients
-
-        num_tasks = self.num_outputs
         costs = np.zeros((xt.shape[0], 1))
         gradients = np.zeros((xt.shape[0], len(self.bounds)))
 
         # Assign costs and gradients for each task dynamically
-        for t in range(num_tasks):
+        for t in range(self.num_outputs):
             costs[xt[:, -1] == t] = 1.0  # You can modify the cost function for each task if necessary
             gradients[xt[:, -1] == t] = [0.0] * len(self.bounds)  # Modify if task-specific gradients are needed
 

@@ -10,9 +10,12 @@ from utils.plot_bo import *
 import gymnasium as gym
 from stable_baselines3 import PPO
 import envs
+from experiments.args_utils import get_args_bo
+import wandb
+import csv
 
 class BayesianOptimization:
-    def __init__(self, env_type="push", initial_iter=3, max_iter=10, policy='rl', num_episodes=4, gui=False):
+    def __init__(self, initial_iter=1,):
         """
         Initialize the Bayesian Optimization Pipeline with the given parameters.
 
@@ -23,43 +26,55 @@ class BayesianOptimization:
             max_iter (int): The maximum number of iterations to run.
             gui (bool): Whether to use GUI for the simulations.
         """
-        self.env_type = env_type
-        self.policy = policy
-        self.num_episodes = num_episodes
-        self.gui = gui
+        self.initial_iter = initial_iter
+        self.args = get_args_bo()
+        self.env_type = self.args.env
+        self.max_iter = self.args.max_iterations
+        self.num_episodes = self.args.num_episodes_eval
+        self.model_path = self.args.model_path
 
         # Set bounds and number of tasks based on environment type
         if self.env_type == "vpush":
             self.x_scale = np.arange(np.pi/12, np.pi*11/12, np.pi/64)
-            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (np.pi/12, np.pi*11/12)}]
-            self.env_id = 'VPushPbSimulationEnv-v0'
-            self.num_tasks = 2
+            self.bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (np.pi/12, np.pi*11/12)},]
+            self.num_outputs = 2
             self.robustness_score_weight = 1.0
-            self.model_path = "results/models/ppo_VPushPbSimulationEnv-v0_3000000_2024-07-22-16-17-10_with_robustness_reward.zip"
-        elif self.env_type == "ucatch":
+        elif self.env_type == "catch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)}, # design space bounds
                         {'name': 'd1', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'd2', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'alpha0', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},
-                        {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)}]
-            self.num_tasks = 2
+                        {'name': 'alpha1', 'type': 'continuous', 'domain': (np.pi/2, np.pi)},]
+            self.num_outputs = 2
             self.robustness_score_weight = 0.1
-            self.env_id = 'UCatchSimulationEnv-v0'
-            self.model_path = "results/models/best_model_ucatch_w_robustness_reward.zip"
+        elif self.env_type == "panda":
+            self.num_outputs = 5
+            self.bounds = [{'name': 'v_angle', 'type': 'continuous', 'domain': (np.pi/6, np.pi*5/6)}, # design space bounds, make sure it aligns with reset in panda_push_env
+                        {'name': 'finger_length', 'type': 'continuous', 'domain': (0.05, 0.12)}, 
+                        {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
+                        {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.08)},]
+            self.robustness_score_weight = 0.3
+        elif self.env_type == "dlr":
+            self.num_outputs = 11
+            self.bounds = [{'name': 'l', 'type': 'discrete', 'domain': list(np.arange(30, 65, 5))},
+                           {'name': 'c', 'type': 'discrete', 'domain': list(np.arange(2, 10, 2))},]
+            self.robustness_score_weight = 1.0 / 2000.0
 
-        if self.policy == "heuristic":
-            if self.env_type == "vpush":
-                from sim.vpush_pb_sim import VPushPbSimulation as Simulation
-                self.sim = Simulation('circle', 1, self.gui)
-            # elif self.env_type == "scoop":
-            #     from sim.scoop_sim import ScoopingSimulation as Simulation
-            #     self.sim = Simulation('pillow', [1,1], self.gui)
-        elif self.policy == "rl":
-            self.env = gym.make(self.env_id, gui=self.gui, obs_type='pose')
-            self.rl_model = PPO.load(self.model_path)
+        # Create the environment and RL model
+        env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
+                    'catch':'UCatchSimulationEnv-v0',
+                    'dlr':'DLRSimulationEnv-v0',
+                    'panda':'PandaUPushEnv-v0'}
+        self.env_id = env_ids[self.args.env]
+        run_id = wandb.util.generate_id()
+        env_kwargs = {'obs_type': self.args.obs_type, 
+                        'render_mode': self.args.render_mode,
+                        'perturb': self.args.perturb,
+                        'run_id': run_id,
+                        }
+        self.env = gym.make(self.env_id, **env_kwargs)
+        self.rl_model = PPO.load(self.model_path)
 
-        self.initial_iter = initial_iter
-        self.max_iter = max_iter
         self.kernel = self.get_kernel_basic(input_dim=len(self.bounds))
         # self.task_counter = {}
         self.setup_bo()
@@ -74,7 +89,6 @@ class BayesianOptimization:
         Returns:
             GPy.kern: The basic kernel for GP.
         """
-        # return GPy.kern.Matern52(input_dim, ARD=1) + GPy.kern.Bias(input_dim)
         return GPy.kern.Matern52(input_dim, ARD=1, lengthscale=10.0) + GPy.kern.White(input_dim, variance=1.0)
 
     def objective(self, x):
@@ -90,40 +104,35 @@ class BayesianOptimization:
         """
         x = x[0]
         scores = []
-        for t in range(self.num_tasks):
-            if self.policy == "heuristic":
-                if self.env_type == "vpush":
-                    task = 'circle' if int(t) == 0 else 'polygon'
-                    self.sim.reset_task_and_design(task, x[0])
-                    score = self.sim.run(self.num_episodes)
-                elif self.env_type == "ucatch":
-                    from sim.ucatch_sim import UCatchSimulation as Simulation
-                    task = 'circle' if int(t) == 0 else 'polygon'
-                    sim = Simulation(task, x, self.gui)
-                    score = sim.run(self.num_episodes)
-
-            elif self.policy == "rl":
-                avg_score = 0
-                obs, _ = self.env.reset(seed=0)
-                for episode in range(self.num_episodes):
-                    obs, _ = self.env.reset_task_and_design(t, x, seed=0)
-                    done, truncated = False, False
-                    avg_robustness = 0
-                    num_robustness_step = 0
-                    while not (done or truncated):
-                        action = self.rl_model.predict(obs)[0]
-                        obs, reward, done, truncated, info = self.env.step(action)
-                        if info['robustness'] is not None and info['robustness'] > 0:
-                            num_robustness_step += 1
-                            avg_robustness += info['robustness'] * self.robustness_score_weight
-                        self.env.render()
-                    success_score = 0.5 if done else 0.1
-                    robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
-                    # print(f"Success: {success_score}, Robustness: {robustness_score}")
-                    score = success_score + robustness_score
-                    avg_score += score
-                    print("Done!" if done else "Truncated.")
-                score = avg_score / self.num_episodes
+        for t in range(self.num_outputs):
+            avg_score = 0
+            obs, _ = self.env.reset(seed=self.args.random_seed)
+            for episode in range(self.num_episodes):
+                if self.env_type == "dlr":
+                    self.env.num_discrete_tasks = self.num_outputs
+                obs, _ = self.env.reset_task_and_design(t, x, seed=self.args.random_seed)
+                if self.args.env == "panda" and self.env.is_invalid_design:
+                    print(f"Invalid design: {x}")
+                    return 0                
+                
+                done, truncated = False, False
+                avg_robustness = 0
+                num_robustness_step = 0
+                while not (done or truncated):
+                    action = self.rl_model.predict(obs)[0]
+                    obs, reward, done, truncated, info = self.env.step(action)
+                    if info['robustness'] is not None and info['robustness'] > 0:
+                        num_robustness_step += 1
+                        weight = self.robustness_score_weight if self.args.model_with_robustness_reward else 0.0
+                        avg_robustness += info['robustness'] * weight
+                    # self.env.render()
+                success_score = 1.0 if done else 0.0
+                robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+                # print(f"Success: {success_score}, Robustness: {robustness_score}")
+                score = success_score + robustness_score
+                avg_score += score
+                print("Done!" if done else "Truncated.")
+            score = avg_score / self.num_episodes
 
             scores.append(score)
         return np.mean(scores)
@@ -173,63 +182,96 @@ class BayesianOptimization:
         
         return best_design, best_score, grid_points, means, vars
 
-    def save_to_csv(self, filename, csv_buffer):
+    def save_to_csv(self, row_data, mode='a'):
         """
-        Save the results of num_iter, best_design, best_score to a csv file.
-        """
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, 'w') as f:
-            if self.env_type in ["vpush"]:
-                f.write("num_iter,num_episodes_so_far,best_design,best_score_estimated\n")
-                for line in csv_buffer:
-                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[3]}\n")
-            elif self.env_type in ["ucatch",]:
-                f.write("num_iter,num_episodes_so_far,best_design_0,best_design_1,best_design_2,best_design_3,best_design_4,best_score_estimated\n")
-                for line in csv_buffer:
-                    f.write(f"{line[0]},{line[1]},{line[2][0]},{line[2][1]},{line[2][2]},{line[2][3]},{line[2][4]},{line[3]}\n")
+        Save the results of num_iter, best_design, best_score, and evaluation scores to a CSV file.
 
-    def run(self):
+        Args:
+            row_data (list): Data row to be saved.
+            mode (str): Mode to open the file. Default is 'a' (append).
         """
-        Run the Bayesian Optimization pipeline.
-        """
-        # Create a file with unique name
-        k = 0
-        while True:     
-            csv_filename = f"results/csv/{self.env_type}_bo_results_{k}.csv"
-            if os.path.exists(csv_filename):
-                k += 1
-            else:
-                break
-
-        csv_buffer = []
-        for i in range(1, self.max_iter+1):
-            print("-------------- Iteration: --------------", i)
-            self.bo.run_optimization(1, eps=-1) # eps=-1: avoid early stopping
-            print('next_locations: ', self.bo.suggest_next_locations())
-            if self.env_type in ["vpush"]:
-                plot_bo(self.bo, self.x_scale, i, id_run=k)
-    
-            # Find the optimal design after the optimization loop
-            best_design, best_score, grid_points, means, vars = self.find_optimal_design()
-            print(f"Optimal Design: {best_design}, Score: {best_score}")
-            num_episodes_so_far = self.num_episodes * (i + self.initial_iter) * self.num_tasks
-            csv_buffer.append([i, num_episodes_so_far, best_design, best_score])
+        filename = self.args.save_filename
+        if not os.path.exists(filename):
+            if self.args.env == "catch":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
+                        "best_design_3", "best_design_4", "best_score_estimated", "score_true", 
+                        "success_score_true", "robustness_score_true"]
+            elif self.args.env == "vpush":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_score_estimated", 
+                        "score_true", "success_score_true", "robustness_score_true"]
+            elif self.args.env == "panda":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", 
+                        "best_design_3", "best_score_estimated", "score_true", "success_score_true", "robustness_score_true"]
+            elif self.args.env == "dlr":
+                headers = ["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_score_estimated", 
+                        "score_true", "success_score_true", "robustness_score_true"]
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
         
-        # Save intermediate designs to a csv file
-        self.save_to_csv(csv_filename, csv_buffer)
+        with open(filename, mode, newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(row_data)
 
-        # Plot the results
-        # if self.env_type in ["ucatch"]:
-        #     plot_marginalized_results(grid_points, means, vars, tasks=list(range(self.num_tasks)), optimizer='bo')
+    def evaluate_optimal_design(self, design):
+        """
+        Evaluate the optimal design.
+
+        Args:
+            design (list): Optimal design parameters.
+        Returns:
+            tuple: Average score, success score, robustness score.
+        """
+        avg_score, avg_success_score, avg_robustness_score = 0, 0, 0
+        obs, _ = self.env.reset(seed=self.args.random_seed)
+
+        for episode in range(self.args.num_episodes_eval_best):
+            if self.env_type == "dlr":
+                self.env.num_discrete_tasks = self.num_outputs
+            task = np.random.choice(range(self.num_outputs))
+            obs, _ = self.env.reset_task_and_design(task, design, seed=self.args.random_seed)
+            done, truncated = False, False
+            avg_robustness = 0
+            num_robustness_step = 0
+
+            while not (done or truncated):
+                action = self.rl_model.predict(obs)[0]
+                obs, reward, done, truncated, info = self.env.step(action)
+                if info.get('robustness') is not None and info['robustness'] > 0:
+                    num_robustness_step += 1
+                    avg_robustness += info['robustness'] * self.robustness_score_weight
+
+            print("Done!" if done else "Truncated.")
+            success_score = 1.0 if done else 0.0
+            robustness_score = avg_robustness / num_robustness_step if num_robustness_step > 0 else 0
+            score = success_score + robustness_score
+            avg_score += score
+            avg_success_score += success_score
+            avg_robustness_score += robustness_score
+
+        avg_score /= self.args.num_episodes_eval_best
+        avg_success_score /= self.args.num_episodes_eval_best
+        avg_robustness_score /= self.args.num_episodes_eval_best
+        print(f"Design: {design}, Score: {avg_score}, Success: {avg_success_score}, Robustness: {avg_robustness_score}")
+
+        return avg_score, avg_success_score, avg_robustness_score
+    
+    def run(self):
+        """Run the Bayesian Optimization pipeline."""
+        # csv_filename = f"results/csv/{self.env_type}_bo_results.csv"
+        for i in range(1, self.max_iter + 1):
+            print("-------------- Iteration: --------------", i)
+            self.bo.run_optimization(1, eps=-1)
+            print('next_locations: ', self.bo.suggest_next_locations())
+            best_design, best_score, _, _, _ = self.find_optimal_design()
+            print(f"Optimal Design: {best_design}, Score: {best_score}")
+            evaluated_score, success_rate, robustness_score = self.evaluate_optimal_design(best_design)
+            num_episodes_so_far = self.num_episodes * i * self.num_outputs
+            row_data = [i, num_episodes_so_far] + best_design.tolist() + [best_score, evaluated_score, success_rate, robustness_score]
+            self.save_to_csv(row_data)
 
 if __name__ == "__main__":
-    num_run = 10
-    for r in range(num_run):
-        pipeline = BayesianOptimization(env_type="vpush", # vpush, ucatch
-                                        initial_iter=1, 
-                                        max_iter=50, 
-                                        policy='rl', 
-                                        num_episodes=4, 
-                                        gui=0)
-        pipeline.run()
-        pipeline.env.close()
+    pipeline = BayesianOptimization(initial_iter=1,)
+    pipeline.run()
+    pipeline.env.close()
