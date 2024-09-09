@@ -10,6 +10,9 @@ asset/poly_scoop/*
 asset/polygons/polygon_obj_generator*
 asset/polygons/*.mtl
 asset/2024*
+asset/polygons/*blend*
+asset/polygons/*stl
+asset/polygons/*gx
 
 results/*
 
