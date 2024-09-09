@@ -43,7 +43,7 @@ class VPush(Task):
             
     def _create_scene(self) -> None:
         self.sim.create_plane(z_offset=-0.4)
-        self.sim.create_table(length=2, width=1, height=0.4, x_offset=0, lateral_friction=40/77)
+        self.sim.create_table(length=2, width=2, height=0.4, x_offset=0, lateral_friction=40/77)
         self._create_task_object()
 
     def _create_task_object(self) -> None:
@@ -263,7 +263,7 @@ class VPush(Task):
 
         if self.reward_type == "sparse":
             d = distance(achieved_goal, desired_goal)
-            return -np.array(d > self.distance_threshold, dtype=np.float32)
+            return reward - np.array(d > self.distance_threshold, dtype=np.float32)
 
         ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
         object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
@@ -284,8 +284,8 @@ class VPush(Task):
         # if self.is_safe is False:
         #     reward -= 100
         
-        if self.is_success(achieved_goal, desired_goal):
-            reward += 500
+        # if self.is_success(achieved_goal, desired_goal):
+        #     reward += 500
             
         return reward
     
