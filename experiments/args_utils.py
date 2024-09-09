@@ -31,6 +31,7 @@ def get_args():
     parser.add_argument('--reward_weights', type=float, nargs='+', default=[0.1, 0.001, -0.03, 0.1, 10.0, 50.0, 5e-3, 100.0], help='List of reward weights to use during training')
     parser.add_argument('--wandb_mode', type=str, choices=['online', 'offline', 'disabled'], default='disabled', help='Wandb mode for logging')
     parser.add_argument('--wandb_group_name', type=str, default='default', help='Wandb group name for logging')
+    parser.add_argument('--reward_type', type=str, choices=['dense', 'sparse'], default='dense', help='Type of reward to use during training')
     return parser.parse_args()
 
 def get_args_bo():

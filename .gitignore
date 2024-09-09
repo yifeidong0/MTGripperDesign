@@ -11,6 +11,8 @@ asset/polygons/polygon_obj_generator*
 asset/polygons/*.mtl
 asset/2024*
 asset/8*
+asset/i*
+asset/m*
 asset/polygons/*blend*
 asset/polygons/*stl
 asset/polygons/*gx

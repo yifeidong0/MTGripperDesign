@@ -105,7 +105,7 @@ class SuccessScorePlotter:
         data = {}
 
         for i in range(1, 4):  # For folders 1 to 6
-            csv_files = sorted(glob(f"{self.base_path}/{i}/panda_ga*.csv"))
+            csv_files = sorted(glob(f"{self.base_path}/{i}/catch_ga*.csv"))
             print(csv_files[0])
             data[i] = {}
 
@@ -161,7 +161,7 @@ class SuccessScorePlotter:
 
 
 if __name__ == "__main__":
-    base_path = 'results/paper/panda'
+    base_path = 'results/paper/catch'
     # plotter = TrainingCurvePlotter(base_path)
     plotter = SuccessScorePlotter(base_path)
     plotter.plot_all()

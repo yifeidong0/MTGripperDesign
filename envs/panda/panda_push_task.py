@@ -248,8 +248,23 @@ class VPush(Task):
         task_int = observation[..., 8].reshape(-1, 1)
         object_rad = observation[..., 9].reshape(-1, 1)
 
-
         reward = 0
+        # Caging robustness
+        if self.using_robustness_reward:
+            self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
+                                                     ee_yaw,
+                                                     achieved_goal[..., :2],
+                                                     design_params,
+                                                     object_rad,
+                                                     slack=self.object_size/2,)
+            if self.robustness_score.shape[0] == 1:
+                self.robustness_score = np.squeeze(self.robustness_score, axis=0)  # Converts (1,) to ()
+            reward += self.robustness_score
+
+        if self.reward_type == "sparse":
+            d = distance(achieved_goal, desired_goal)
+            return -np.array(d > self.distance_threshold, dtype=np.float32)
+
         ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
         object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
 
@@ -266,23 +281,11 @@ class VPush(Task):
             weight_yaw = 0
         reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance
         
-        if self.is_safe is False:
-            reward -= 100
+        # if self.is_safe is False:
+        #     reward -= 100
         
         if self.is_success(achieved_goal, desired_goal):
             reward += 500
-        
-        # Caging robustness
-        if self.using_robustness_reward:
-            self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
-                                                     ee_yaw,
-                                                     achieved_goal[..., :2],
-                                                     design_params,
-                                                     object_rad,
-                                                     slack=self.object_size/2,)
-            if self.robustness_score.shape[0] == 1:
-                self.robustness_score = np.squeeze(self.robustness_score, axis=0)  # Converts (1,) to ()
-            reward += self.robustness_score
             
         return reward
     

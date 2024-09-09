@@ -121,7 +121,7 @@ def main():
                   'perturb_sigma': args.perturb_sigma,
                   'render_mode': args.render_mode, 
                   'run_id': run_id,
-                  'reward_type': 'dense', # dense, sparse
+                  'reward_type': args.reward_type, # dense, sparse
                   'reward_weights': args.reward_weights,
                   }
     
@@ -171,6 +171,7 @@ def main():
                     )            
     elif args.algo == 'sac':
         assert args.env_id == 'panda', "Only PandaUPushEnv-v0 is supported for SAC and HER"
+        assert args.reward_type == "sparse", "Only sparse reward is supported for SAC and HER"
         model = SAC('MultiInputPolicy', 
                     env,
                     buffer_size=1000000,
