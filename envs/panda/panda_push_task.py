@@ -26,10 +26,6 @@ class VPush(Task):
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.08 # if too smaller than the geometry of tool, the object geometry variation will not be demonstrated
-        self.goal_range_low = np.array([0.7, 0, 0])
-        self.goal_range_high = np.array([0.75, 0.1, 0])
-        self.obj_range_low = np.array([0.4, 0, 0])
-        self.obj_range_high = np.array([0.5, 0.1, 0])
         self.task_object_name = 'circle' # initial choice
         self.task_object_names = ['circle', 'square', 'polygon0', 'narrow', 'oval']
         self.task_int = 0 if self.task_object_name == 'circle' else 1
@@ -51,7 +47,7 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="object",
                 radius=self.object_size/2,
-                height=self.object_size/2,
+                height=0.1,
                 mass=1.0,
                 position=np.array([0.0, 0.0, self.object_size/4]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
@@ -59,7 +55,7 @@ class VPush(Task):
             self.sim.create_cylinder(
                 body_name="target",
                 radius=self.object_size/2,
-                height=self.object_size/2,
+                height=0.1,
                 mass=0.0,
                 ghost=True,
                 position=np.array([0.0, 0.0, self.object_size/4]),
@@ -84,17 +80,17 @@ class VPush(Task):
         elif self.task_object_name == 'polygon0':
             file_name = "asset/polygons/poly0.obj"
             mesh_scale = [1,] * 3
-            height = self.object_size / 2 # make sure the height is right in obj file
+            height = 0.1 # make sure the height is right in obj file
             self._create_task_object_mesh(file_name, mesh_scale, height)
         elif self.task_object_name == 'narrow':
             file_name = "asset/polygons/narrow.obj"
             mesh_scale = [1,] * 3
-            height = self.object_size / 2 # make sure the height is right in obj file
+            height = 0.1 # make sure the height is right in obj file
             self._create_task_object_mesh(file_name, mesh_scale, height)
         elif self.task_object_name == 'oval':
             file_name = "asset/polygons/oval.obj"
             mesh_scale = [1,] * 3
-            height = self.object_size / 2 # make sure the height is right in obj file
+            height = 0.1 # make sure the height is right in obj file
             self._create_task_object_mesh(file_name, mesh_scale, height)
 
         # for caging escape computation
@@ -177,6 +173,8 @@ class VPush(Task):
 
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
+        self.goal_range_low = np.array([0.35, -0.3, 0])
+        self.goal_range_high = np.array([0.55, -0.2, 0])
         goal = np.array([0.0, 0.0, self.object_size/2])  # z offset for the cube center
         noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
         goal += noise
@@ -184,6 +182,8 @@ class VPush(Task):
 
     def _sample_object(self) -> np.ndarray:
         """Randomize start position of object."""
+        self.obj_range_low = np.array([0.35, -0.2, 0])
+        self.obj_range_high = np.array([0.55, 0.1, 0])
         object_position = np.array([0.0, 0.0, self.object_size / 2])
         noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
         object_position += noise

@@ -67,10 +67,10 @@ class PandaUPushEnv(RobotTaskEnv):
             render_roll=render_roll,
         )
         self.step_count = 0
-        self.canvas_min_x = 0.1
-        self.canvas_max_x = 0.9
-        self.canvas_min_y = -1
-        self.canvas_max_y = 1
+        self.canvas_min_x = 0.25
+        self.canvas_max_x = 0.65
+        self.canvas_min_y = -0.4
+        self.canvas_max_y = 0.4
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1
