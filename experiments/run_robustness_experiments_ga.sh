@@ -18,11 +18,11 @@ run_in_vscode_terminal() {
         --perturb $perturb \
         --device cpu \
         --save_filename $csv_filename \
-        --num_episodes_eval 5 \
+        --num_episodes_eval 4 \
         --num_episodes_eval_best 16 \
         --render_mode rgb_array \
         --population_size 4 \
-        --num_generations 30 \
+        --num_generations 20 \
         --mutation_rate 0.1 \
         --random_seed $seed"
 

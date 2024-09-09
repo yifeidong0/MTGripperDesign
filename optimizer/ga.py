@@ -152,7 +152,7 @@ class GeneticAlgorithmPipeline:
             xt = np.append(individual, task)
             score = self.mt_objective(xt)
             scores.append(score)
-        return np.mean(scores)
+        return np.mean(scores) # TODO: min-max and mean-max
 
     def select_parents(self, fitness):
         """
@@ -198,7 +198,11 @@ class GeneticAlgorithmPipeline:
         for i in range(len(individual)):  # Do not mutate the task dimension
             if random.random() < self.mutation_rate:
                 bound = self.bounds[i]['domain']
-                individual[i] = random.uniform(*bound)
+                # individual[i] = random.uniform(*bound)
+                if self.bounds[i]['type'] == 'continuous':
+                    individual[i] = random.uniform(*bound)
+                elif self.bounds[i]['type'] == 'discrete':
+                    individual[i] = random.choice(bound)
         return individual
 
     def save_to_csv(self, filename, data):
