@@ -236,7 +236,6 @@ class VPush(Task):
         return robustness
   
     def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray,) -> np.ndarray:
-        d = distance(achieved_goal, desired_goal)
         if observation.ndim == 1:
             achieved_goal = np.expand_dims(achieved_goal, axis=0)  
             desired_goal = np.expand_dims(desired_goal, axis=0)
@@ -254,18 +253,18 @@ class VPush(Task):
         ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
         object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
 
-        object_target_yaw = np.atan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
-        yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
+        # object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
+        # yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
 
-        if ee_object_distance > 0.2:
+        if ee_object_distance > 0.2: # better contact detector?
             weight_ee_object_distance = 1.0
-            weight_object_target_distance = 0
-            weight_yaw = 0.5
+            weight_object_target_distance = 0.0
+            weight_yaw = 0
         else:
-            weight_ee_object_distance = 1
+            weight_ee_object_distance = 1.0
             weight_object_target_distance = 1.0
             weight_yaw = 0
-        reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
+        reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance
         
         if self.is_safe is False:
             reward -= 100

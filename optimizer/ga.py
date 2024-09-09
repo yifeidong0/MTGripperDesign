@@ -18,7 +18,7 @@ class GeneticAlgorithmPipeline:
         Initialize the Genetic Algorithm Pipeline with the given parameters.
 
         Args:
-            env_type (str): The type of environment ('push', 'vpush', or 'ucatch').
+            env_type (str): The type of environment ('vpush', or 'catch').
             population_size (int): The size of the population for the genetic algorithm.
             generations (int): The number of generations to run the genetic algorithm.
             mutation_rate (float): The mutation rate for the genetic algorithm.
@@ -33,7 +33,7 @@ class GeneticAlgorithmPipeline:
                         {'name': 'task', 'type': 'discrete', 'domain': (0, 1)}]
             self.num_outputs = 2
             self.robustness_score_weight = 1.0
-        elif self.env_type == "ucatch":
+        elif self.env_type == "catch":
             self.bounds = [{'name': 'd0', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'd1', 'type': 'continuous', 'domain': (5, 10)},
                         {'name': 'd2', 'type': 'continuous', 'domain': (5, 10)},
@@ -89,11 +89,11 @@ class GeneticAlgorithmPipeline:
         population = []
         for _ in range(self.population_size):
             individual = []
-            for bound in self.bounds:
+            for bound in self.bounds[:-1]:  # Do not include the task dimension
                 if bound['type'] == 'continuous':
                     individual.append(random.uniform(*bound['domain']))
-                # elif bound['type'] == 'discrete':
-                #     individual.append(random.choice(bound['domain']))
+                elif bound['type'] == 'discrete':
+                    individual.append(random.choice(bound['domain']))
             population.append(individual)
         return np.array(population)
 
@@ -219,7 +219,7 @@ class GeneticAlgorithmPipeline:
             if not file_exists:
                 if self.env_type in ["vpush"]:
                     writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])
-                elif self.env_type in ["ucatch"]:
+                elif self.env_type in ["catch"]:
                     writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", "best_design_3", "best_design_4", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])
                 elif self.env_type in ["panda"]:
                     writer.writerow(["num_iter", "num_episodes_so_far", "best_design_0", "best_design_1", "best_design_2", "best_design_3", "best_score_estimated", "evaluated_score", "success_rate", "robustness_score"])

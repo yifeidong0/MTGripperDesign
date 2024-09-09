@@ -173,10 +173,10 @@ class PandaUPushEnv(RobotTaskEnv):
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         if (gripper_out_of_canvas or object_out_of_canvas):
             self.is_safe = False
-        if truncated:
-            print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
-            print(f"object_out_of_canvas") if object_out_of_canvas else None
-            print(f"time_ended") if time_ended else None
+        # if truncated:
+        #     print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
+        #     print(f"object_out_of_canvas") if object_out_of_canvas else None
+        #     print(f"time_ended") if time_ended else None
 
         return truncated
 
