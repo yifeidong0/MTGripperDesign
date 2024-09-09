@@ -56,7 +56,7 @@ class PandaUPushEnv(RobotTaskEnv):
         render_pitch: float = -30,
         render_roll: float = 0,
     ) -> None:
-        sim = PyBullet(render_mode=render_mode, renderer=renderer)
+        sim = PyBullet(render_mode=render_mode, renderer=renderer, n_substeps=24)
         robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type, run_id=run_id)
         task = VPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward)
         task.ee_init_pos_2d = robot.ee_init_pos_2d
@@ -77,7 +77,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self.reward_weights = reward_weights
         self.step_count = 0
         self.canvas_min_x = 0.25
-        self.canvas_max_x = 0.6
+        self.canvas_max_x = 0.65
         self.canvas_min_y = -0.4
         self.canvas_max_y = 0.4
         self.is_safe = True
@@ -171,33 +171,11 @@ class PandaUPushEnv(RobotTaskEnv):
         time_ended = self.step_count > 1000
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
-        if (gripper_out_of_canvas or object_out_of_canvas):
+        if (gripper_out_of_canvas):
             self.is_safe = False
-        # if truncated:
-        #     print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
-        #     print(f"object_out_of_canvas") if object_out_of_canvas else None
-        #     print(f"time_ended") if time_ended else None
+        if truncated:
+            print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
+            print(f"object_out_of_canvas") if object_out_of_canvas else None
+            print(f"time_ended") if time_ended else None
 
         return truncated
-
-
-if __name__ == "__main__":
-    env = PandaUPushEnv(render_mode="human")
-    n_episodes = 5
-    n_steps = 1000
-    import time
-    for i in range(n_episodes):
-        observation = env.reset()
-        done = False
-        for _ in range(n_steps):
-            action = env.action_space.sample()
-            action[0] = 0
-            action[1] = -0.02
-            observation, reward, terminated, truncated, info = env.step(action)
-            if truncated or terminated:
-                print("Truncated") if truncated else None
-                print("Terminated") if terminated else None
-                break
-    del env
-    gc.collect()
-    print("Done")

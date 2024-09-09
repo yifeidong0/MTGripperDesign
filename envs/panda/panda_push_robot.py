@@ -37,7 +37,7 @@ class PandaCustom(PyBulletRobot):
         self.control_type = control_type
         # action space (dx, dy, dyaw)
         # action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05,]), high=np.array([0.01, 0.01, 0.05,]), dtype=np.float32)
-        action_space = spaces.Box(low=np.array([-0.03, -0.03,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
+        action_space = spaces.Box(low=np.array([-0.01, -0.01,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
 
         self.v_angle = 0.5
         self.panda_file_name = "asset/franka_panda_custom/panda_template.urdf"
@@ -82,7 +82,10 @@ class PandaCustom(PyBulletRobot):
             (-2.8973, 2.8973),
         ]
         self.z_offset = 0.12
+        self.ee_target_position = np.zeros(3)
+        self.ee_target_position[2] = self.z_offset
         self.ee_init_pos_2d = np.zeros(2)
+        self.attached_tool = False
 
     def set_action(self, action: np.ndarray) -> None:
         action = action.copy()  # ensure action don't change
@@ -113,9 +116,9 @@ class PandaCustom(PyBulletRobot):
         """
         # Set target end-effector position
         ee_displacement = ee_displacement[:3]  # limit maximum change in position
-        ee_position = self.get_ee_position() # get the current position and the target position
-        target_ee_position = ee_position + ee_displacement
-        target_ee_position[2] = self.z_offset # gap between ee and table, to avoid collision in real world 
+        # ee_position = self.get_ee_position() # get the current position and the target position
+        # target_ee_position = ee_position + ee_displacement
+        self.ee_target_position[:2] += ee_displacement[:2]
 
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
@@ -127,11 +130,10 @@ class PandaCustom(PyBulletRobot):
         # Clip the height target. For some reason, it has a great impact on learning
         # compute the new joint angles
         target_arm_angles = self.inverse_kinematics(
-            link=self.ee_link, position=target_ee_position, orientation=target_ee_quaternion
+            link=self.ee_link, position=self.ee_target_position, orientation=target_ee_quaternion
         )
         target_arm_angles = target_arm_angles[:7]  # remove fingers angles
         # clip the target joint angles according to the joint limits
-
         return target_arm_angles
 
     def arm_joint_ctrl_to_target_arm_angles(self, arm_joint_ctrl: np.ndarray) -> np.ndarray:
@@ -165,13 +167,14 @@ class PandaCustom(PyBulletRobot):
         self.num_episodes += 1
         # if self.num_episodes % 5 == 0:
         #     print(f"INFO: episode {self.num_episodes}")
-
-        if "tool" in self.sim._bodies_idx:
-            p.removeBody(self.sim._bodies_idx["tool"])
         # if self.constraint_id is not None:
         #     p.removeConstraint(self.constraint_id)
         self._set_random_ee_pose()
-        self._attach_tool_to_ee()
+        if self.attached_tool is False:
+            if "tool" in self.sim._bodies_idx:
+                p.removeBody(self.sim._bodies_idx["tool"])
+            self._attach_tool_to_ee()
+            self.attached_tool = True
 
     def _set_random_ee_pose(self) -> None:
         """Set the robot to a random end-effector initial pose after reset."""
@@ -180,6 +183,7 @@ class PandaCustom(PyBulletRobot):
         init_ee_position[0] = np.random.uniform(0.35, 0.55) 
         init_ee_position[1] = np.random.uniform(0.2, 0.3)
         self.ee_init_pos_2d = init_ee_position[:2]
+        self.ee_target_position[:2] = self.ee_init_pos_2d
         init_ee_euler = [-np.pi, 0, 0]
         init_ee_quaternion = np.array(list(p.getQuaternionFromEuler(init_ee_euler)))
         init_arm_angles = self.inverse_kinematics(

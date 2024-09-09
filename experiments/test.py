@@ -16,7 +16,7 @@ def main():
     env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
               'catch':'UCatchSimulationEnv-v0',
               'dlr':'DLRSimulationEnv-v0',
-              'panda':'PandaUPushEnv-v0'}
+              'panda':'PandaUPushEnv-v0',}
     env_id = env_ids[args.env_id]
     env_kwargs = {'obs_type': args.obs_type, 
                   'using_robustness_reward': args.using_robustness_reward, 
@@ -33,7 +33,8 @@ def main():
     elif env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/models/VPushPbSimulationEnv-v0/VPushPbSimulationEnv-v0_2024-08-23_17-56-58_1000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
-        model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-26_10-38-59_809000_steps.zip")
+        # model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-26_10-38-59_809000_steps.zip")
+        model = None
     elif env_id == 'DLRSimulationEnv-v0':
         model = PPO.load("results/models/DLRSimulationEnv-v0/2024-09-04_15-47-56_z0v28fzm_2_False_True/z0v28fzm_1720000_steps.zip")
     
@@ -48,6 +49,7 @@ def main():
             else:
                 action = env.action_space.sample()
             obs, reward, done, truncated, _ = env.step(action)
+            time.sleep(0.1)
             env.render()
 
         print("Done!" if done else "Truncated.")
