@@ -56,7 +56,7 @@ class PandaUPushEnv(RobotTaskEnv):
         render_pitch: float = -30,
         render_roll: float = 0,
     ) -> None:
-        sim = PyBullet(render_mode=render_mode, renderer=renderer, n_substeps=24)
+        sim = PyBullet(render_mode=render_mode, renderer=renderer, n_substeps=50)
         robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type, run_id=run_id)
         task = VPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward)
         task.ee_init_pos_2d = robot.ee_init_pos_2d
@@ -168,7 +168,7 @@ class PandaUPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 1000
+        time_ended = self.step_count > 20
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         if (gripper_out_of_canvas):

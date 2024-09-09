@@ -63,7 +63,8 @@ class PandaCustom(PyBulletRobot):
 
         self.fingers_indices = np.array([9, 10])
         # self.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
-        self.neutral_joint_values = np.array([0.000, 0.146, 0.000, -3.041, 0.000, 3.182, 0.790, 0.000, 0.000])
+        # self.neutral_joint_values = np.array([0.000, 0.146, 0.000, -3.041, 0.000, 3.182, 0.790, 0.000, 0.000])
+        self.neutral_joint_values = np.array([0.54664663, 0.5078128, -0.21580158, -2.10046213, 0.19967674, 2.58959611, 0.97221048])
         self.neutral_joint_zeros = np.array([0.000,]*9)
         
         # self.ee_link = 11 # vpush
@@ -170,11 +171,14 @@ class PandaCustom(PyBulletRobot):
         # if self.constraint_id is not None:
         #     p.removeConstraint(self.constraint_id)
         self._set_random_ee_pose()
-        if self.attached_tool is False:
-            if "tool" in self.sim._bodies_idx:
+        if "tool" in self.sim._bodies_idx:
                 p.removeBody(self.sim._bodies_idx["tool"])
-            self._attach_tool_to_ee()
-            self.attached_tool = True
+        self._attach_tool_to_ee()
+        # if self.attached_tool is False:
+        #     if "tool" in self.sim._bodies_idx:
+        #         p.removeBody(self.sim._bodies_idx["tool"])
+        #     self._attach_tool_to_ee()
+        #     self.attached_tool = True
 
     def _set_random_ee_pose(self) -> None:
         """Set the robot to a random end-effector initial pose after reset."""

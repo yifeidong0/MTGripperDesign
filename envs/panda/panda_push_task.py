@@ -165,7 +165,7 @@ class VPush(Task):
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
         self.goal_range_low = np.array([0.35, -0.3, 0])
-        self.goal_range_high = np.array([0.55, self.init_object_position[1], 0])
+        self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.05, 0])
         while True:
             goal = np.array([0.0, 0.0, self.object_size/2])  # z offset for the cube center
             noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
@@ -176,7 +176,7 @@ class VPush(Task):
 
     def _sample_object(self) -> np.ndarray:
         """Randomize start position of object."""
-        self.obj_range_low = np.array([0.35, -0.2, 0])
+        self.obj_range_low = np.array([0.35, -0.1, 0])
         self.obj_range_high = np.array([0.55, self.ee_init_pos_2d[1] - 0.05, 0])
         object_position = np.array([0.0, 0.0, self.object_size / 2])
         noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
