@@ -151,7 +151,11 @@ class GeneticAlgorithmPipeline:
         for task in range(self.num_outputs):
             xt = np.append(individual, task)
             score = self.mt_objective(xt)
-            scores.append(score)
+            if not np.isnan(score) and not np.isinf(score):
+                scores.append(score)
+            else:
+                scores.append(0.0)  # Assign a low score if the evaluation failed
+
         return np.mean(scores) # TODO: min-max and mean-max
 
     def select_parents(self, fitness):
@@ -165,8 +169,13 @@ class GeneticAlgorithmPipeline:
             np.array: The selected parents.
         """
         total_fitness = np.sum(fitness)
-        probabilities = fitness / total_fitness
-        parents_indices = np.random.choice(range(self.population_size), size=self.population_size, p=probabilities)
+        if total_fitness == 0:
+            # If all fitness values are zero, select parents randomly
+            parents_indices = np.random.choice(range(self.population_size), size=self.population_size)
+        else:
+            probabilities = fitness / total_fitness
+            parents_indices = np.random.choice(range(self.population_size), size=self.population_size, p=probabilities)
+        
         return self.population[parents_indices]
 
     def crossover(self, parent1, parent2):

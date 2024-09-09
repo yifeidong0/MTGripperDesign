@@ -31,7 +31,7 @@ run_in_vscode_terminal() {
 }
 
 # Loop through each i={1,2,3,4,5}, corresponding to each random seed
-for i in {1..8}; do
+for i in {3..8}; do
   # Get the list of zip files in alphabetical order
   # model_files=($(ls results/paper/dlr/1/*.zip | sort)) # remove randomness from RL training
   model_files=($(ls results/paper/dlr/$i/*.zip | sort))
