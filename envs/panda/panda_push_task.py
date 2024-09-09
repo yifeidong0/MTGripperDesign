@@ -70,7 +70,7 @@ class VPush(Task):
             self.sim.create_box(
                 body_name="object",
                 half_extents=np.array([1,1,0.8]) * self.object_size / 2,
-                mass=0.05,
+                mass=0.104, # 3d printed object
                 position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
                 lateral_friction=40/77,
@@ -87,7 +87,7 @@ class VPush(Task):
             file_name = "asset/polygons/poly0.obj"
             mesh_scale = [1,1,1.6]
             height = self.object_size / 2 * mesh_scale[2] # make sure the height is right in obj file
-            self._create_task_object_mesh(file_name, mesh_scale, height)
+            self._create_task_object_mesh(file_name, mesh_scale, height, mass=0.084)
         elif self.task_object_name == 'narrow':
             file_name = "asset/polygons/narrow.obj"
             mesh_scale = [1,1,1.6]
@@ -104,11 +104,11 @@ class VPush(Task):
                            "polygon0": 2.7/4.0*self.object_size/2, "narrow": 2.9/4.0*self.object_size/2, 
                            "oval": self.object_size/2}
 
-    def _create_task_object_mesh(self, file_name, mesh_scale, height) -> None:
+    def _create_task_object_mesh(self, file_name, mesh_scale, height, mass=0.1) -> None:
             self.sim._create_geometry(
                 body_name="object",
                 geom_type=self.sim.physics_client.GEOM_MESH,
-                mass=0.05,
+                mass=mass,
                 position=np.array([0.0, 0.0, height/2]),
                 visual_kwargs={
                         "fileName": file_name,
