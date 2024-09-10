@@ -254,14 +254,14 @@ class UPush(Task):
         object_rad = observation[..., 9].reshape(-1, 1)
 
         reward = 0
-        # Caging robustness
-        if self.using_robustness_reward:
-            self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
+        self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
                                                      ee_yaw,
                                                      achieved_goal[..., :2],
                                                      design_params,
                                                      object_rad,
                                                      slack=self.object_size/2,)
+        # Caging robustness
+        if self.using_robustness_reward:
             if self.robustness_score.shape[0] == 1:
                 self.robustness_score = np.squeeze(self.robustness_score, axis=0)  # Converts (1,) to ()
             reward += self.robustness_score
@@ -275,18 +275,16 @@ class UPush(Task):
         object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
 
         object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
-        yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw)) - np.pi / 2
-        
-        print(yaw_difference)
+        yaw_difference = abs(abs(pi_2_pi(ee_yaw - object_target_yaw)) - np.pi / 2)
 
-        if ee_object_distance > 0.2: # better contact detector?
-            weight_ee_object_distance = 1.0
-            weight_object_target_distance = 0.0
-            weight_yaw = 0
-        else:
+        if self.robustness_score > 0:
             weight_ee_object_distance = 1.0
             weight_object_target_distance = 1.0
             weight_yaw = 0
+        else:
+            weight_ee_object_distance = 1.0
+            weight_object_target_distance = 0.0
+            weight_yaw = 0.1
         reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
         
         # if self.is_safe is False:
