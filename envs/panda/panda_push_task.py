@@ -13,11 +13,11 @@ def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi
 
 
-class VPush(Task):
+class UPush(Task):
     def __init__(
         self,
         sim,
-        reward_type="sparse",
+        reward_type,
         using_robustness_reward=True,
         reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         distance_threshold=0.05,
@@ -168,8 +168,10 @@ class VPush(Task):
         self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.05, 0])
         while True:
             goal = np.array([0.0, 0.0, self.object_size/2])  # z offset for the cube center
-            noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
-            goal += noise
+            # noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
+            # goal += noise
+            goal[0] = 0.4
+            goal[1] = -0.2
             if distance(goal, self.init_object_position) > 0.1:
                 break
         return goal
@@ -181,6 +183,8 @@ class VPush(Task):
         object_position = np.array([0.0, 0.0, self.object_size / 2])
         noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
         object_position += noise
+        object_position[0] = 0.6
+        object_position[1] = 0.0
         return object_position
 
     def is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
@@ -236,6 +240,7 @@ class VPush(Task):
         return robustness
   
     def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray,) -> np.ndarray:
+        print("compute_reward")
         if observation.ndim == 1:
             achieved_goal = np.expand_dims(achieved_goal, axis=0)  
             desired_goal = np.expand_dims(desired_goal, axis=0)
@@ -261,6 +266,7 @@ class VPush(Task):
                 self.robustness_score = np.squeeze(self.robustness_score, axis=0)  # Converts (1,) to ()
             reward += self.robustness_score
 
+        print(self.reward_type)
         if self.reward_type == "sparse":
             d = distance(achieved_goal, desired_goal)
             return reward - np.array(d > self.distance_threshold, dtype=np.float32)
@@ -268,8 +274,10 @@ class VPush(Task):
         ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
         object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
 
-        # object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
-        # yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw))
+        object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
+        yaw_difference = abs(pi_2_pi(ee_yaw - object_target_yaw)) - np.pi / 2
+        
+        print(yaw_difference)
 
         if ee_object_distance > 0.2: # better contact detector?
             weight_ee_object_distance = 1.0
@@ -279,7 +287,7 @@ class VPush(Task):
             weight_ee_object_distance = 1.0
             weight_object_target_distance = 1.0
             weight_yaw = 0
-        reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance
+        reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
         
         # if self.is_safe is False:
         #     reward -= 100
