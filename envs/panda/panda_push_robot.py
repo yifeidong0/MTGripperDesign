@@ -36,8 +36,8 @@ class PandaCustom(PyBulletRobot):
         self.base_position = base_position if base_position is not None else np.zeros(3)
         self.control_type = control_type
         # action space (dx, dy, dyaw)
-        # action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05,]), high=np.array([0.01, 0.01, 0.05,]), dtype=np.float32)
-        action_space = spaces.Box(low=np.array([-0.01, -0.01,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
+        action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05,]), high=np.array([0.01, 0.01, 0.05,]), dtype=np.float32)
+        # action_space = spaces.Box(low=np.array([-0.01, -0.01,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
 
         self.v_angle = 0.5
         self.panda_file_name = "asset/franka_panda_custom/panda_template.urdf"
@@ -63,7 +63,8 @@ class PandaCustom(PyBulletRobot):
 
         self.fingers_indices = np.array([9, 10])
         # self.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
-        self.neutral_joint_values = np.array([0.000, 0.146, 0.000, -3.041, 0.000, 3.182, 0.790, 0.000, 0.000])
+        # self.neutral_joint_values = np.array([0.000, 0.146, 0.000, -3.041, 0.000, 3.182, 0.790, 0.000, 0.000])
+        self.neutral_joint_values = np.array([0.54664663, 0.5078128, -0.21580158, -2.10046213, 0.19967674, 2.58959611, 0.97221048])
         self.neutral_joint_zeros = np.array([0.000,]*9)
         
         # self.ee_link = 11 # vpush
@@ -84,6 +85,7 @@ class PandaCustom(PyBulletRobot):
         self.z_offset = 0.12
         self.ee_target_position = np.zeros(3)
         self.ee_target_position[2] = self.z_offset
+        self.ee_target_yaw = 0
         self.ee_init_pos_2d = np.zeros(2)
         self.attached_tool = False
 
@@ -92,7 +94,7 @@ class PandaCustom(PyBulletRobot):
         action = np.clip(action, self.action_space.low, self.action_space.high)
         if self.control_type == "ee":
             ee_displacement = np.array([action[0], action[1], 0])
-            ee_orientation_change = 0.0
+            ee_orientation_change = action[2]
             target_arm_angles = self.ee_displacement_to_target_arm_angles(ee_displacement, ee_orientation_change)
         else:
             arm_joint_ctrl = action[:7]
@@ -123,8 +125,9 @@ class PandaCustom(PyBulletRobot):
         # Set target end-effector orientation
         ee_quaternion = self.get_ee_orientation()
         ee_euler = list(p.getEulerFromQuaternion(ee_quaternion)) # tuple
-        target_ee_euler = [-np.pi, 0, 0]
-        # target_ee_euler = [-np.pi, 0, pi_2_pi(ee_euler[2] + ee_orientation_change[0])]
+        # target_ee_euler = [-np.pi, 0, 0]
+        self.ee_target_yaw = pi_2_pi(ee_euler[2] + ee_orientation_change)
+        target_ee_euler = [-np.pi, 0, self.ee_target_yaw]
         target_ee_quaternion = np.array(list(p.getQuaternionFromEuler(target_ee_euler)))
 
         # Clip the height target. For some reason, it has a great impact on learning
@@ -170,11 +173,14 @@ class PandaCustom(PyBulletRobot):
         # if self.constraint_id is not None:
         #     p.removeConstraint(self.constraint_id)
         self._set_random_ee_pose()
-        if self.attached_tool is False:
-            if "tool" in self.sim._bodies_idx:
+        if "tool" in self.sim._bodies_idx:
                 p.removeBody(self.sim._bodies_idx["tool"])
-            self._attach_tool_to_ee()
-            self.attached_tool = True
+        self._attach_tool_to_ee()
+        # if self.attached_tool is False:
+        #     if "tool" in self.sim._bodies_idx:
+        #         p.removeBody(self.sim._bodies_idx["tool"])
+        #     self._attach_tool_to_ee()
+        #     self.attached_tool = True
 
     def _set_random_ee_pose(self) -> None:
         """Set the robot to a random end-effector initial pose after reset."""
@@ -184,6 +190,7 @@ class PandaCustom(PyBulletRobot):
         init_ee_position[1] = np.random.uniform(0.2, 0.3)
         self.ee_init_pos_2d = init_ee_position[:2]
         self.ee_target_position[:2] = self.ee_init_pos_2d
+        self.ee_target_yaw = 0
         init_ee_euler = [-np.pi, 0, 0]
         init_ee_quaternion = np.array(list(p.getQuaternionFromEuler(init_ee_euler)))
         init_arm_angles = self.inverse_kinematics(

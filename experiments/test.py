@@ -22,6 +22,7 @@ def main():
                   'using_robustness_reward': args.using_robustness_reward, 
                   'render_mode': args.render_mode,
                   'perturb': args.perturb,
+                  'reward_type': args.reward_type,
                   }
     env = gym.make(env_id, **env_kwargs)
     # check_env(env)
