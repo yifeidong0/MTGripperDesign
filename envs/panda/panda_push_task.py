@@ -52,7 +52,7 @@ class VPush(Task):
                 body_name="object",
                 radius=self.object_size/2,
                 height=self.object_size/2*1.6, # 6.4cm
-                mass=0.05, # TODO: adapt it after printing the objects and weighing them
+                mass=0.079, # TODO: adapt it after printing the objects and weighing them
                 position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
                 lateral_friction=40/77,
@@ -92,12 +92,12 @@ class VPush(Task):
             file_name = "asset/polygons/narrow.obj"
             mesh_scale = [1,1,1.6]
             height = self.object_size / 2 * mesh_scale[2] # make sure the height is right in obj file
-            self._create_task_object_mesh(file_name, mesh_scale, height)
+            self._create_task_object_mesh(file_name, mesh_scale, height, mass=0.116)
         elif self.task_object_name == 'oval':
             file_name = "asset/polygons/oval.obj"
             mesh_scale = [1,1,1.6]
             height = self.object_size / 2 * mesh_scale[2] # make sure the height is right in obj file
-            self._create_task_object_mesh(file_name, mesh_scale, height)
+            self._create_task_object_mesh(file_name, mesh_scale, height, mass=0.111)
 
         # for caging escape computation
         self.all_object_rad = {"circle": self.object_size/2, "square": self.object_size/2, 
