@@ -168,10 +168,8 @@ class UPush(Task):
         self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.05, 0])
         while True:
             goal = np.array([0.0, 0.0, self.object_size/2])  # z offset for the cube center
-            # noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
-            # goal += noise
-            goal[0] = 0.4
-            goal[1] = -0.2
+            noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
+            goal += noise
             if distance(goal, self.init_object_position) > 0.1:
                 break
         return goal
@@ -183,8 +181,6 @@ class UPush(Task):
         object_position = np.array([0.0, 0.0, self.object_size / 2])
         noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
         object_position += noise
-        object_position[0] = 0.6
-        object_position[1] = 0.0
         return object_position
 
     def is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
@@ -232,7 +228,7 @@ class UPush(Task):
         assert robot_vertices.shape == (N, 5, 2) and object_pos_R.shape == (N, 2)
         # Check if each object position is inside the corresponding robot polygon
         # is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
-        is_inside = is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
+        is_inside = is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack) # TODO
         # Calculate robustness for each evaluation
         soft_fixture_metric = l1 * np.cos(a1/2) + l2 * np.cos(a2) - object_pos_R[:, 0] + object_rad[:, 0]
         robustness_depth = np.maximum(0.0, soft_fixture_metric)
@@ -240,7 +236,6 @@ class UPush(Task):
         return robustness
   
     def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray,) -> np.ndarray:
-        print("compute_reward")
         if observation.ndim == 1:
             achieved_goal = np.expand_dims(achieved_goal, axis=0)  
             desired_goal = np.expand_dims(desired_goal, axis=0)
@@ -259,14 +254,13 @@ class UPush(Task):
                                                      achieved_goal[..., :2],
                                                      design_params,
                                                      object_rad,
-                                                     slack=self.object_size/2,)
+                                                     slack=0)
         # Caging robustness
         if self.using_robustness_reward:
             if self.robustness_score.shape[0] == 1:
                 self.robustness_score = np.squeeze(self.robustness_score, axis=0)  # Converts (1,) to ()
             reward += self.robustness_score
 
-        print(self.reward_type)
         if self.reward_type == "sparse":
             d = distance(achieved_goal, desired_goal)
             return reward - np.array(d > self.distance_threshold, dtype=np.float32)
@@ -276,17 +270,26 @@ class UPush(Task):
 
         object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
         yaw_difference = abs(abs(pi_2_pi(ee_yaw - object_target_yaw)) - np.pi / 2)
-
-        if self.robustness_score > 0:
-            weight_ee_object_distance = 1.0
-            weight_object_target_distance = 1.0
-            weight_yaw = 0
-        else:
-            weight_ee_object_distance = 1.0
-            weight_object_target_distance = 0.0
-            weight_yaw = 0.1
-        reward += - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance - weight_yaw * yaw_difference
         
+        # imaged goal locating at the extension of the target-object line
+        line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
+        direction_vector = line_vector / np.linalg.norm(line_vector)
+        delta = 0.1
+        middle_goal = achieved_goal[..., :2] + direction_vector * delta
+        ee_middle_goal_distance = distance(ee_position_2d, middle_goal)
+        if ee_middle_goal_distance < 0.05 or self.robustness_score > 0:
+            weight_ee_object_distance = 0.0
+            weight_ee_middle_goal_distance = 1.0
+            weight_object_target_distance = 1.0
+            weight_yaw = 0.05
+        else:
+            weight_ee_object_distance = 0.0
+            weight_ee_middle_goal_distance = 1.0
+            weight_object_target_distance = 0.0
+            weight_yaw = 0.05
+        reward += - weight_ee_middle_goal_distance * ee_middle_goal_distance - weight_yaw * yaw_difference \
+                  - weight_object_target_distance * object_target_distance - weight_ee_object_distance * ee_object_distance
+
         # if self.is_safe is False:
         #     reward -= 100
         

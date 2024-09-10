@@ -168,14 +168,14 @@ class PandaUPushEnv(RobotTaskEnv):
                                      and self.canvas_min_y <= ee_position[1] <= self.canvas_max_y)
         object_out_of_canvas = not (self.canvas_min_x <= object_position[0] <= self.canvas_max_x 
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
-        time_ended = self.step_count > 20
+        time_ended = self.step_count > 500
     
         truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
         if (gripper_out_of_canvas):
             self.is_safe = False
-        if truncated:
-            print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
-            print(f"object_out_of_canvas") if object_out_of_canvas else None
-            print(f"time_ended") if time_ended else None
+        # if truncated:
+        #     print(f"gripper_out_of_canvas") if gripper_out_of_canvas else None
+        #     print(f"object_out_of_canvas") if object_out_of_canvas else None
+        #     print(f"time_ended") if time_ended else None
 
         return truncated
