@@ -10,15 +10,16 @@ class SuccessScorePlotter:
         self.optimizer = optimizer
         self.base_path = f"results/paper/{env}"
         self.labels = [
-            "robustness=0, perturb=0",
+            # "robustness=0, perturb=0",
             "robustness=0, perturb=1",
-            "robustness=1, perturb=0",
+            # "robustness=1, perturb=0",
             "robustness=1, perturb=1",
         ]
-        self.colors = ['#d62728', '#ff7f0e', '#2ca02c', '#1f77b4',]  # Colors suitable for academic papers
+        # self.colors = ['#d62728', '#ff7f0e', '#2ca02c', '#1f77b4',]  # Colors suitable for academic papers
+        self.colors = ['#ff7f0e', '#1f77b4',]  # Colors suitable for academic papers
         self.num_seeds = {'catch': 6, 'vpush': 5, 'panda': 4, 'dlr': 5}
         self.num_seed = self.num_seeds[env]
-        if self.optimizer == 'mtbo':
+        if self.optimizer == 'mtbo' or self.optimizer == 'bo':
             self.success_rate_name = 'success_score_true'
         elif self.optimizer == 'ga':
             self.success_rate_name = 'success_rate'
@@ -63,13 +64,13 @@ class SuccessScorePlotter:
             std_values = np.std(all_success_scores, axis=0)
 
             plt.plot(all_steps, mean_values, label=label, color=color)
-            if k == 1 or k == 3:
-                print(f"label: {label}")
-                print(f"first 5 mean_values: {np.mean(mean_values[3:8])}")
-                print(f"first 5 std_values: {np.mean(std_values[3:8])}") 
-                print(f"last 5 mean_values: {np.mean(mean_values[8:13])}")
-                print(f"last 5 std_values: {np.mean(std_values[8:13])}")
-                plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.2)
+            # if k == 1 or k == 3:
+            print(f"label: {label}")
+            print(f"first 5 mean_values: {np.mean(mean_values[5:10])}")
+            print(f"first 5 std_values: {np.mean(std_values[5:10])}") 
+            print(f"last 5 mean_values: {np.mean(mean_values[15:20])}")
+            print(f"last 5 std_values: {np.mean(std_values[15:20])}")
+            plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.2)
             k += 1
 
         plt.xlabel('Iteration')
@@ -89,7 +90,7 @@ class SuccessScorePlotter:
 
 
 if __name__ == "__main__":
-    env = 'vpush' # ['catch', 'vpush', 'panda', 'dlr']
+    env = 'dlr' # ['catch', 'vpush', 'panda', 'dlr']
     optimizer = 'bo' # ['mtbo', 'ga', 'bo']
     plotter = SuccessScorePlotter(env, optimizer)
     plotter.plot_all()
