@@ -76,8 +76,8 @@ class PandaUPushEnv(RobotTaskEnv):
         self.obs_type = obs_type
         self.reward_weights = reward_weights
         self.step_count = 0
-        self.canvas_min_x = 0.25
-        self.canvas_max_x = 0.65
+        self.canvas_min_x = 0.20
+        self.canvas_max_x = 0.75
         self.canvas_min_y = -0.4
         self.canvas_max_y = 0.4
         self.is_safe = True
@@ -90,6 +90,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self.sim.step()
         observation = self._get_obs()
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
+        # terminated = self.task.is_success_flag
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         self.task.is_safe = self.is_safe

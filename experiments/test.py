@@ -34,8 +34,8 @@ def main():
     elif env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/paper/vpush/5/VPushPbSimulationEnv-v0_2024-08-31_05-57-08_1413000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
-        # model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-26_10-38-59_809000_steps.zip")
-        model = None
+        model = PPO.load("results/models/PandaUPushEnv-v0/2024-09-11_01-10-53_pkiqsoum_42_True_False/pkiqsoum_1750000_steps.zip")
+        # model = None
     elif env_id == 'DLRSimulationEnv-v0':
         model = PPO.load("results/models/DLRSimulationEnv-v0/2024-09-04_15-47-56_z0v28fzm_2_False_True/z0v28fzm_1720000_steps.zip")
     
@@ -50,6 +50,7 @@ def main():
             else:
                 action = env.action_space.sample()
             obs, reward, done, truncated, _ = env.step(action)
+            time.sleep(0.1)
             env.render()
 
         print("Done!" if done else "Truncated.")
