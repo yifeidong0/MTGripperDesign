@@ -4,10 +4,10 @@
 robustness_values=(true false)
 
 # Define the random seeds
-random_seeds=(0 1 2)
+random_seeds=(0 1)
 
 # Define perturbation values
-perturbs=(true false)
+perturbs=(false)
 
 yaw_weight=(0.025 0.05 0.075)
 
@@ -24,7 +24,7 @@ run_in_vscode_terminal() {
   local yaw_weight=$5
 
   # Set the CUDA_VISIBLE_DEVICES environment variable to assign the GPU
-  CUDA_VISIBLE_DEVICES=$gpu_id python3 experiments/train.py \
+  python3 experiments/train.py \
         --env_id panda \
         --wandb_group_name "$wandb_group_name" \
         --wandb_mode online \
