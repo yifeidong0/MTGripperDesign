@@ -305,8 +305,9 @@ class UPush(Task):
 
         object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
         ee_object_yaw = np.arctan2(achieved_goal[..., 1] - ee_position_2d[..., 1], achieved_goal[..., 0] - ee_position_2d[..., 0])
+        ee_target_yaw = np.arctan2(desired_goal[..., 1] - ee_position_2d[..., 1], desired_goal[..., 0] - ee_position_2d[..., 0])
         yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
-        # yaw_difference_ee_target = abs(abs(pi_2_pi(ee_yaw - object_target_yaw)) - np.pi / 2)
+        yaw_difference_ee_target = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_target_yaw))
         
         # imaged goal locating at the extension of the target-object line
         line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
@@ -320,13 +321,16 @@ class UPush(Task):
             # print("ee_object_distance", ee_object_distance)
             weight_ee_object_distance = 1.0
             # print("yaw_difference_ee_object", yaw_difference_ee_object)
-            weight_yaw = self.reward_weights[0]
-            reward += - weight_yaw * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
+            weight_yaw_ee_object = self.reward_weights[0]
+            reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
         else:
+            print("ee_object_distance", ee_object_distance)
             weight_ee_object_distance = 1.0
-            weight_object_target_distance = 1
-            weight_yaw = self.reward_weights[0]
-            reward += - weight_yaw * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance
+            weight_object_target_distance = 1.0
+            weight_yaw_ee_object = self.reward_weights[0]
+            weight_yaw_ee_target = self.reward_weights[1]
+            reward += - weight_yaw * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance\
+                      - weight_object_target_distance * object_target_distance - weight_yaw_ee_target * yaw_difference_ee_target
 
         # if self.is_safe is False:
         #     reward -= 100
