@@ -132,6 +132,7 @@ def main():
             project="MTGripperDesign",
             group=args.wandb_group_name,
             name=custom_run_name,  # Set the custom run name here
+            id=run_id,
             config=vars(args),
             sync_tensorboard=True,
             save_code=True,
@@ -203,7 +204,7 @@ def main():
     try:
         model.learn(
             total_timesteps=args.total_timesteps,
-            progress_bar=1,
+            progress_bar=1 if args.wandb_mode == 'disabled' else 0,
             log_interval=5,
             callback=[best_model_callback] if args.wandb_mode != 'disabled' else custom_callback,
         )
