@@ -197,6 +197,24 @@ class UPush(Task):
         d = distance(achieved_goal, desired_goal)
         return np.array(d < self.distance_threshold, dtype=bool)
 
+    def _is_point_inside_polygon(self, points, vertices, slack=2):
+        """
+        Batch processing version of _is_point_inside_polygon.
+        points: numpy array of shape [N, 2]
+        polygons: numpy array of shape [N, 5, 2] where 5 is the number of vertices in each U shape polygon
+        slack: tolerance distance for considering a point inside the polygon
+        returns: boolean array of shape [N] indicating whether each point is inside the polygon or within slack distance
+        """
+        results = np.zeros(points.shape[0], dtype=bool)
+        for i in range(points.shape[0]):
+            polygon = Polygon(vertices[i])
+            point = Point(points[i])
+            if polygon.contains(point):
+                results[i] = True
+            elif polygon.distance(point) <= slack:
+                results[i] = True
+        return results
+
     def _eval_robustness(self, tool_positions, tool_angles, object_positions, design_params, object_rad, slack=0.0):
         """
         Batch processing version of _eval_robustness.
@@ -237,8 +255,8 @@ class UPush(Task):
         robot_vertices = np.stack([vertex_1, vertex_2, vertex_3, vertex_4, vertex_5], axis=1)  # (N, 5, 2)
         assert robot_vertices.shape == (N, 5, 2) and object_pos_R.shape == (N, 2)
         # Check if each object position is inside the corresponding robot polygon
-        # is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
-        is_inside = is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack) # TODO
+        is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
+        # is_inside = is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack) # TODO
         # Calculate robustness for each evaluation
         soft_fixture_metric = l1 * np.cos(a1/2) + l2 * np.cos(a2) - object_pos_R[:, 0] + object_rad[:, 0]
         robustness_depth = np.maximum(0.0, soft_fixture_metric)
@@ -287,8 +305,9 @@ class UPush(Task):
 
         object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
         ee_object_yaw = np.arctan2(achieved_goal[..., 1] - ee_position_2d[..., 1], achieved_goal[..., 0] - ee_position_2d[..., 0])
+        ee_target_yaw = np.arctan2(desired_goal[..., 1] - ee_position_2d[..., 1], desired_goal[..., 0] - ee_position_2d[..., 0])
         yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
-        # yaw_difference_ee_target = abs(abs(pi_2_pi(ee_yaw - object_target_yaw)) - np.pi / 2)
+        yaw_difference_ee_target = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_target_yaw))
         
         # imaged goal locating at the extension of the target-object line
         line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
@@ -302,13 +321,16 @@ class UPush(Task):
             # print("ee_object_distance", ee_object_distance)
             weight_ee_object_distance = 1.0
             # print("yaw_difference_ee_object", yaw_difference_ee_object)
-            weight_yaw = self.reward_weights[0]
-            reward += - weight_yaw * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
+            weight_yaw_ee_object = self.reward_weights[0]
+            reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
         else:
+            print("ee_object_distance", ee_object_distance)
             weight_ee_object_distance = 1.0
-            weight_object_target_distance = 1
-            weight_yaw = self.reward_weights[0]
-            reward += - weight_yaw * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance - weight_object_target_distance * object_target_distance
+            weight_object_target_distance = 1.0
+            weight_yaw_ee_object = self.reward_weights[0]
+            weight_yaw_ee_target = self.reward_weights[1]
+            reward += - weight_yaw * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance\
+                      - weight_object_target_distance * object_target_distance - weight_yaw_ee_target * yaw_difference_ee_target
 
         # if self.is_safe is False:
         #     reward -= 100
