@@ -72,6 +72,15 @@ def get_args_ga():
     parser.add_argument('--mutation_rate', type=float, default=0.2, help='mutation rate for the genetic algorithm')
     return parser.parse_args()
 
+
+if __name__ == '__main__':
+    args = get_args()
+    weights = args.reward_weights
+    for i in range(len(weights)):
+        print(f"Reward weight {i}: {weights[i]}")
+    print(args)
+
+
 # Aug. 26: 
 # catch PPO 19-22: get 1/250 if in_polygon
 # catch PPO 23-26: get 100 if success

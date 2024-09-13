@@ -186,7 +186,7 @@ class PandaCustom(PyBulletRobot):
         """Set the robot to a random end-effector initial pose after reset."""
         self.set_joint_neutral() # set neutral first to avoid singularities
         init_ee_position = np.array([0.0, 0.0, self.z_offset])
-        init_ee_position[0] = np.random.uniform(0.35, 0.55) 
+        init_ee_position[0] = np.random.uniform(0.3, 0.6) 
         init_ee_position[1] = np.random.uniform(0.2, 0.3)
         self.ee_init_pos_2d = init_ee_position[:2]
         self.ee_target_position[:2] = self.ee_init_pos_2d
