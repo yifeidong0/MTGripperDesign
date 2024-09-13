@@ -20,7 +20,7 @@ class UPush(Task):
         reward_type,
         using_robustness_reward=True,
         reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
-        distance_threshold=0.05,
+        distance_threshold=0.1,
     ) -> None:
         super().__init__(sim)
         self.reward_type = reward_type
