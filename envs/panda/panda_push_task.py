@@ -55,7 +55,7 @@ class UPush(Task):
                 height=self.object_size/2*1.6, # 6.4cm
                 mass=0.079, # TODO: adapt it after printing the objects and weighing them
                 position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
-                rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
+                rgba_color=np.array([0.9, 0.2,  0.2, 1.0]),
                 lateral_friction=40/77,
             )
             self.sim.create_cylinder(
@@ -73,7 +73,7 @@ class UPush(Task):
                 half_extents=np.array([1,1,0.8]) * self.object_size / 2,
                 mass=0.104, # 3d printed object
                 position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
-                rgba_color=np.array([0.1, 0.9, 0.1, 1.0]),
+                rgba_color=np.array([0.9, 0.2,  0.2, 1.0]),
                 lateral_friction=40/77,
             )
             self.sim.create_box(
@@ -114,7 +114,7 @@ class UPush(Task):
                 visual_kwargs={
                         "fileName": file_name,
                         "meshScale": mesh_scale,
-                        "rgbaColor": np.array([0.1, 0.9, 0.1, 1.0]),
+                        "rgbaColor": np.array([0.9, 0.2,  0.2, 1.0]),
                     },
                 collision_kwargs={
                         "fileName": file_name,

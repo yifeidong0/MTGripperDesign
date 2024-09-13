@@ -28,6 +28,13 @@ class VPushPbSimulation:
         p.setGravity(0, 0, -9.81)
         p.setTimeStep(1.0 / 240.0)
         self.plane_id = p.loadURDF("plane.urdf")
+
+        # floor_size = [20, 20, 0.1]  # A large box with a small height (acts as floor)
+        # floor_collision_shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=[floor_size[0]/2, floor_size[1]/2, floor_size[2]/2])
+        # floor_visual_shape = p.createVisualShape(p.GEOM_BOX, halfExtents=[floor_size[0]/2, floor_size[1]/2, floor_size[2]/2], rgbaColor=[1, 1, 1, 1])  # White color
+        # floor_position = [0, 0, 5e-3-floor_size[2] / 2]  # Position the box so that its top surface is at z = 0
+        # self.plane_id = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=floor_collision_shape, baseVisualShapeIndex=floor_visual_shape, basePosition=floor_position)
+
         p.changeDynamics(self.plane_id, -1, lateralFriction=40/77)
 
         # Setup camera

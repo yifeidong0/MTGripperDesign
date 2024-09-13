@@ -17,8 +17,8 @@
       <geometry>
         <mesh filename="package://{v_pusher_name}" scale="1 1 1"/>
       </geometry>
-      <material name="white">
-        <color rgba="1 1 1 1"/>
+      <material name="dark_blue">
+        <color rgba="0.2 0.2 1 0.9"/>
       </material>
     </visual>
     <collision>
