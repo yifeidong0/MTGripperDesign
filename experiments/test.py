@@ -29,10 +29,9 @@ def main():
     
     model = None
     if env_id == 'UCatchSimulationEnv-v0':
-        model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-28_07-45-29_4992000_steps.zip")
-        # model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/paper/catch/lowlevel/without_robustness_reward/1/UCatchSimulationEnv-v0_2024-08-26_13-52-44_717000_steps.zip")
+        model = PPO.load("results/paper/catch/1/UCatchSimulationEnv-v0_5000000_2024-08-28_07-45-29_final.zip")
     elif env_id == 'VPushPbSimulationEnv-v0':
-        model = PPO.load("results/paper/vpush/5/VPushPbSimulationEnv-v0_2024-08-31_05-57-08_1413000_steps.zip")
+        model = PPO.load("results/paper/vpush/1/VPushPbSimulationEnv-v0_2024-08-29_20-24-50_1833000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
         # model = PPO.load("results/models/PandaUPushEnv-v0/PandaUPushEnv-v0_2024-08-26_10-38-59_809000_steps.zip")
         model = None
@@ -49,6 +48,7 @@ def main():
                 action, state = model.predict(obs)
             else:
                 action = env.action_space.sample()
+            time.sleep(0.1)
             obs, reward, done, truncated, _ = env.step(action)
             env.render()
 
