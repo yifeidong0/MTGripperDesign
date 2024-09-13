@@ -35,13 +35,16 @@ def main():
         model = PPO.load("results/paper/vpush/5/VPushPbSimulationEnv-v0_2024-08-31_05-57-08_1413000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
         # model = PPO.load("results/models/PandaUPushEnv-v0/2024-09-11_01-10-53_pkiqsoum_42_True_False/pkiqsoum_1750000_steps.zip")
-        model = PPO.load("wandb/run-20240912_171137-eciuk3p8/files/results/models/PandaUPushEnv-v0/2024-09-12_17-11-37_eciuk3p8_1_True_False/best_model_506118_steps_0.5700.zip")
+        # model = PPO.load("wandb/run-20240912_194113-kwpcx20u/files/results/models/PandaUPushEnv-v0/2024-09-12_19-41-12_kwpcx20u_0_False_False/best_model_953358_steps_0.5500.zip")
+        # model = PPO.load("wandb/run-20240912_222808-cm540omg/files/results/models/PandaUPushEnv-v0/2024-09-12_22-28-07_cm540omg_1_False_True/best_model_247212_steps_0.5300.zip")
+        # model = PPO.load("wandb/run-20240913_111829-b66f42oz/files/results/models/PandaUPushEnv-v0/2024-09-13_11-18-29_b66f42oz_42_False_False/best_model_431927_steps_0.5500.zip")
+        model = PPO.load("wandb/run-20240913_235634-pkt37ask/files/results/models/PandaUPushEnv-v0/2024-09-13_23-56-33_pkt37ask_1_True_False/best_model_231449_steps_0.4500.zip")
         # model = None
     elif env_id == 'DLRSimulationEnv-v0':
         model = PPO.load("results/models/DLRSimulationEnv-v0/2024-09-04_15-47-56_z0v28fzm_2_False_True/z0v28fzm_1720000_steps.zip")
     
     success_rate = 0
-    for episode in range(10):
+    for episode in range(20):
         obs, _ = env.reset(seed=1)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
@@ -51,7 +54,7 @@ def main():
             else:
                 action = env.action_space.sample()
             obs, reward, done, truncated, _ = env.step(action)
-            time.sleep(0.1)
+            # time.sleep(0.05)
             env.render()
 
         print("Done!" if done else "Truncated.")

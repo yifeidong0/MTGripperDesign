@@ -58,7 +58,8 @@ class PandaUPushEnv(RobotTaskEnv):
     ) -> None:
         sim = PyBullet(render_mode=render_mode, renderer=renderer, n_substeps=50)
         robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type, run_id=run_id)
-        task = UPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward)
+        print("reward_weights", reward_weights)
+        task = UPush(sim, reward_type=reward_type, using_robustness_reward=using_robustness_reward, reward_weights=reward_weights)
         task.ee_init_pos_2d = robot.ee_init_pos_2d
         super().__init__(
             robot,
