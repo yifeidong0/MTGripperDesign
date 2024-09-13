@@ -29,10 +29,9 @@ def main():
     
     model = None
     if env_id == 'UCatchSimulationEnv-v0':
-        model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/models/UCatchSimulationEnv-v0/UCatchSimulationEnv-v0_2024-08-28_07-45-29_4992000_steps.zip")
-        # model = PPO.load("/home/yif/Documents/git/MTGripperDesign/results/paper/catch/lowlevel/without_robustness_reward/1/UCatchSimulationEnv-v0_2024-08-26_13-52-44_717000_steps.zip")
+        model = PPO.load("results/paper/catch/1/UCatchSimulationEnv-v0_5000000_2024-08-28_07-45-29_final.zip")
     elif env_id == 'VPushPbSimulationEnv-v0':
-        model = PPO.load("results/paper/vpush/5/VPushPbSimulationEnv-v0_2024-08-31_05-57-08_1413000_steps.zip")
+        model = PPO.load("results/paper/vpush/1/VPushPbSimulationEnv-v0_2024-08-29_20-24-50_1833000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
         # model = PPO.load("results/models/PandaUPushEnv-v0/2024-09-11_01-10-53_pkiqsoum_42_True_False/pkiqsoum_1750000_steps.zip")
         # model = PPO.load("wandb/run-20240912_194113-kwpcx20u/files/results/models/PandaUPushEnv-v0/2024-09-12_19-41-12_kwpcx20u_0_False_False/best_model_953358_steps_0.5500.zip")
@@ -41,7 +40,7 @@ def main():
         model = PPO.load("wandb/run-20240913_235634-pkt37ask/files/results/models/PandaUPushEnv-v0/2024-09-13_23-56-33_pkt37ask_1_True_False/best_model_231449_steps_0.4500.zip")
         # model = None
     elif env_id == 'DLRSimulationEnv-v0':
-        model = PPO.load("results/models/DLRSimulationEnv-v0/2024-09-04_15-47-56_z0v28fzm_2_False_True/z0v28fzm_1720000_steps.zip")
+        model = PPO.load("results/paper/dlr/4/01_1_1.zip")
     
     success_rate = 0
     for episode in range(20):

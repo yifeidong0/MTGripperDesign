@@ -17,7 +17,7 @@ class SuccessScorePlotter:
         ]
         # self.colors = ['#d62728', '#ff7f0e', '#2ca02c', '#1f77b4',]  # Colors suitable for academic papers
         self.colors = ['#ff7f0e', '#1f77b4',]  # Colors suitable for academic papers
-        self.num_seeds = {'catch': 6, 'vpush': 5, 'panda': 4, 'dlr': 5}
+        self.num_seeds = {'catch': 5, 'vpush': 5, 'panda': 4, 'dlr': 5}
         self.num_seed = self.num_seeds[env]
         if self.optimizer == 'mtbo' or self.optimizer == 'bo':
             self.success_rate_name = 'success_score_true'
@@ -28,7 +28,7 @@ class SuccessScorePlotter:
         data = {}
 
         for i in range(1, self.num_seed+1):
-            csv_files = sorted(glob(f"{self.base_path}/{i}/{self.env}_{self.optimizer}*.csv"))
+            csv_files = sorted(glob(f"{self.base_path}/{i}/{self.env}_{self.optimizer}*1_10simga_0.3robreward.csv"))
             data[i] = {}
 
             for j, csv_file in enumerate(csv_files):
@@ -66,10 +66,10 @@ class SuccessScorePlotter:
             plt.plot(all_steps, mean_values, label=label, color=color)
             # if k == 1 or k == 3:
             print(f"label: {label}")
-            print(f"first 5 mean_values: {np.mean(mean_values[5:10])}")
-            print(f"first 5 std_values: {np.mean(std_values[5:10])}") 
-            print(f"last 5 mean_values: {np.mean(mean_values[15:20])}")
-            print(f"last 5 std_values: {np.mean(std_values[15:20])}")
+            print(f"first 5 mean_values: {np.mean(mean_values[:5])}")
+            print(f"first 5 std_values: {np.mean(std_values[:5])}") 
+            print(f"last 5 mean_values: {np.mean(mean_values[-5:])}")
+            print(f"last 5 std_values: {np.mean(std_values[-5:])}")
             plt.fill_between(all_steps, mean_values - std_values, mean_values + std_values, color=color, alpha=0.2)
             k += 1
 
@@ -85,12 +85,12 @@ class SuccessScorePlotter:
         print(f"Saved plot to {save_path}")
 
     def plot_all(self):
-        self.plot_with_mean_std(f'{self.base_path}/{self.optimizer}_design_iterations.png')
+        self.plot_with_mean_std(f'{self.base_path}/{self.optimizer}_design_iterations_1.png')
         # self.plot_with_mean_std(f'{self.optimizer}_design_iterations.png')
 
 
 if __name__ == "__main__":
     env = 'dlr' # ['catch', 'vpush', 'panda', 'dlr']
-    optimizer = 'bo' # ['mtbo', 'ga', 'bo']
+    optimizer = 'mtbo' # ['mtbo', 'ga', 'bo']
     plotter = SuccessScorePlotter(env, optimizer)
     plotter.plot_all()

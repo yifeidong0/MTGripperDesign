@@ -32,6 +32,11 @@ class DLRSimulation:
         p.setGravity(0, 0, self.g)
         self.time_step = 1.0 / 240.0
         self.plane_id = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
+        # floor_size = [20, 20, 0.1]  # A large box with a small height (acts as floor)
+        # floor_collision_shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=[floor_size[0]/2, floor_size[1]/2, floor_size[2]/2])
+        # floor_visual_shape = p.createVisualShape(p.GEOM_BOX, halfExtents=[floor_size[0]/2, floor_size[1]/2, floor_size[2]/2], rgbaColor=[1, 1, 1, 1])  # White color
+        # floor_position = [0, 0, 9e-3-floor_size[2] / 2]  # Position the box so that its top surface is at z = 0
+        # self.plane_id = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=floor_collision_shape, baseVisualShapeIndex=floor_visual_shape, basePosition=floor_position)
 
         # Setup camera
         p.resetDebugVisualizerCamera(cameraDistance=5, cameraYaw=45, cameraPitch=-45, cameraTargetPosition=[0,0,0])
@@ -114,6 +119,10 @@ class DLRSimulation:
                                 useFixedBase=1,
                                 flags=p.URDF_USE_SELF_COLLISION)
         
+        # Change two tips visual color to blue
+        p.changeVisualShape(self.robot_id, 1, rgbaColor=[0.2, 0.2, 1, 1])
+        p.changeVisualShape(self.robot_id, 3, rgbaColor=[0.2, 0.2, 1, 1])
+        
         # Reset joint states
         self.robot_joint_states_init = [0.2, math.pi/6, 0.2, math.pi/6]
         for i in range(p.getNumJoints(self.robot_id)):
@@ -140,6 +149,7 @@ class DLRSimulation:
             basePosition=self.object_position,
             baseOrientation=self.object_orientation
         )
+        p.changeVisualShape(self.object_id, -1, rgbaColor=[1, 0.2, 0.2, 1])
         p.changeDynamics(self.object_id, -1, lateralFriction=0.8)
 
     def eval_robustness(self, height_threshold, acc_lim=100):

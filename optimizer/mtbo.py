@@ -262,7 +262,7 @@ class BayesianOptimizationMultiTask:
         self.evaluator = GPyOpt.core.evaluators.Sequential(self.acquisition)
         self.bo = GPyOpt.methods.ModularBayesianOptimization(self.model, self.space, self.objective, self.acquisition, self.evaluator, self.initial_design, normalize_Y=False)
 
-    def find_optimal_design(self, resolution=10):
+    def find_optimal_design(self, resolution=10, mean_max=0):
         """
         Find the optimal design by evaluating a grid of points.
 
@@ -291,8 +291,11 @@ class BayesianOptimizationMultiTask:
         vars = vars.reshape(self.num_outputs, -1, 1)
 
         # Calculate the average score over all tasks for each design point
-        avg_scores = np.mean(means, axis=0).flatten()
-        
+        if mean_max:
+            avg_scores = np.mean(means, axis=0).flatten()
+        else: # min-max
+            avg_scores = np.min(means, axis=0).flatten()
+
         # Find the design with the highest average score
         best_idx = np.argmax(avg_scores)
         best_design = grid_points[best_idx]
