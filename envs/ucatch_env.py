@@ -68,6 +68,10 @@ class UCatchSimulationEnv(gym.Env):
         self.task_int = 0 if self.obs_type == 'circle' else 1
         self.design_param = [random.uniform(5, 10), random.uniform(5, 10), random.uniform(5, 10), 
                              random.uniform(np.pi/2, np.pi), random.uniform(np.pi/2, np.pi)]
+        # self.design_param = [5.0,10.0,5.0,1.5707963267948966,1.5707963267948966] # iter 1, mtbo-1-1-meanmax
+        # self.design_param = [5.0,5.0,10.0,2.2689280275926285,1.5707963267948966] # iter 10, mtbo-1-1-meanmax
+        # self.design_param = [9.444444444444445,5.0,10.0,2.0943951023931953,1.919862177193762] # iter 29, mtbo-1-1-meanmax
+        # self.design_param = [7.777777777777778,8.88888888888889,10.0,2.0943951023931953,1.9198621771937625] # iter 39, mtbo-1-1-meanmax
         self.simulation.reset_task_and_design(self.obs_type, self.design_param)
         obs = self._get_obs()
         self.num_end_steps = 0

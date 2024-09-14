@@ -29,7 +29,7 @@ class UCatchSimulation:
                     'background': (255, 255, 255),
                     'robot': (0, 0, 255),
                     'circle': (255, 0, 0),
-                    'polygon': (0, 255, 50),
+                    'polygon': (255, 0, 0),
                     'goal': (0, 128, 128),
                     'table': (128, 128, 0),
                 }

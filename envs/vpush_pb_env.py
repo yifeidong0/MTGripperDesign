@@ -80,6 +80,10 @@ class VPushPbSimulationEnv(gym.Env):
         self.task = random.choice(['circle', 'polygon'])
         self.task_int = 0 if self.task == 'circle' else 1
         self.v_angle = random.uniform(np.pi/12, np.pi*11/12)
+        # self.v_angle = 2.8797932657906435 # iter 2, q_suc 0.56, mtbo 1-1-meanmax
+        # self.v_angle = 1.4253522224620356 # iter 16, q_suc 0.72, mtbo 1-1-meanmax
+        # self.v_angle = 1.4253522224620356 # iter 34, q_suc 0.92, mtbo 1-1-meanmax
+
         self.goal_position = np.array([4.5, 2.5]) # workspace [[0,5], [0,5]]
         self.goal_position += np.array([random.uniform(-0.2, 0.1), random.uniform(-0.3, 0.3)])
         self.simulation.goal_position = self.goal_position

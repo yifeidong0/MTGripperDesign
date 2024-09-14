@@ -93,11 +93,14 @@ class DLRSimulationEnv(gym.Env):
             print(f"INFO: episode {self.count_episodes}")
 
         self.simulation.step_count = 0
-        self.task_param = np.random.uniform(self.task_param_range[0], self.task_param_range[1])
+        self.task_param = np.random.uniform(self.task_param_range[1], self.task_param_range[1])
         distal_lengths = np.arange(30, 65, 5)
         distal_curvature = np.arange(2, 10, 2)
         self.design_params = [random.choice(distal_lengths),
                               random.choice(distal_curvature),]
+        # self.design_params = [30,2] # iter 4, mtbo-1-1-minmax, p_suc 0.4
+        # self.design_params = [45.0,2.0] # iter 7, mtbo-1-1-minmax, p_suc 0.8
+        # self.design_params = [60.0,6.0] # iter 29, mtbo-1-1-minmax, p_suc 0.95
         self.simulation.reset_task_and_design(self.task, self.task_param, self.design_params)
         obs = self._get_obs()
         self.num_end_steps = 0
