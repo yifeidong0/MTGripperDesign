@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # panda
-robustness_values=(true)
+robustness_values=(true false)
 
 # Define the random seeds
 random_seeds=(1 2 3)
 
 # Define perturbation values
-perturbs=(false)
+perturbs=(false true)
 
-all_yaw_weight_ee_object=(10)
-all_yaw_weight_ee_target=(1)
+all_yaw_weight_ee_object=(5)
+all_yaw_weight_ee_target=(5)
 all_success_reward=(100)
 all_object_target_distance_weight=(1)
 

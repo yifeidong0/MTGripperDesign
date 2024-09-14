@@ -52,16 +52,34 @@ import numpy as np
 from collections import deque
 
 class SaveBestModelCallback(BaseCallback):
-    def __init__(self, save_path, verbose=0, n_episodes=100):
+    def __init__(self, args, save_path, verbose=0, n_episodes=100):
         super(SaveBestModelCallback, self).__init__(verbose)
         self.save_path = save_path
         self.best_success_rate = -np.inf
         self.ep_success_buffer = deque(maxlen=n_episodes)  # Only keep the last `n_episodes`
         self.best_model_path = None  # Track the best model path
+        self.args = args
 
     def _init_callback(self) -> None:
         if self.save_path is not None:
             os.makedirs(self.save_path, exist_ok=True)
+
+    def _on_training_start(self) -> None:
+        hparam_dict = {k: (str(v) if isinstance(v, (list, dict)) else v) for k, v in vars(self.args).items()}
+        
+        if hasattr(self.training_env.envs[0], 'reward_weights'):
+            reward_weights = self.training_env.envs[0].reward_weights
+            hparam_dict.update({'reward_weights': str(reward_weights)})  # Convert to string to avoid type issues
+        
+        metric_dict = {
+            "rollout/ep_len_mean": 0,
+            "train/value_loss": 0.0,
+        }
+        self.logger.record(
+            "hparams",
+            HParam(hparam_dict, metric_dict),
+            exclude=("stdout", "log", "json", "csv"),
+        )
 
     def _on_step(self) -> bool:
         # Check if an episode has ended
@@ -197,6 +215,7 @@ def main():
                     )  
 
     best_model_callback = SaveBestModelCallback(
+        args=args,
         save_path=paths["model_save_path"],
         verbose=1,
         n_episodes=100,  # Track the last 100 episodes

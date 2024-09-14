@@ -37,8 +37,9 @@ def main():
         # model = PPO.load("wandb/run-20240912_194113-kwpcx20u/files/results/models/PandaUPushEnv-v0/2024-09-12_19-41-12_kwpcx20u_0_False_False/best_model_953358_steps_0.5500.zip")
         # model = PPO.load("wandb/run-20240912_222808-cm540omg/files/results/models/PandaUPushEnv-v0/2024-09-12_22-28-07_cm540omg_1_False_True/best_model_247212_steps_0.5300.zip")
         # model = PPO.load("wandb/run-20240913_111829-b66f42oz/files/results/models/PandaUPushEnv-v0/2024-09-13_11-18-29_b66f42oz_42_False_False/best_model_431927_steps_0.5500.zip")
-        model = PPO.load("wandb/run-20240913_235634-pkt37ask/files/results/models/PandaUPushEnv-v0/2024-09-13_23-56-33_pkt37ask_1_True_False/best_model_231449_steps_0.4500.zip")
-        # model = None
+        # model = PPO.load("wandb/run-20240913_235634-pkt37ask/files/results/models/PandaUPushEnv-v0/2024-09-13_23-56-33_pkt37ask_1_True_False/best_model_231449_steps_0.4500.zip")
+        # model = PPO.load("wandb/offline-run-20240914_132838-yqba9d4t/files/results/models/PandaUPushEnv-v0/2024-09-14_13-28-38_yqba9d4t_3_True_False/best_model_221617_steps_0.5300.zip")
+        model = None
     elif env_id == 'DLRSimulationEnv-v0':
         model = PPO.load("results/paper/dlr/4/01_1_1.zip")
     
@@ -52,8 +53,11 @@ def main():
                 action, state = model.predict(obs)
             else:
                 action = env.action_space.sample()
+            # action[0] = -0.01
+            # action[1] = -0.01
+            # action[2] = -0.01 
             obs, reward, done, truncated, _ = env.step(action)
-            # time.sleep(0.05)
+            time.sleep(0.05)
             env.render()
 
         print("Done!" if done else "Truncated.")
