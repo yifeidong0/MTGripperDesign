@@ -39,8 +39,8 @@ def main():
         model = PPO.load("results/paper/dlr/4/01_1_1.zip")
     
     success_rate = 0
-    for episode in range(50):
-        obs, _ = env.reset(seed=5)
+    for episode in range(20):
+        obs, _ = env.reset(seed=1)
         print(f"Episode {episode + 1} begins")
         done, truncated = False, False
         while not (done or truncated):
@@ -48,7 +48,11 @@ def main():
                 action, state = model.predict(obs)
             else:
                 action = env.action_space.sample()
+            # action[0] = -0.01
+            # action[1] = -0.01
+            # action[2] = -0.01 
             obs, reward, done, truncated, _ = env.step(action)
+            time.sleep(0.05)
             env.render()
             # time.sleep(3/240)
 

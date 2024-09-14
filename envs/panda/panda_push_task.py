@@ -174,7 +174,7 @@ class UPush(Task):
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
         self.goal_range_low = np.array([0.35, -0.3, 0])
-        self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.05, 0])
+        self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.08, 0])
         while True:
             goal = np.array([0.0, 0.0, self.object_size/2])  # z offset for the cube center
             noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
@@ -215,7 +215,7 @@ class UPush(Task):
                 results[i] = True
         return results
 
-    def _eval_robustness(self, tool_positions, tool_angles, object_positions, design_params, object_rad, slack=0.0):
+    def _eval_robustness(self, tool_positions, tool_angles, object_positions, design_params, object_rad, is_inside_gripper, slack=0.0):
         """
         Batch processing version of _eval_robustness.
         tool_positions: numpy array of shape [N, 2]
@@ -255,13 +255,17 @@ class UPush(Task):
         robot_vertices = np.stack([vertex_1, vertex_2, vertex_3, vertex_4, vertex_5], axis=1)  # (N, 5, 2)
         assert robot_vertices.shape == (N, 5, 2) and object_pos_R.shape == (N, 2)
         # Check if each object position is inside the corresponding robot polygon
-        is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
+        # is_inside = self._is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack)
         # is_inside = is_point_inside_polygon(object_pos_R, robot_vertices, slack=slack) # TODO
         # Calculate robustness for each evaluation
         soft_fixture_metric = l1 * np.cos(a1/2) + l2 * np.cos(a2) - object_pos_R[:, 0] + object_rad[:, 0]
         robustness_depth = np.maximum(0.0, soft_fixture_metric)
-        robustness = np.where(is_inside, 10 * robustness_depth + robustness_opening, 0)
-        return robustness
+        if is_inside_gripper:
+            return 10 * robustness_depth[0] + robustness_opening[0]
+        else:
+            return 0        
+        # robustness = np.where(is_inside_gripper, 10 * robustness_depth + robustness_opening, 0)
+        # return robustness
   
     def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray,) -> np.ndarray:
         if observation.ndim == 1:
@@ -282,32 +286,37 @@ class UPush(Task):
         #     self.is_success_flag = True
         #     reward += 10
         # return reward # only for debugging
-
-        reward = 0
-        self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
-                                                     ee_yaw,
-                                                     achieved_goal[..., :2],
-                                                     design_params,
-                                                     object_rad,
-                                                     slack=0)
-        # Caging robustness
-        if self.using_robustness_reward:
-            if self.robustness_score.shape[0] == 1:
-                self.robustness_score = np.squeeze(self.robustness_score, axis=0)  # Converts (1,) to ()
-            reward += self.robustness_score
-
-        if self.reward_type == "sparse":
-            d = distance(achieved_goal, desired_goal)
-            return reward - np.array(d > self.distance_threshold, dtype=np.float32)
-
+        
         ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
         object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
-
         object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
         ee_object_yaw = np.arctan2(achieved_goal[..., 1] - ee_position_2d[..., 1], achieved_goal[..., 0] - ee_position_2d[..., 0])
         ee_target_yaw = np.arctan2(desired_goal[..., 1] - ee_position_2d[..., 1], desired_goal[..., 0] - ee_position_2d[..., 0])
         yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
         yaw_difference_ee_target = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_target_yaw))
+
+        reward = 0
+        
+        if self.reward_type == "sparse":
+            d = distance(achieved_goal, desired_goal)
+            return reward - np.array(d > self.distance_threshold, dtype=np.float32)
+
+        is_inside_gripper = False
+        if ee_object_distance < 0.15 and yaw_difference_ee_object < np.pi / 6:
+            is_inside_gripper = True
+
+        self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
+                                                     ee_yaw,
+                                                     achieved_goal[..., :2],
+                                                     design_params,
+                                                     object_rad,
+                                                     is_inside_gripper,
+                                                     slack=0)
+        
+        
+        # Caging robustness
+        if self.using_robustness_reward:
+            reward += self.robustness_score * self.reward_weights[4]
 
         # imaged goal locating at the extension of the target-object line
         # line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
@@ -316,28 +325,20 @@ class UPush(Task):
         # middle_goal = achieved_goal[..., :2] + direction_vector * delta
         # ee_middle_goal_distance = distance(ee_position_2d, middle_goal)
         
-        is_inside_gripper = False
-        if ee_object_distance < 0.15 and yaw_difference_ee_object < np.pi / 6:
-            is_inside_gripper = True
-            reward += self.reward_weights[2]
-        
         if is_inside_gripper is False:
-            weight_ee_object_distance = 1.0
+            weight_ee_object_distance = self.reward_weights[5]
             weight_yaw_ee_object = self.reward_weights[0]
             reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
         else:
-            weight_ee_object_distance = 1.0
-            weight_object_target_distance = 5.0
+            weight_ee_object_distance = self.reward_weights[5]
             weight_yaw_ee_object = self.reward_weights[0]
+            weight_object_target_distance = self.reward_weights[3]
             weight_yaw_ee_target = self.reward_weights[1]
             reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance\
                       - weight_object_target_distance * object_target_distance - weight_yaw_ee_target * yaw_difference_ee_target
-
-        # if self.is_safe is False:
-        #     reward -= 100
         
         if self.is_success(achieved_goal, desired_goal):
-            reward += 100
-                        
+            reward += self.reward_weights[2]
+                                
         return reward
     
