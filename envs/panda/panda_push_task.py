@@ -20,7 +20,7 @@ class UPush(Task):
         reward_type,
         using_robustness_reward=True,
         reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
-        distance_threshold=0.1,
+        distance_threshold=0.05,
     ) -> None:
         super().__init__(sim)
         self.reward_type = reward_type
@@ -316,7 +316,7 @@ class UPush(Task):
         
         # Caging robustness
         if self.using_robustness_reward:
-            reward += self.robustness_score * 5
+            reward += self.robustness_score * 10
 
         # imaged goal locating at the extension of the target-object line
         # line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
@@ -327,18 +327,18 @@ class UPush(Task):
         
         if is_inside_gripper is False:
             weight_ee_object_distance = 1.0
-            weight_yaw_ee_object = 1.0
+            weight_yaw_ee_object = self.reward_weights[0]
             reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
         else:
             weight_ee_object_distance = 1
-            weight_yaw_ee_object = 1.0
-            weight_object_target_distance = 2.5
-            weight_yaw_ee_target = 1.0
+            weight_yaw_ee_object = self.reward_weights[0]
+            weight_object_target_distance = self.reward_weights[3]
+            weight_yaw_ee_target = self.reward_weights[1]
             reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance\
                       - weight_object_target_distance * object_target_distance - weight_yaw_ee_target * yaw_difference_ee_target
         
         if self.is_success(achieved_goal, desired_goal):
-            reward += 100
+            reward += self.reward_weights[2]
                                 
         return reward
     

@@ -9,10 +9,10 @@ random_seeds=(1 2 3)
 # Define perturbation values
 perturbs=(false)
 
-all_yaw_weight_ee_object=(1)
+all_yaw_weight_ee_object=(10)
 all_yaw_weight_ee_target=(1)
 all_success_reward=(100)
-all_object_target_distance_weight=(1 2.5)
+all_object_target_distance_weight=(1)
 
 # Define total timesteps
 total_timesteps=1000000
@@ -32,7 +32,7 @@ run_in_vscode_terminal() {
   python3 experiments/train.py \
         --env_id panda \
         --wandb_group_name "$wandb_group_name" \
-        --wandb_mode online \
+        --wandb_mode offline \
         --algo ppo \
         --using_robustness_reward $robustness \
         --render_mode rgb_array \
