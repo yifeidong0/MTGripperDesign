@@ -316,7 +316,7 @@ class UPush(Task):
         
         # Caging robustness
         if self.using_robustness_reward:
-            reward += self.robustness_score * 10
+            reward += self.robustness_score * self.reward_weights[4]
 
         # imaged goal locating at the extension of the target-object line
         # line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
@@ -326,11 +326,11 @@ class UPush(Task):
         # ee_middle_goal_distance = distance(ee_position_2d, middle_goal)
         
         if is_inside_gripper is False:
-            weight_ee_object_distance = 1.0
+            weight_ee_object_distance = self.reward_weights[5]
             weight_yaw_ee_object = self.reward_weights[0]
             reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
         else:
-            weight_ee_object_distance = 1
+            weight_ee_object_distance = self.reward_weights[5]
             weight_yaw_ee_object = self.reward_weights[0]
             weight_object_target_distance = self.reward_weights[3]
             weight_yaw_ee_target = self.reward_weights[1]
