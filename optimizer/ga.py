@@ -340,8 +340,6 @@ class GeneticAlgorithmPipeline:
 
 
 if __name__ == "__main__":
-    num_run = 1
-    for r in range(num_run):
-        pipeline = GeneticAlgorithmPipeline()
-        pipeline.run()
-        pipeline.env.close()
+    pipeline = GeneticAlgorithmPipeline()
+    pipeline.run()
+    pipeline.env.close()

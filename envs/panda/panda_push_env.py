@@ -45,7 +45,7 @@ class PandaUPushEnv(RobotTaskEnv):
         reward_weights: list = [1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         perturb: bool = False,
         perturb_sigma: float = 1.8,
-        reward_type: str = "sparse",
+        reward_type: str = "dense",
         control_type: str = "ee",
         renderer: str = "Tiny",
         render_width: int = 720,

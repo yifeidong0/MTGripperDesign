@@ -17,13 +17,13 @@ class TrainingCurvePlotter:
             "robustness=0, perturb=0"
         ]
         self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
-        self.num_seeds = {'catch': 6, 'vpush': 5, 'panda': 6, 'dlr': 8}
+        self.num_seeds = {'catch': 6, 'vpush': 5, 'panda': 6, 'dlr': 8, 'panda_new': 5}
         self.num_seed = self.num_seeds[env]
-        self.xlims = {'catch': [0.25e6, 4.9e6], 'vpush': [0, 2e6], 'panda': [0, 1.25e6], 'dlr': [0, 1.25e6]}
+        self.xlims = {'catch': [0.25e6, 4.9e6], 'vpush': [0, 2e6], 'panda': [0, 1.25e6], 'dlr': [0, 1.25e6], 'panda_new': [0, 1e6]}
         self.xlim = self.xlims[env]
-        self.ylim_srs = {'catch': [0.0, 0.95], 'vpush': [0.1, 0.8], 'panda': [0.1, 0.75], 'dlr': [0.0, 1]}
+        self.ylim_srs = {'catch': [0.0, 0.95], 'vpush': [0.1, 0.8], 'panda': [0.1, 0.75], 'dlr': [0.0, 1], 'panda_new': [0.0, 1]}
         self.ylim_sr = self.ylim_srs[env]
-        self.ylim_rews = {'catch': [0, 280], 'vpush': [0, 120], 'panda': [0, 90], 'dlr': [-50, 450]}
+        self.ylim_rews = {'catch': [0, 280], 'vpush': [0, 120], 'panda': [0, 90], 'dlr': [-50, 450], 'panda_new': [0, 190]}
         self.ylim_rew = self.ylim_rews[env]
 
     def extract_data(self, event_file):
@@ -130,7 +130,7 @@ class TrainingCurvePlotter:
 
     
 if __name__ == "__main__":
-    envs = ['catch', 'vpush', 'panda', 'dlr']
+    envs = ['catch', 'vpush', 'panda_new', 'dlr']
     plotter = TrainingCurvePlotter(envs[0])  # Initialize with the first environment
-    plotter.plot_envs_in_subfigures(envs, 'results/paper/figures/robustness/envs_success_rate.png')
+    plotter.plot_envs_in_subfigures(envs, 'results/paper/figures/robustness/envs_success_rate_new.png')
     # plotter.plot_all()

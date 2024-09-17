@@ -123,7 +123,7 @@ class BayesianOptimizationMultiTask:
                         {'name': 'finger_angle', 'type': 'continuous', 'domain': (-np.pi/3, np.pi/3)},
                         {'name': 'distal_phalanx_length', 'type': 'continuous', 'domain': (0.00, 0.08)},
                         {'name': 'task', 'type': 'discrete', 'domain': tuple(range(self.num_outputs))}]
-            self.robustness_score_weight = 0.3
+            self.robustness_score_weight = 0.15
         elif self.env_type == "dlr":
             self.num_outputs = 11
             self.bounds = [{'name': 'l', 'type': 'discrete', 'domain': list(np.arange(30, 65, 5))},
@@ -213,7 +213,6 @@ class BayesianOptimizationMultiTask:
                 if info['robustness'] is not None and info['robustness'] > 0:
                     num_robustness_step += 1
                     weight = self.robustness_score_weight if self.args.model_with_robustness_reward else 0.0
-                    # print(f"!!!!!!!Robustness: {info['robustness']}")
                     avg_robustness += info['robustness'] * weight
                 # self.env.render()
             success_score = 1.0 if done else 0.0
@@ -411,6 +410,6 @@ class BayesianOptimizationMultiTask:
             writer.writerow(row_data)
 
 if __name__ == "__main__":
-    pipeline = BayesianOptimizationMultiTask(initial_iter=3) # initial_iter has to be more than 0 
+    pipeline = BayesianOptimizationMultiTask(initial_iter=1) # initial_iter has to be more than 0 
     pipeline.run()
     pipeline.env.close()
