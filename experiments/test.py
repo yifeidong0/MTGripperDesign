@@ -52,7 +52,6 @@ def main():
             # action[1] = -0.01
             # action[2] = -0.01 
             obs, reward, done, truncated, _ = env.step(action)
-            time.sleep(0.05)
             env.render()
             # time.sleep(3/240)
 

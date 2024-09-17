@@ -45,7 +45,7 @@ def get_args_bo():
     parser.add_argument('--perturb', type=str2bool, nargs='?', const=False, default=False, help='Add random perturbations to the target object')
     parser.add_argument('--render_mode', type=str, choices=['rgb_array', 'human'], default='human', help='Rendering mode for the simulation')
     parser.add_argument('--algo', type=str, choices=['ppo', 'tqc', 'sac'], default='ppo', help='RL algorithm to use for training')
-    parser.add_argument('--model_path', type=str, default='results/paper/catch/1/UCatchSimulationEnv-v0_5000000_2024-08-28_07-45-29_final.zip', help='model for evaluation')
+    parser.add_argument('--model_path', type=str, default='results/paper/panda_new/1/1_best_model_723189_steps_0.6200.zip', help='model for evaluation')
     parser.add_argument('--save_filename', type=str, default='results/paper/catch/1/mtbo_eval.csv', help='model for evaluation')
     parser.add_argument('--num_episodes_eval', type=int, default=10, help='Number of episodes for each evaluation iteration')
     parser.add_argument('--num_episodes_eval_best', type=int, default=30, help='Number of episodes for each evaluation iteration')

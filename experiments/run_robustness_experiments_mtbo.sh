@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the random seeds
-random_seeds=(1 2 3 4 5)
+random_seeds=(1 2 3 4 5 6)
 
 # Function to run the command in a new VSCode terminal
 run_in_vscode_terminal() {
@@ -17,8 +17,10 @@ run_in_vscode_terminal() {
         --model_with_robustness_reward $model_with_robustness_reward \
         --perturb $perturb \
         --algo ppo \
-        --device cpu \
+        --device cuda \
         --save_filename $csv_filename \
+        --num_episodes_eval 20 \
+        --num_episodes_eval_best 50 \
         --render_mode rgb_array \
         --num_episodes_eval 20 \
         --num_episodes_eval_best 25 \
@@ -29,8 +31,8 @@ run_in_vscode_terminal() {
   gnome-terminal -- bash -c "$cmd; exec bash"
 }
 
-# Loop through each i={1,2,3,4,5}, corresponding to each random seed
-for i in {1..5}; do
+# Loop through each i={1,2,3,4,5,6}, corresponding to each random seed
+for i in {1..4}; do
   # Get the list of zip files in alphabetical order
   # model_files=($(ls results/paper/panda/1/*.zip | sort)) # remove randomness from RL training
   model_files=($(ls results/paper/panda_new/$i/*.zip | sort))
