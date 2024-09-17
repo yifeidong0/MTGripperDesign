@@ -126,7 +126,32 @@ class PandaUPushEnv(RobotTaskEnv):
             self.robot.distal_phalanx_length = random.uniform(0.00, 0.08)
             if self._pusher_forward_kinematics()[1] > 0.02: # make sure the pusher does not self-intersect
                 break
-        
+
+        # self.robot.v_angle = 0.5235987755982988 # iter3,0.16, red, second-printed upusher
+        # self.robot.finger_length = 0.05
+        # self.robot.finger_angle = -0.11635528346628865
+        # self.robot.distal_phalanx_length = 0.053333333333
+
+        # self.robot.v_angle = 0.936 # test, white, first-printed upusher
+        # self.robot.finger_length = 0.08
+        # self.robot.finger_angle = 0.468
+        # self.robot.distal_phalanx_length = 0.025
+
+        # self.robot.v_angle = 2.6179938779914944 # iter9,0.44
+        # self.robot.finger_length = 0.12
+        # self.robot.finger_angle = -0.11635528346628865
+        # self.robot.distal_phalanx_length = 0.08
+
+        # self.robot.v_angle = 1.68715 # iter24,0.56 - notused
+        # self.robot.finger_length = 0.12
+        # self.robot.finger_angle = -0.3490
+        # self.robot.distal_phalanx_length = 0.071111
+
+        # self.robot.v_angle = 1.6871516102611852 # iter43,0.88
+        # self.robot.finger_length = 0.12
+        # self.robot.finger_angle = -0.11635528346628865
+        # self.robot.distal_phalanx_length = 0.08
+
         return super().reset(seed=seed, options=options)
 
     def reset_task_and_design(

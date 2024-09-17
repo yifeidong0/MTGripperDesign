@@ -33,7 +33,7 @@ def main():
     elif env_id == 'VPushPbSimulationEnv-v0':
         model = PPO.load("results/paper/vpush/1/VPushPbSimulationEnv-v0_2024-08-29_20-24-50_1833000_steps.zip")
     elif env_id == 'PandaUPushEnv-v0':
-        model = PPO.load("results/paper/panda_new/best_model_247212_steps_0.5300.zip")
+        model = PPO.load("results/paper/panda_new/panda_new/1/2_best_model_516987_steps_0.0700.zip")
         # model = None
     elif env_id == 'DLRSimulationEnv-v0':
         model = PPO.load("results/paper/dlr/4/01_1_1.zip")
@@ -52,7 +52,6 @@ def main():
             # action[1] = -0.01
             # action[2] = -0.01 
             obs, reward, done, truncated, _ = env.step(action)
-            time.sleep(0.05)
             env.render()
             # time.sleep(3/240)
 
