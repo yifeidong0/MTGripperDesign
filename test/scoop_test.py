@@ -2,12 +2,9 @@ import pybullet as p
 import pybullet_data
 import time
 import math
-import numpy as np
 import os
 import sys
-import random
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.generate_scoop import generate_scoop
 
 # Physics simulation setup
 g = -9.81
@@ -17,33 +14,29 @@ p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)  # Enable Finite Element Method 
 p.setGravity(0, 0, g)
 planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 
-# Create scoop
-# coef = [random.uniform(.5, 5), 
-#         random.uniform(0,1.5), 
-#         random.uniform(0,1.5)]
-# coef = [1, 1]
-# unique_obj_filename = 'test.obj'
-# generate_scoop(coef, f"asset/{unique_obj_filename}")
+# Define rectangle dimensions (width, height, depth)
+width = 1.0
+height = 0.5
+depth = 0.02
 
-# # Decompose the mesh
-# decompose_mesh(pb_connected=True, input_file=f"asset/{unique_obj_filename}", resolution = int(1e2),)
+# Create collision and visual shapes
+half_extents = [width / 2, height / 2, depth / 2]
+collision_shape_id = p.createCollisionShape(shapeType=p.GEOM_BOX, halfExtents=half_extents)
+visual_shape_id = p.createVisualShape(shapeType=p.GEOM_BOX, halfExtents=half_extents, rgbaColor=[0, 1, 0, 1])
 
-# Load scoop as robot end-effector
+# Create the rigid body
+mass = 1.0
 mass_scoop = 1
-robot_orientation = p.getQuaternionFromEuler([0,0,0])
-scoop = p.loadURDF(
-    "asset/poly_scoop/scoop_1.31_0.64.urdf", 
-    basePosition=[1,2.5,0],  # Position above the ground
-    baseOrientation=robot_orientation,
-    globalScaling=1
-)
-p.changeDynamics(scoop, -1, lateralFriction=0.0, spinningFriction=0.4, rollingFriction=0.4)
+base_position = [1, 2.5, depth/2]  # Initial position (x, y, z)
+base_orientation = [0, 0, 0, 1]  # Quaternion (x, y, z, w)
+scoop = p.createMultiBody(baseMass=mass,
+                                 baseCollisionShapeIndex=collision_shape_id,
+                                 baseVisualShapeIndex=visual_shape_id,
+                                 basePosition=base_position,
+                                 baseOrientation=base_orientation)
 
-# Change mass
-p.changeDynamics(scoop, -1, mass=mass_scoop)
-
-# Load the bread soft body
-object_type = "insole" # bread, pillow, cube
+# Load the soft body
+object_type = "insole" # bread, pillow, insole
 tex = p.loadTexture("uvmap.png")
 mass_pillow = 0.005
 if object_type == "bread":
@@ -75,7 +68,7 @@ elif object_type == "pillow":
         NeoHookeanLambda=5,
         NeoHookeanDamping=.1,
         useSelfCollision=1,
-        frictionCoeff=0.0,
+        frictionCoeff=0.5,
         collisionMargin=0.001
     )
     p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
@@ -92,28 +85,11 @@ elif object_type == "insole":
         NeoHookeanLambda=5,
         NeoHookeanDamping=.1,
         useSelfCollision=1,
-        frictionCoeff=0.0,
+        frictionCoeff=0.5,
         collisionMargin=0.001
     )
     p.changeVisualShape(object_id, -1, rgbaColor=[1, 1, 1, 1], textureUniqueId=tex, flags=0)
-elif object_type == "cube":
-    # object_id = p.loadSoftBody(
-    #     "cube.obj",
-    #     basePosition=[2.5, 2.5, 1],  # Position on top of the scoop
-    #     baseOrientation=p.getQuaternionFromEuler([0, 0, 0]),
-    #     scale=1,
-    #     mass=1,
-    object_id = p.loadSoftBody("asset/torus_textured.obj", 
-                               mass = 3, 
-                               useNeoHookean = 1, 
-                               basePosition=[0,0, 1], 
-                               NeoHookeanMu = 180, 
-                               NeoHookeanLambda = 600, 
-                               NeoHookeanDamping = 0.01, 
-                               collisionMargin = 0.006, 
-                               useSelfCollision = 1, 
-                               frictionCoeff = 0.5, 
-                               repulsionStiffness = 800)
+
 
 # Create a heavy box to fix the bread at the other end
 box = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.1, 0.8, 1.1])
@@ -155,23 +131,23 @@ while True:
         p.changeDynamics(scoop, -1, mass=0)
         p.resetBaseVelocity(scoop, [0, 0, 0], [0, 0, 0])
 
-    if i > 1100:
-        # # FORCE on object
-        # p.applyExternalForce(object_id, -1, [random.uniform(-10000,10000) for _ in range(3)], object_position, p.WORLD_FRAME)
+    # if i > 1100:
+    #     # # FORCE on object
+    #     # p.applyExternalForce(object_id, -1, [random.uniform(-10000,10000) for _ in range(3)], object_position, p.WORLD_FRAME)
 
-        # VELOCITY
-        limit = 2000
-        rand_acc = [random.uniform(-limit, limit) for _ in range(3)]
-        total_acc = rand_acc
-        total_acc[2] = g
-        delta_vel = [a * dt for a in total_acc]
-        curr_vel = p.getBaseVelocity(object_id)[0]
-        new_vel = [v + dv for v, dv in zip(curr_vel, delta_vel)]
-        p.resetBaseVelocity(object_id, new_vel, [0, 0, 0])
+    #     # VELOCITY
+    #     limit = 2000
+    #     rand_acc = [random.uniform(-limit, limit) for _ in range(3)]
+    #     total_acc = rand_acc
+    #     total_acc[2] = g
+    #     delta_vel = [a * dt for a in total_acc]
+    #     curr_vel = p.getBaseVelocity(object_id)[0]
+    #     new_vel = [v + dv for v, dv in zip(curr_vel, delta_vel)]
+    #     p.resetBaseVelocity(object_id, new_vel, [0, 0, 0])
         
         # # Random FORCE on robot
         # p.applyExternalForce(scoop, -1, [random.uniform(-10000,10000) for _ in range(3)], scoop_position, p.WORLD_FRAME)
 
     p.stepSimulation()
-    time.sleep(1. / 240.)
+    time.sleep(4. / 240.)
     i += 1
