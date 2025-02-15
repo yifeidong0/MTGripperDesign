@@ -7,7 +7,6 @@ from panda_gym.envs.core import Task
 from panda_gym.utils import distance
 import pybullet as p
 from shapely.geometry import Polygon, Point
-from polygon import is_point_inside_polygon
 
 def pi_2_pi(angle):
     return (angle + np.pi) % (2 * np.pi) - np.pi

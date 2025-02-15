@@ -16,7 +16,9 @@ def main():
     env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
               'catch':'UCatchSimulationEnv-v0',
               'dlr':'DLRSimulationEnv-v0',
-              'panda':'PandaUPushEnv-v0',}
+              'panda':'PandaUPushEnv-v0',
+               'xarm7':'Xarm7UPushEnv-v0',
+               }
     env_id = env_ids[args.env_id]
     env_kwargs = {'obs_type': args.obs_type, 
                   'using_robustness_reward': args.using_robustness_reward, 
@@ -37,7 +39,9 @@ def main():
         # model = None
     elif env_id == 'DLRSimulationEnv-v0':
         model = PPO.load("results/paper/dlr/4/01_1_1.zip")
-    
+    elif env_id == 'Xarm7UPushEnv-v0':
+        model = None
+
     success_rate = 0
     for episode in range(20):
         obs, _ = env.reset(seed=1)

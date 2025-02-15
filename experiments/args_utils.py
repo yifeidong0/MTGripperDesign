@@ -17,7 +17,7 @@ def str2bool(v):
 def get_args():
     parser = argparse.ArgumentParser(description="RL co-design project")
     parser.add_argument('--random_seed', type=int, default=42, help='Random seed for reproducibility. Default is 42.')
-    parser.add_argument('--env_id', type=str, choices=['vpush', 'catch', 'dlr', 'panda',], default='panda', help='Environment ID for the simulation')
+    parser.add_argument('--env_id', type=str, choices=['vpush', 'catch', 'dlr', 'panda', 'xarm7'], default='panda', help='Environment ID for the simulation')
     parser.add_argument('--total_timesteps', type=int, default=int(5e6), help='Total number of timesteps for training')
     parser.add_argument('--time_stamp', type=str, default=get_timestamp(), help='Current time of the script execution')
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu', 'auto'], default='auto', help='Computational device to use (auto, cuda, cpu)')

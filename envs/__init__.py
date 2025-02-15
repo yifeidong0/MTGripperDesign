@@ -33,6 +33,11 @@ register(
 )
 
 register(
+    id='Xarm7UPushEnv-v0',
+    entry_point='envs.xarm7.xarm7_push_env:Xarm7UPushEnv',
+)
+
+register(
     id='DLRSimulationEnv-v0',
     entry_point='envs.dlr_env:DLRSimulationEnv',
 )

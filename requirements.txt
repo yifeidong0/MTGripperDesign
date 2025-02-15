@@ -4,3 +4,6 @@ stable-baselines3[extra]
 panda-gym
 wandb
 pyyaml
+git+https://github.com/xArm-Developer/uf-gym.git
+Box2D
+numpy-stl
