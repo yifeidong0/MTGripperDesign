@@ -14,6 +14,8 @@ p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)  # Enable Finite Element Method 
 p.setGravity(0, 0, g)
 planeUid = p.loadURDF("plane.urdf", basePosition=[0, 0, 0])
 
+# p.vhacd("asset/bowl/bowl.obj", "asset/bowl/bowl-vhacd.obj", "log.txt")
+
 # Define rectangle dimensions (width, height, depth)
 width = 1.0
 height = 0.5
@@ -34,6 +36,8 @@ scoop = p.createMultiBody(baseMass=mass,
                                  baseVisualShapeIndex=visual_shape_id,
                                  basePosition=base_position,
                                  baseOrientation=base_orientation)
+bowl_id = p.createCollisionShape(p.GEOM_MESH, fileName="asset/bowl/bowl-vhacd.obj", meshScale=[0.045,]*3)
+p.createMultiBody(baseMass=1, baseCollisionShapeIndex=bowl_id, baseVisualShapeIndex=bowl_id, basePosition=[2.2, 2.5, 0.1])
 
 # Load the soft body
 object_type = "insole" # bread, pillow, insole
@@ -42,7 +46,7 @@ mass_pillow = 0.005
 if object_type == "bread":
     object_id = p.loadSoftBody(
         "asset/bread.vtk", # pillow, bread
-        basePosition=[2.5,2.5,1],  # Position on top of the scoop
+        basePosition=[2.5,2.5,3],  # Position on top of the scoop
         baseOrientation=p.getQuaternionFromEuler([math.pi/2, 0, math.pi/2]),
         scale=.5,
         mass=0.005,
@@ -116,7 +120,6 @@ while True:
     # Get current position and orientation of the scoop
     scoop_position, scoop_orientation = p.getBasePositionAndOrientation(scoop)
     object_position, object_orientation = p.getBasePositionAndOrientation(object_id)
-
     # Apply force on scoop
     if i > 100 and i < 800:
         p.applyExternalForce(scoop, -1, [7, 0, 0], scoop_position, p.WORLD_FRAME)
