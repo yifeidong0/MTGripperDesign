@@ -68,7 +68,7 @@ def get_RT_from_chessboard(img_path,chess_board_x_num,chess_board_y_num,K,chess_
     flag=0
     for i in range(chess_board_y_num):
         for j in range(chess_board_x_num):
-            object_points[:2,flag]=np.array([(11-j-1)*chess_board_len,(8-i-1)*chess_board_len])
+            object_points[:2,flag]=np.array([(chess_board_x_num-j-1)*chess_board_len,(chess_board_y_num-i-1)*chess_board_len])
             flag+=1
     # print(object_points)
 
@@ -103,7 +103,10 @@ num_samples = 21
 #计算board to cam 变换矩阵
 R_all_chess_to_cam_1 = []
 T_all_chess_to_cam_1 = []
+skip_ids = [1, 15, 18, 19]
 for i in range(num_samples):
+    if i in skip_ids:
+        continue
     print("Computing transformation cam to chessboard", i)
     image_path = folder+'/chessboard_'+str(i)+'.bmp'
     RT = get_RT_from_chessboard(image_path, chess_board_x_num, chess_board_y_num, K, chess_board_len)
@@ -122,8 +125,6 @@ with open(csv_file, 'r') as f:
     reader = csv.reader(f)
     ee_pose = list(reader)
     ee_pose = [[float(x) for x in row] for row in ee_pose[1:]]
-print('!!!!!!!!!!!',len(ee_pose))
-print(len(ee_pose[0]))
 
 # file_address='calib/机器人基坐标位姿.xlsx'#从记录文件读取机器人六个位姿 TODO:根据实际情况修改
 # sheet_1 = pd.read_excel(file_address)
@@ -131,11 +132,9 @@ R_all_end_to_base_1=[]
 T_all_end_to_base_1=[]
 # print(sheet_1.iloc[0]['ax'])
 for i in range(num_samples):
-    # print(sheet_1.iloc[i-1]['ax'],sheet_1.iloc[i-1]['ay'],sheet_1.iloc[i-1]['az'],sheet_1.iloc[i-1]['dx'],
-    #                                   sheet_1.iloc[i-1]['dy'],sheet_1.iloc[i-1]['dz'])
-    # RT=pose_robot(sheet_1.iloc[i-1]['ax'],sheet_1.iloc[i-1]['ay'],sheet_1.iloc[i-1]['az'],sheet_1.iloc[i-1]['dx'],
-    #                                   sheet_1.iloc[i-1]['dy'],sheet_1.iloc[i-1]['dz'])
-    RT=pose_robot(ee_pose[i][3],ee_pose[i][4],ee_pose[i][5],ee_pose[i][0],ee_pose[i][1],ee_pose[i][2])
+    if i in skip_ids:
+        continue
+    RT = pose_robot(ee_pose[i][3],ee_pose[i][4],ee_pose[i][5],ee_pose[i][0],ee_pose[i][1],ee_pose[i][2])
     # RT=np.column_stack(((cv2.Rodrigues(np.array([[sheet_1.iloc[i-1]['ax']],[sheet_1.iloc[i-1]['ay']],[sheet_1.iloc[i-1]['az']]])))[0],
     #                    np.array([[sheet_1.iloc[i-1]['dx']],
     #                                   [sheet_1.iloc[i-1]['dy']],[sheet_1.iloc[i-1]['dz']]])))
@@ -145,17 +144,17 @@ for i in range(num_samples):
     R_all_end_to_base_1.append(RT[:3, :3])
     T_all_end_to_base_1.append(RT[:3, 3].reshape((3, 1)))
 
+# print(T_all_end_to_base_1)
 # print(R_all_end_to_base_1)
-R,T=cv2.calibrateHandEye(R_all_end_to_base_1,T_all_end_to_base_1,R_all_chess_to_cam_1,T_all_chess_to_cam_1)#手眼标定
+R,T=cv2.calibrateHandEye(R_all_end_to_base_1, T_all_end_to_base_1, R_all_chess_to_cam_1, T_all_chess_to_cam_1) #手眼标定
 RT=np.column_stack((R,T))
 RT = np.row_stack((RT, np.array([0, 0, 0, 1])))#即为camera to end-effector 变换矩阵
 print('camera to end-effector: ')
 print(RT)
 
-###################################################################################
+# ###################################################################################
 # 结果验证，原则上来说，每次结果相差较小
-for i in range(num_samples):
-
+for i in range(num_samples-len(skip_ids)):
     RT_end_to_base=np.column_stack((R_all_end_to_base_1[i],T_all_end_to_base_1[i]))
     RT_end_to_base=np.row_stack((RT_end_to_base,np.array([0,0,0,1])))
     # print(RT_end_to_base)
@@ -168,8 +167,8 @@ for i in range(num_samples):
     RT_cam_to_end=np.row_stack((RT_cam_to_end,np.array([0,0,0,1])))
     # print(RT_cam_to_end)
 
-    RT_chess_to_base=RT_end_to_base@RT_cam_to_end@RT_chess_to_cam#即为固定的棋盘格相对于机器人基坐标系位姿
-    RT_chess_to_base=np.linalg.inv(RT_chess_to_base)
+    RT_chess_to_base=RT_end_to_base@RT_cam_to_end@RT_chess_to_cam #即为固定的棋盘格相对于机器人基坐标系位姿
+    # RT_chess_to_base=np.linalg.inv(RT_chess_to_base)
     print('第',i,'次')
     print(RT_chess_to_base[:3,:])
     print('')
