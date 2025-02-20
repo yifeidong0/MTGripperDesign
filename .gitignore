@@ -32,3 +32,5 @@ envs/panda/polygon/polygon.egg-info
 envs/panda/polygon/build
 asset/default
 asset/franka_panda_custom/3dprint
+
+captured_chessboard_images
