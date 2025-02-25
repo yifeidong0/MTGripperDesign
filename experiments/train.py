@@ -121,7 +121,8 @@ def main():
     env_ids = {'vpush':'VPushPbSimulationEnv-v0', 
               'catch':'UCatchSimulationEnv-v0',
               'dlr':'DLRSimulationEnv-v0',
-              'panda':'PandaUPushEnv-v0'}
+              'panda':'PandaUPushEnv-v0',
+               'xarm7': 'Xarm7UPushEnv-v0'}
     env_id = env_ids[args.env_id]
 
     paths = {
@@ -160,7 +161,7 @@ def main():
     env = gym.make(env_id, **env_kwargs)
     if args.wandb_mode == 'disabled':
         try:
-            if env_id != 'PandaUPushEnv-v0':
+            if (args.env_id != 'panda') and (args.env_id != 'xarm7'):
                 check_env(env)
         finally:
             os.system(f"rm -rf asset/{run_id}")
