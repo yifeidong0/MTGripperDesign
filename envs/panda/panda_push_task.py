@@ -47,6 +47,18 @@ class UPush(Task):
         self._create_task_object()
 
     def _create_task_object(self) -> None:
+        # Create goal region
+        self.sim.create_cylinder(
+            body_name="target",
+            radius=self.distance_threshold,
+            height=0.01,
+            mass=0.0,
+            ghost=True,
+            position=np.array([0.0, 0.0, 0.0]),
+            rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
+        )
+
+        # Create task object
         if self.task_object_name == 'circle':
             self.sim.create_cylinder(
                 body_name="object",
@@ -54,17 +66,8 @@ class UPush(Task):
                 height=self.object_size/2*1.6, # 6.4cm
                 mass=0.079, # TODO: adapt it after printing the objects and weighing them
                 position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
-                rgba_color=np.array([0.9, 0.2,  0.2, 1.0]),
+                rgba_color=np.array([0.9, 0.2, 0.2, 1.0]),
                 lateral_friction=40/77,
-            )
-            self.sim.create_cylinder(
-                body_name="target",
-                radius=self.object_size/2,
-                height=self.object_size/2*1.6,
-                mass=0.0,
-                ghost=True,
-                position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
-                rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
             )
         elif self.task_object_name == 'square':
             self.sim.create_box(
@@ -74,14 +77,6 @@ class UPush(Task):
                 position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
                 rgba_color=np.array([0.9, 0.2,  0.2, 1.0]),
                 lateral_friction=40/77,
-            )
-            self.sim.create_box(
-                body_name="target",
-                half_extents=np.array([1,1,0.8]) * self.object_size / 2,
-                mass=0.0,
-                ghost=True,
-                position=np.array([0.0, 0.0, self.object_size/2*1.6/2]),
-                rgba_color=np.array([0.1, 0.9, 0.1, 0.3]),
             )
         elif self.task_object_name == 'polygon0':
             file_name = "asset/polygons/poly0.obj"
@@ -121,22 +116,6 @@ class UPush(Task):
                     },
                 lateral_friction=40/77,
             )
-            self.sim._create_geometry(
-                body_name="target",
-                geom_type=self.sim.physics_client.GEOM_MESH,
-                mass=0.0,
-                position=np.array([0.0, 0.0, height/2]),
-                ghost=True,
-                visual_kwargs={
-                        "fileName": file_name,
-                        "meshScale": mesh_scale,
-                        "rgbaColor": np.array([0.1, 0.9, 0.1, 0.3]),
-                    },
-                collision_kwargs={
-                        "fileName": file_name,
-                        "meshScale": mesh_scale,
-                    },
-            )
 
     def get_obs(self) -> np.ndarray:
         object_rotation = np.array(self.sim.get_base_rotation("object"))[2:]
@@ -175,7 +154,7 @@ class UPush(Task):
         self.goal_range_low = np.array([0.35, -0.3, 0])
         self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.08, 0])
         while True:
-            goal = np.array([0.0, 0.0, self.object_size/2])  # z offset for the cube center
+            goal = np.array([0.0, 0.0, 0.0])  # z offset for the cube center
             noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
             goal += noise
             if distance(goal, self.init_object_position) > 0.1:

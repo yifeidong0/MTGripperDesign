@@ -16,7 +16,7 @@
         <mesh filename="package://meshes/collision/link0.obj"/>
       </geometry>
       <material name="panda_white">
-        <color rgba="1. 1. 1. 1."/>
+        <color rgba="1. 1. 1. 0.4"/>
       </material>
     </visual>
     <collision>
@@ -91,7 +91,7 @@
         <mesh filename="package://meshes/visual/link3.obj"/>
       </geometry>
       <material name="panda_red">
-        <color rgba="1. 1. 1. 1."/>
+        <color rgba="1. 1. 1. 0.3"/>
       </material>
     </visual>
     <collision>
