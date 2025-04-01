@@ -27,9 +27,7 @@ class Xarm7(PyBulletRobot):
         self.base_position = base_position if base_position is not None else np.zeros(3)
         self.control_type = control_type
         # action space (dx, dy, dyaw)
-        action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05, ]), high=np.array([0.01, 0.01, 0.05, ]),
-                                  dtype=np.float32)
-        # action_space = spaces.Box(low=np.array([-0.01, -0.01,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]), dtype=np.float32)
 
         self.v_angle = 0.5
         self.xarm7_file_name = "asset/xarm7/xarm7_template.urdf"
@@ -48,7 +46,7 @@ class Xarm7(PyBulletRobot):
             body_name="xarm7",
             file_name=self.xarm7_file_name,
             base_position=self.base_position,
-            action_space=action_space,
+            action_space=self.action_space,
             joint_indices=np.array([1, 2, 3, 4, 5, 6, 7,]),
             joint_forces=np.array([60.0, 60.0, 40.0, 40.0, 40.0, 20.0, 20.0,])
         )
@@ -65,6 +63,9 @@ class Xarm7(PyBulletRobot):
     def set_action(self, action: np.ndarray) -> None:
         action = action.copy()  # ensure action don't change
         action = np.clip(action, self.action_space.low, self.action_space.high)
+        action_min = np.array([-0.01, -0.01, -0.05])
+        action_max = np.array([0.01, 0.01, 0.05])
+        action = (action + 1) / 2 * (action_max - action_min) + action_min
         if self.control_type == "ee":
             ee_displacement = np.array([action[0], action[1], 0])
             ee_orientation_change = action[2]
@@ -142,16 +143,16 @@ class Xarm7(PyBulletRobot):
         # if self.constraint_id is not None:
         #     p.removeConstraint(self.constraint_id)
         self._set_random_ee_pose()
-        # if "tool" in self.sim._bodies_idx:
-        #     p.removeBody(self.sim._bodies_idx["tool"])
-        # self._attach_tool_to_ee()
+        if "tool" in self.sim._bodies_idx:
+            p.removeBody(self.sim._bodies_idx["tool"])
+        self._attach_tool_to_ee()
         
         # Debugging
-        if self.attached_tool is False:
-            if "tool" in self.sim._bodies_idx:
-                p.removeBody(self.sim._bodies_idx["tool"])
-            self._attach_tool_to_ee()
-            self.attached_tool = True
+        # if self.attached_tool is False:
+        #     if "tool" in self.sim._bodies_idx:
+        #         p.removeBody(self.sim._bodies_idx["tool"])
+        #     self._attach_tool_to_ee()
+        #     self.attached_tool = True
 
     def _set_random_ee_pose(self) -> None:
         """Set the robot to a random end-effector initial pose after reset."""

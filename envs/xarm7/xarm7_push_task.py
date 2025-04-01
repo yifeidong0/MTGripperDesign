@@ -281,16 +281,12 @@ class UPush(Task):
             achieved_goal = np.expand_dims(achieved_goal, axis=0)
             desired_goal = np.expand_dims(desired_goal, axis=0)
             observation = np.expand_dims(observation, axis=0)
-
-        # Unpack observation components
         ee_position_2d = observation[..., :2]
         ee_yaw = observation[..., 2].reshape(-1, 1)
         object_position = achieved_goal[..., :2]
         object_rotation = observation[..., 7].reshape(-1, 1)
         desired_position = desired_goal[..., :2]
         desired_rotation = desired_goal[..., 2].reshape(-1, 1)  # If rotation is part of the goal
-
-        # Compute distances and angles
         ee_object_distance = distance(ee_position_2d, object_position)
         object_target_distance = distance(object_position, desired_position)
         ee_object_yaw = np.arctan2(
@@ -298,43 +294,49 @@ class UPush(Task):
             object_position[..., 0] - ee_position_2d[..., 0],
         )
         yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
-        
-        # Calculate rotation error (if needed)
         object_rotation_error = abs(pi_2_pi(object_rotation - desired_rotation))
 
-        # Smooth alignment factor (0 to 1)
-        distance_threshold = 0.2
+        r_approach_dist = np.exp(-20 * ee_object_distance**2)
+        r_approach_yaw = np.exp(-10 * yaw_difference_ee_object**2)
+        distance_threshold = 0.25
         yaw_threshold = 0.15
         alignment = (
             np.maximum(1 - ee_object_distance / distance_threshold, 0) *
             np.maximum(1 - yaw_difference_ee_object / yaw_threshold, 0)
         )
-
-        # Reward components
-        reward_approach = -(
-            1.0 * ee_object_distance +  # Encourage proximity to object
-            2.0 * yaw_difference_ee_object  # Align orientation with object
-        )
-        
-        reward_push = -(
-            5.0 * object_target_distance +  # Move object toward target
-            0.0 * object_rotation_error  # Correct object rotation (if applicable)
-        ) * alignment  # Only active when aligned
-        
-        total_reward = reward_approach + reward_push
-
+        # alignment = np.exp(-20 * ee_object_distance**2) * np.exp(-20 * yaw_difference_ee_object**2)
+        r_push = alignment * np.exp(-20 * object_target_distance**2)
         d = distance(achieved_goal, desired_goal)
-        if np.array(d < self.distance_threshold * 2, dtype=bool):
-            total_reward += 10
-        if np.array(d < self.distance_threshold * 1.5, dtype=bool):
-            total_reward += 30
-        if np.array(d < self.distance_threshold, dtype=bool):
-            total_reward += 100
+        r_bonus = 1 / (1 + np.exp((d - self.distance_threshold)))
+        r_step = -0.001
 
-        # Time penalty to encourage efficiency
-        total_reward -= 0.001
-
+        canvas_min_x, canvas_max_x = 0.20, 0.75
+        canvas_min_y, canvas_max_y = -0.4, 0.4
+        out_of_bounds_ee = (ee_position_2d[..., 0] < canvas_min_x) | (ee_position_2d[..., 0] > canvas_max_x) | \
+                           (ee_position_2d[..., 1] < canvas_min_y) | (ee_position_2d[..., 1] > canvas_max_y)
+        out_of_bounds_obj = (object_position[..., 0] < canvas_min_x) | (object_position[..., 0] > canvas_max_x) | \
+                            (object_position[..., 1] < canvas_min_y) | (object_position[..., 1] > canvas_max_y)
+        r_penalty = -np.where(np.logical_or(out_of_bounds_ee, out_of_bounds_obj), 1.0, 0.0)
+        weights = {
+            "approach_dist": 2.0,
+            "approach_yaw": 2.0,
+            "push": 0.0,
+            "bonus": 0.0,
+            "penalty": 1.0,
+            "step": 1.0,
+        }
+        total_weight = sum(weights.values())
+        norm_weights = {k: v / total_weight for k, v in weights.items()}
+        total_reward = (
+                norm_weights["approach_dist"] * r_approach_dist +
+                norm_weights["approach_yaw"] * r_approach_yaw +
+                norm_weights["push"] * r_push +
+                norm_weights["bonus"] * r_bonus +
+                norm_weights["penalty"] * r_penalty +
+                norm_weights["step"] * r_step
+        )
         return total_reward.squeeze()
+
 
     # def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray,
     #                    observation: np.ndarray, ) -> np.ndarray:

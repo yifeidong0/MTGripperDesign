@@ -63,7 +63,7 @@ class Xarm7UPushEnv(RobotTaskEnv):
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
         self.step_count += 1
         if self.ee_position is not None:
-            DISTANCE_UPPER_LIM = 0.55
+            DISTANCE_UPPER_LIM = 0.5
             DISTANCE_LOWER_LIM = 0.2
             ee_distance = np.linalg.norm(self.ee_position)
             directional_vec = self.ee_position / ee_distance
@@ -80,8 +80,8 @@ class Xarm7UPushEnv(RobotTaskEnv):
         self.sim.step()
         observation = self._get_obs()
         self.ee_position = observation["observation"][..., :2] # Debugging
-        # terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
-        terminated = self.task.is_success_flag # debugging
+        terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
+        # terminated = self.task.is_success_flag # debugging
         info = {"is_success": terminated}
         truncated = self._is_truncated()
         self.task.is_safe = self.is_safe
@@ -152,8 +152,8 @@ class Xarm7UPushEnv(RobotTaskEnv):
                                     and self.canvas_min_y <= object_position[1] <= self.canvas_max_y)
         time_ended = self.step_count > 500
 
-        # truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
-        truncated = time_ended or object_out_of_canvas
+        truncated = (gripper_out_of_canvas or object_out_of_canvas or time_ended)
+        # truncated = time_ended or object_out_of_canvas
         
         if (gripper_out_of_canvas):
             self.is_safe = False
