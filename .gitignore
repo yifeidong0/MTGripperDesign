@@ -35,3 +35,4 @@ asset/franka_panda_custom/3dprint
 test.*
 
 captured_chessboard_images
+.micromamba/
