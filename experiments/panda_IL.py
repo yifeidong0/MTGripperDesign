@@ -11,9 +11,9 @@ import threading
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import envs  # This registers the custom environments
 
+import pickle
 import gymnasium as gym
 from stable_baselines3.common.evaluation import evaluate_policy
-
 import imitation.policies.base as base_policies
 from imitation.util import util
 from imitation.util.util import make_vec_env
@@ -28,7 +28,7 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
         self,
         observation_space: gym.Space,
         action_space: gym.Space,
-        movement_scale: float = 0.002,
+        movement_scale: float = 0.02,
     ):
         super().__init__(
             observation_space=observation_space,
@@ -45,10 +45,10 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
         
         # Define key mappings for xarm control (similar to panda)
         self.key_mapping = {
-            'z': np.array([self.movement_scale, 0.0, 0.0]),   # Forward X
-            'c': np.array([-self.movement_scale, 0.0, 0.0]),  # Backward X
-            'a': np.array([0.0, -self.movement_scale, 0.0]),  # Left Y
-            'd': np.array([0.0, self.movement_scale, 0.0]),   # Right Y
+            'i': np.array([self.movement_scale, 0.0, 0.0]),   # Forward X
+            'k': np.array([-self.movement_scale, 0.0, 0.0]),  # Backward X
+            'j': np.array([0.0, self.movement_scale, 0.0]),  # Left Y
+            'l': np.array([0.0, -self.movement_scale, 0.0]),   # Right Y
             'q': np.array([0.0, 0.0, self.movement_scale]),   # Up Z
             'e': np.array([0.0, 0.0, -self.movement_scale]),  # Down Z
             ' ': np.array([0.0, 0.0, 0.0])  # Space for no movement/stay
@@ -59,7 +59,7 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
         self.listener.start()
         
         print("Synchronous teleoperation mode for xarm:")
-        print("Use Z/C to move along X, A/D along Y, Q/E along Z, SPACE for no movement.")
+        print("Use i/k to move along X, j/l along Y, Q/E along Z, SPACE for no movement.")
         print("Press any mapped key to execute one step. Press 'Esc' to quit.")
     
     def _on_press(self, key):
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     env = make_vec_env(
         'PandaUPushEnv-v0',
         n_envs=1,
-        max_episode_steps=20,
+        max_episode_steps=1000,
         rng=rng,
         env_make_kwargs={
             "render_mode": "human",  # Render mode for interactive policy
@@ -126,17 +126,22 @@ if __name__ == "__main__":
         )
         
         transitions = rollout.flatten_trajectories(rollouts)
+
+        # transitions_file = "expert_transitions.pkl"
+        # with open(transitions_file, "wb") as f:
+        #     pickle.dump(transitions, f)
+        # print(f"Expert transitions saved to {transitions_file}")
         
-        # bc_trainer = bc.BC(
-        #     observation_space=env.observation_space,
-        #     action_space=env.action_space,
-        #     demonstrations=transitions,
-        #     rng=rng,
-        # )
+        bc_trainer = bc.BC(
+            observation_space=env.observation_space,
+            action_space=env.action_space,
+            demonstrations=transitions,
+            rng=rng,
+        )
         
-        # bc_trainer.train(n_epochs=1)
-        # reward_after_training, _ = evaluate_policy(bc_trainer.policy, env, 10)
-        # print(f"Reward after training: {reward_after_training}")
+        bc_trainer.train(n_epochs=1)
+        reward_after_training, _ = evaluate_policy(bc_trainer.policy, env, 10)
+        print(f"Reward after training: {reward_after_training}")
         
     except KeyboardInterrupt:
         print("\nStopping teleoperation...")
