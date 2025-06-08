@@ -131,6 +131,7 @@ class UPush(Task):
         return object_position
 
     def reset(self) -> None:
+        # print("!!!resetting task")
         self.is_truncated = False
         # Reset task object
         p.removeBody(self.sim._bodies_idx["target"])
@@ -142,6 +143,8 @@ class UPush(Task):
         self.goal = self._sample_goal()
         self.sim.set_base_pose("target", self.goal, np.array([0.0, 0.0, 0.0, 1.0]))
         self.sim.set_base_pose("object", self.init_object_position, np.array([0.0, 0.0, 0.0, 1.0]))
+        # print(self.init_object_position)
+        # print(self.goal)
         
         # # only for debugging
         # self.random_target = np.zeros(2)

@@ -6,6 +6,7 @@ from pynput.keyboard import Listener, KeyCode
 import os
 import sys
 import threading
+import wandb
 
 # Add this line to import custom environments
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,7 +20,8 @@ from imitation.util import util
 from imitation.util.util import make_vec_env
 from imitation.algorithms import bc
 from imitation.data import rollout
-
+from imitation.data.types import Transitions
+from imitation.algorithms.bc import BC
 
 class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
     """Keyboard teleoperation policy for xarm continuous control with synchronous input."""
@@ -49,8 +51,8 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
             'k': np.array([-self.movement_scale, 0.0, 0.0]),  # Backward X
             'j': np.array([0.0, self.movement_scale, 0.0]),  # Left Y
             'l': np.array([0.0, -self.movement_scale, 0.0]),   # Right Y
-            'q': np.array([0.0, 0.0, self.movement_scale]),   # Up Z
-            'e': np.array([0.0, 0.0, -self.movement_scale]),  # Down Z
+            'q': np.array([0.0, 0.0, self.movement_scale]),   # Rotate Z
+            'e': np.array([0.0, 0.0, -self.movement_scale]),  # Rotate -Z
             ' ': np.array([0.0, 0.0, 0.0])  # Space for no movement/stay
         }
         
@@ -60,7 +62,7 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
         
         print("Synchronous teleoperation mode for xarm:")
         print("Use i/k to move along X, j/l along Y, Q/E along Z, SPACE for no movement.")
-        print("Press any mapped key to execute one step. Press 'Esc' to quit.")
+        print("Press 'Esc' to quit.")
     
     def _on_press(self, key):
         """Handle key press events - set action and signal ready."""
@@ -80,8 +82,6 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
         obs: Union[np.ndarray, Dict[str, np.ndarray]],
     ) -> np.ndarray:
         """Wait for keyboard input and return the action."""
-        print("Waiting for keyboard input... (press a movement key)")
-        
         # Clear the event and wait for next key press
         self.action_ready.clear()
         self.action_ready.wait()  # Block until a key is pressed
@@ -99,6 +99,29 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
+    n_train_epochs = 100
+    n_eval_episodes = 5
+    movement_scale = 0.002
+    n_demo_episodes = 2
+    use_saved_demo = 0
+    transitions_file = "results/il/expert_transitions.pkl"
+    rollouts_file = "results/il/rollouts.pkl"
+    wandb_mode = "disabled" # "offline", "disabled"
+    
+    # Initialize wandb
+    wandb.init(
+        mode=wandb_mode,
+        project="panda-imitation-learning",
+        config={
+            "environment": "PandaUPushEnv-v0",
+            "movement_scale": movement_scale,
+            "n_train_epochs": n_train_epochs,
+            "n_eval_episodes": n_eval_episodes,
+            "n_demo_episodes": n_demo_episodes,
+            "use_saved_demo": use_saved_demo
+        }
+    )
+    
     rng = np.random.default_rng(0)
     env = make_vec_env(
         'PandaUPushEnv-v0',
@@ -113,41 +136,74 @@ if __name__ == "__main__":
     expert = KeyboardTeleopPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        movement_scale=0.002
+        movement_scale=movement_scale
     )
     
     try:
-        rollouts = rollout.rollout(
-            expert,
-            env,
-            rollout.make_sample_until(min_episodes=5),
-            unwrap=False,
-            rng=rng,
-        )
-        
-        transitions = rollout.flatten_trajectories(rollouts)
+        if use_saved_demo:
+            print("Using saved demonstrations...")
+            with open(transitions_file, "rb") as f:
+                transitions = pickle.load(f)
+        else:
+            print("Collecting demonstrations...")
+            print(f"Please complete {n_demo_episodes} episodes. Press ESC to quit at any time.")
+            rollouts = rollout.rollout(
+                expert,
+                env,
+                rollout.make_sample_until(min_episodes=n_demo_episodes),
+                unwrap=False,
+                rng=rng,
+            )
+            transitions = rollout.flatten_trajectories(rollouts)
 
-        # transitions_file = "expert_transitions.pkl"
-        # with open(transitions_file, "wb") as f:
-        #     pickle.dump(transitions, f)
-        # print(f"Expert transitions saved to {transitions_file}")
+            try:
+                # Try to load existing rollouts
+                with open(rollouts_file, "rb") as f:
+                    saved_rollouts = pickle.load(f)
+                print(f"Loaded {len(saved_rollouts)} saved rollouts")
+                all_rollouts = saved_rollouts + rollouts
+                transitions = rollout.flatten_trajectories(all_rollouts)
+            except (FileNotFoundError, EOFError):
+                # If no saved transitions exist or file is empty, use only new transitions
+                transitions = transitions
+                print(f"Using {len(rollouts)} new rollouts")
+
+            # Save the combined transitions
+            with open(transitions_file, "wb") as f:
+                pickle.dump(transitions, f)
+            with open(rollouts_file, "wb") as f:
+                pickle.dump(all_rollouts, f)
+            print(f"Saved {len(all_rollouts)} rollouts to {rollouts_file}")
+            print(f"Expert transitions saved to {transitions_file}")
         
+        # Log number of transitions collected
+        wandb.log({"n_transitions": len(transitions)})
+        
+        print("!!! Starting training...")
         bc_trainer = bc.BC(
             observation_space=env.observation_space,
             action_space=env.action_space,
             demonstrations=transitions,
             rng=rng,
         )
-        
-        bc_trainer.train(n_epochs=1)
-        reward_after_training, _ = evaluate_policy(bc_trainer.policy, env, 10)
-        print(f"Reward after training: {reward_after_training}")
+        bc_trainer.train(n_epochs=n_train_epochs)
+
+        print("!!! Evaluating policy...")
+        reward_eval, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes)
+        print(f"Reward after evaluation: {reward_eval}")
+
+        # Log final metrics
+        wandb.log({
+            "n_train_epochs": n_train_epochs,
+            "reward_eval": reward_eval,
+        })
         
     except KeyboardInterrupt:
         print("\nStopping teleoperation...")
     finally:
         expert.stop()
         env.close()
+        wandb.finish()  # Close wandb run
 
 
 
