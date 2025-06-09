@@ -19,6 +19,7 @@ import imitation.policies.base as base_policies
 from imitation.util import util
 from imitation.util.util import make_vec_env
 from imitation.algorithms import bc
+from imitation.algorithms.dagger import SimpleDAggerTrainer
 from imitation.data import rollout
 from imitation.data.types import Transitions
 from imitation.algorithms.bc import BC
@@ -109,13 +110,11 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 10
+    n_train_epochs = 500
+    eval_every_n_epochs = 10
     n_eval_episodes = 1
     movement_scale = 0.002
     n_demo_episodes = 1
-    use_saved_demo = 1
-    transitions_file = "results/il/expert_transitions.pkl"
-    rollouts_file = "results/il/rollouts.pkl"
     wandb_mode = "online" # "online", "disabled"
     
     # Initialize wandb
@@ -128,7 +127,6 @@ if __name__ == "__main__":
             "n_train_epochs": n_train_epochs,
             "n_eval_episodes": n_eval_episodes,
             "n_demo_episodes": n_demo_episodes,
-            "use_saved_demo": use_saved_demo
         }
     )
     
@@ -143,6 +141,9 @@ if __name__ == "__main__":
         },
     )
     
+    print(f'Observation space: {env.observation_space}')
+    print(f'Action space: {env.action_space}')
+
     expert = KeyboardTeleopPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -150,43 +151,32 @@ if __name__ == "__main__":
     )
     
     try:
-        if use_saved_demo:
-            with open(transitions_file, "rb") as f:
-                transitions = pickle.load(f)
-            with open(rollouts_file, "rb") as f:
+        
+        rollouts_data_file = "data/expert_rollouts.pkl"
+        os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
+        
+        if os.path.exists(rollouts_data_file):
+            with open(rollouts_data_file, "rb") as f:
                 rollouts = pickle.load(f)
-            print(f"Loaded {len(rollouts)} rollouts from {rollouts_file}")
+            print(f"Loaded expert rollouts from {rollouts_data_file}")
         else:
-            print("Collecting demonstrations...")
-            print(f"Please complete {n_demo_episodes} episodes. Press ESC to quit at any time.")
-            rollouts = rollout.rollout(
-                expert,
-                env,
-                rollout.make_sample_until(min_episodes=n_demo_episodes),
-                unwrap=False,
-                rng=rng,
+            rollouts = []
+            print("No existing rollouts found. Starting fresh collection...")
+
+        rollouts.extend(
+            rollout.rollout(
+            expert,
+            env,
+            rollout.make_sample_until(min_episodes=n_demo_episodes),
+            unwrap=False,
+            rng=rng,
             )
-            transitions = rollout.flatten_trajectories(rollouts)
-
-            try:
-                # Try to load existing rollouts
-                with open(rollouts_file, "rb") as f:
-                    saved_rollouts = pickle.load(f)
-                print(f"Loaded {len(saved_rollouts)} saved rollouts")
-                all_rollouts = saved_rollouts + rollouts
-                transitions = rollout.flatten_trajectories(all_rollouts)
-            except (FileNotFoundError, EOFError):
-                # If no saved transitions exist or file is empty, use only new transitions
-                transitions = transitions
-                print(f"Using {len(rollouts)} new rollouts")
-
-            # Save the combined transitions
-            with open(transitions_file, "wb") as f:
-                pickle.dump(transitions, f)
-            with open(rollouts_file, "wb") as f:
-                pickle.dump(all_rollouts, f)
-            print(f"Saved {len(all_rollouts)} rollouts to {rollouts_file}")
-            print(f"Expert transitions saved to {transitions_file}")
+        )
+        with open(rollouts_data_file, "wb") as f:
+            pickle.dump(rollouts, f)
+        print(f"Collected {len(rollouts)} expert rollouts.")
+        
+        transitions = rollout.flatten_trajectories(rollouts)
         
         # Log number of transitions collected
         wandb.log({"n_transitions": len(transitions)})
@@ -211,26 +201,28 @@ if __name__ == "__main__":
         for epoch in range(n_train_epochs):
             # Train for one epoch
             bc_trainer.train(n_epochs=1)
-            
-            # Evaluate training loss on the full training set
-            with th.no_grad():
-                metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
-                train_loss = float(metrics.loss)
+
+            if epoch % eval_every_n_epochs == 0:
+                # Evaluate training loss on the full training set
+                with th.no_grad():
+                    metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
+                    train_loss = float(metrics.loss)
+                    
+                # Evaluate policy
+                mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
+                returns.append(mean_return)
                 
-            # Evaluate policy
-            mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
-            returns.append(mean_return)
-            
-            # Log to wandb
-            wandb.log({
-                "epoch": epoch,
-                "mean_return": mean_return,
-                "train_loss": train_loss,
-            })
-            print(f"Epoch {epoch}: Mean Return = {mean_return:.2f}, Loss = {train_loss:.4f}")
+                # Log to wandb
+                wandb.log({
+                    "epoch": epoch,
+                    "mean_return": mean_return,
+                    "train_loss": train_loss,
+                })
+                print(f"Epoch {epoch}: Mean Return = {mean_return:.2f}, Loss = {train_loss:.4f}")
 
         print("!!! Training completed!")
         print(f"Final mean return: {np.mean(returns[-5:]):.2f}")  # Average of last 5 epochs
+        bc_trainer.policy.save("data/panda_bc_policy.pth")
         
     except KeyboardInterrupt:
         print("\nStopping teleoperation...")

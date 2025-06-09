@@ -36,7 +36,7 @@ class PandaCustom(PyBulletRobot):
         self.base_position = base_position if base_position is not None else np.zeros(3)
         self.control_type = control_type
         # action space (dx, dy, dyaw)
-        action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05,]), high=np.array([0.01, 0.01, 0.05,]), dtype=np.float32)
+        action_space = spaces.Box(low=np.array([-0.02, -0.02, -0.05,]), high=np.array([0.02, 0.02, 0.05,]), dtype=np.float32)
         # action_space = spaces.Box(low=np.array([-0.01, -0.01,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
 
         self.v_angle = 0.5
@@ -64,7 +64,8 @@ class PandaCustom(PyBulletRobot):
         self.fingers_indices = np.array([9, 10])
         # self.neutral_joint_values = np.array([0.00, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79, 0.00, 0.00])
         # self.neutral_joint_values = np.array([0.000, 0.146, 0.000, -3.041, 0.000, 3.182, 0.790, 0.000, 0.000])
-        self.neutral_joint_values = np.array([0.54664663, 0.5078128, -0.21580158, -2.10046213, 0.19967674, 2.58959611, 0.97221048])
+        # self.neutral_joint_values = np.array([0.54664663, 0.5078128, -0.21580158, -2.10046213, 0.19967674, 2.58959611, 0.97221048])
+        self.neutral_joint_values = np.array([0.8, 0.41, 0.00, -1.85, 0.00, 2.26, 0.79])
         self.neutral_joint_zeros = np.array([0.000,]*9)
         
         # self.ee_link = 11 # vpush
@@ -88,6 +89,7 @@ class PandaCustom(PyBulletRobot):
         self.ee_target_yaw = 0
         self.ee_init_pos_2d = np.zeros(2)
         self.attached_tool = False
+        self.last_observation = None
 
     def set_action(self, action: np.ndarray) -> None:
         action = action.copy()  # ensure action don't change
@@ -162,7 +164,12 @@ class PandaCustom(PyBulletRobot):
         arm_joint_angles = self.get_arm_joint_angles()
         # fingers opening
         self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
-        observation = np.concatenate((ee_position_2d, [ee_yaw,], self.design_params))
+        current_observation = np.concatenate((ee_position_2d, [ee_yaw,], self.design_params))
+        if self.last_observation is None:
+            observation = np.concatenate((current_observation, current_observation))
+        else:
+            observation = np.concatenate((current_observation, self.last_observation))
+        self.last_observation = current_observation.copy()
         return observation
 
     def reset(self) -> None:
