@@ -110,7 +110,7 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 500
+    n_train_epochs = 100
     eval_every_n_epochs = 10
     n_eval_episodes = 1
     movement_scale = 0.002
@@ -230,6 +230,3 @@ if __name__ == "__main__":
         expert.stop()
         env.close()
         wandb.finish()  # Close wandb run
-
-
-
