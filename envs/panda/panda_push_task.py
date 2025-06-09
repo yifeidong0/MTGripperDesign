@@ -38,6 +38,7 @@ class UPush(Task):
         self.robustness_score = 0
         self.is_safe = False
         self.is_success_flag = False
+        self.last_observation = None
         with self.sim.no_rendering():
             self._create_scene()
             
@@ -123,7 +124,12 @@ class UPush(Task):
         object_rad = np.array([self.all_object_rad[self.task_object_name]])
         
         # observation = np.concatenate([object_rotation, task_int, object_rad, self.random_target])
-        observation = np.concatenate([object_rotation, task_int, object_rad])
+        current_observation = np.concatenate((object_rotation, task_int, object_rad))
+        if self.last_observation is None:
+            observation = np.concatenate((current_observation, current_observation))
+        else:
+            observation = np.concatenate((current_observation, self.last_observation))
+        self.last_observation = current_observation.copy()
         return observation
 
     def get_achieved_goal(self) -> np.ndarray:
@@ -162,11 +168,32 @@ class UPush(Task):
         return goal
 
     def _sample_object(self) -> np.ndarray:
-        """Randomize start position of object."""
+        """Randomize start position of object with higher probability at boundaries."""
         self.obj_range_low = np.array([0.35, -0.1, 0])
         self.obj_range_high = np.array([0.55, self.ee_init_pos_2d[1] - 0.05, 0])
         object_position = np.array([0.0, 0.0, self.object_size / 2])
-        noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
+        
+        # Define boundary bias (higher probability at edges)
+        boundary_bias = 0.9  # 70% chance of being near a boundary
+        
+        if np.random.random() < boundary_bias:
+            # Sample near boundaries
+            axis = 0 # choose x axis
+            edge = np.random.randint(0, 2)  # Choose low or high boundary
+            
+            # Create the noise vector
+            noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
+            
+            # Set the chosen axis to be near its boundary
+            boundary_margin = 0.05  # Distance from exact boundary
+            if edge == 0:  # Low boundary
+                noise[axis] = self.obj_range_low[axis] + np.random.uniform(0, boundary_margin)
+            else:  # High boundary
+                noise[axis] = self.obj_range_high[axis] - np.random.uniform(0, boundary_margin)
+        else:
+            # Sample uniformly from the entire range
+            noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
+            
         object_position += noise
         return object_position
 
@@ -250,73 +277,146 @@ class UPush(Task):
             achieved_goal = np.expand_dims(achieved_goal, axis=0)  
             desired_goal = np.expand_dims(desired_goal, axis=0)
             observation = np.expand_dims(observation, axis=0) 
-        # assert observation.shape[-1] == 10
+            
         ee_position_2d = observation[..., :2]
         ee_yaw = observation[..., 2].reshape(-1, 1)
-        design_params = observation[..., 3:7]
+        object_position = achieved_goal[..., :2]
         object_rotation = observation[..., 7].reshape(-1, 1)
-        task_int = observation[..., 8].reshape(-1, 1)
-        object_rad = observation[..., 9].reshape(-1, 1)
-        
-        # random_target = self.random_target.reshape(1, 2)
-        # reward = -distance(ee_position_2d, random_target)
-        # if distance(ee_position_2d, random_target) < 0.05:
-        #     self.is_success_flag = True
-        #     reward += 10
-        # return reward # only for debugging
-        
-        ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
-        object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
-        object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
-        ee_object_yaw = np.arctan2(achieved_goal[..., 1] - ee_position_2d[..., 1], achieved_goal[..., 0] - ee_position_2d[..., 0])
-        ee_target_yaw = np.arctan2(desired_goal[..., 1] - ee_position_2d[..., 1], desired_goal[..., 0] - ee_position_2d[..., 0])
+        desired_position = desired_goal[..., :2]
+        desired_rotation = desired_goal[..., 2].reshape(-1, 1)  # If rotation is part of the goal
+        ee_object_distance = distance(ee_position_2d, object_position)
+        object_target_distance = distance(object_position, desired_position)
+        ee_object_yaw = np.arctan2(
+            object_position[..., 1] - ee_position_2d[..., 1],
+            object_position[..., 0] - ee_position_2d[..., 0],
+        )
         yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
-        yaw_difference_ee_target = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_target_yaw))
+        object_rotation_error = abs(pi_2_pi(object_rotation - desired_rotation))
 
-        reward = 0
-        
-        if self.reward_type == "sparse":
-            d = distance(achieved_goal, desired_goal)
-            return reward - np.array(d > self.distance_threshold, dtype=np.float32)
+        r_approach_dist = np.exp(-10 * ee_object_distance**2)
+        r_approach_yaw = np.exp(-30 * yaw_difference_ee_object**2)
+        distance_threshold = 0.15
+        yaw_threshold = 0.5
+        # alignment = (
+        #     np.maximum(1 - ee_object_distance / distance_threshold, 0) *
+        #     np.maximum(1 - yaw_difference_ee_object / yaw_threshold, 0)
+        # )
+        # alignment = np.exp(-20 * ee_object_distance**2) * np.exp(-20 * yaw_difference_ee_object**2)
+        # r_push = alignment * np.exp(-30 * object_target_distance**2)
+        r_push = 0.0
+        if ee_object_distance < distance_threshold and yaw_difference_ee_object < yaw_threshold:
+            r_push = np.exp(-10 * object_target_distance**2)
+        d = distance(achieved_goal, desired_goal)
+        # r_bonus = 1 / (1 + np.exp((d - self.distance_threshold)))
+        r_bonus = 0.0
+        if d < self.distance_threshold:
+            r_bonus = 5.0
+            self.is_success_flag = True
+        r_step = -1
 
-        is_inside_gripper = False
-        if ee_object_distance < 0.15 and yaw_difference_ee_object < np.pi / 6:
-            is_inside_gripper = True
+        canvas_min_x, canvas_max_x = 0.20, 0.75
+        canvas_min_y, canvas_max_y = -0.4, 0.4
+        out_of_bounds_ee = (ee_position_2d[..., 0] < canvas_min_x) | (ee_position_2d[..., 0] > canvas_max_x) | \
+                           (ee_position_2d[..., 1] < canvas_min_y) | (ee_position_2d[..., 1] > canvas_max_y)
+        out_of_bounds_obj = (object_position[..., 0] < canvas_min_x) | (object_position[..., 0] > canvas_max_x) | \
+                            (object_position[..., 1] < canvas_min_y) | (object_position[..., 1] > canvas_max_y)
+        r_penalty = -np.where(np.logical_or(out_of_bounds_ee, out_of_bounds_obj), 1.0, 0.0)
+        weights = {
+            "approach_dist": 1.0,
+            "approach_yaw": 0.0,
+            "push": 1.0,
+            "bonus": 1.0,
+            "penalty": 0.0,
+            "step": 1.0,
+        }
+        total_weight = sum(weights.values())
+        norm_weights = {k: v / total_weight for k, v in weights.items()}
+        total_reward = (
+                norm_weights["approach_dist"] * r_approach_dist +
+                norm_weights["approach_yaw"] * r_approach_yaw +
+                norm_weights["push"] * r_push +
+                norm_weights["bonus"] * r_bonus +
+                norm_weights["penalty"] * r_penalty +
+                norm_weights["step"] * r_step
+        )
+        
+        # print("approach_dist:", r_approach_dist*norm_weights["approach_dist"])
+        # print("approach_yaw:", r_approach_yaw*norm_weights["approach_yaw"])
+        # print("push:", r_push*norm_weights["push"])
+        # print("bonus:", r_bonus*norm_weights["bonus"])
+        # print("penalty:", r_penalty*norm_weights["penalty"])
+        # print("step:", r_step*norm_weights["step"])
+        # print("total_reward:", total_reward)
+        
+        return total_reward.squeeze()
+            
+        # # assert observation.shape[-1] == 10
+        # ee_position_2d = observation[..., :2]
+        # ee_yaw = observation[..., 2].reshape(-1, 1)
+        # design_params = observation[..., 3:7]
+        # object_rotation = observation[..., 7].reshape(-1, 1)
+        # task_int = observation[..., 8].reshape(-1, 1)
+        # object_rad = observation[..., 9].reshape(-1, 1)
+        
+        # # random_target = self.random_target.reshape(1, 2)
+        # # reward = -distance(ee_position_2d, random_target)
+        # # if distance(ee_position_2d, random_target) < 0.05:
+        # #     self.is_success_flag = True
+        # #     reward += 10
+        # # return reward # only for debugging
+        
+        # ee_object_distance = distance(ee_position_2d, achieved_goal[..., :2])
+        # object_target_distance = distance(achieved_goal[..., :2], desired_goal[..., :2])
+        # object_target_yaw = np.arctan2(desired_goal[..., 1] - achieved_goal[..., 1], desired_goal[..., 0] - achieved_goal[..., 0])
+        # ee_object_yaw = np.arctan2(achieved_goal[..., 1] - ee_position_2d[..., 1], achieved_goal[..., 0] - ee_position_2d[..., 0])
+        # ee_target_yaw = np.arctan2(desired_goal[..., 1] - ee_position_2d[..., 1], desired_goal[..., 0] - ee_position_2d[..., 0])
+        # yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
+        # yaw_difference_ee_target = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_target_yaw))
 
-        self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
-                                                     ee_yaw,
-                                                     achieved_goal[..., :2],
-                                                     design_params,
-                                                     object_rad,
-                                                     is_inside_gripper,
-                                                     slack=0)
+        # reward = 0
         
-        
-        # Caging robustness
-        if self.using_robustness_reward:
-            reward += self.robustness_score * self.reward_weights[4]
+        # if self.reward_type == "sparse":
+        #     d = distance(achieved_goal, desired_goal)
+        #     return reward - np.array(d > self.distance_threshold, dtype=np.float32)
 
-        # imaged goal locating at the extension of the target-object line
-        # line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
-        # direction_vector = line_vector / np.linalg.norm(line_vector)
-        # delta = 0.1
-        # middle_goal = achieved_goal[..., :2] + direction_vector * delta
-        # ee_middle_goal_distance = distance(ee_position_2d, middle_goal)
+        # is_inside_gripper = False
+        # if ee_object_distance < 0.15 and yaw_difference_ee_object < np.pi / 6:
+        #     is_inside_gripper = True
+
+        # self.robustness_score = self._eval_robustness(ee_position_2d[:, :2],
+        #                                              ee_yaw,
+        #                                              achieved_goal[..., :2],
+        #                                              design_params,
+        #                                              object_rad,
+        #                                              is_inside_gripper,
+        #                                              slack=0)
         
-        if is_inside_gripper is False:
-            weight_ee_object_distance = self.reward_weights[5]
-            weight_yaw_ee_object = self.reward_weights[0]
-            reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
-        else:
-            weight_ee_object_distance = self.reward_weights[5]
-            weight_yaw_ee_object = self.reward_weights[0]
-            weight_object_target_distance = self.reward_weights[3]
-            weight_yaw_ee_target = self.reward_weights[1]
-            reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance\
-                      - weight_object_target_distance * object_target_distance - weight_yaw_ee_target * yaw_difference_ee_target
         
-        if self.is_success(achieved_goal, desired_goal):
-            reward += self.reward_weights[2]
+        # # Caging robustness
+        # if self.using_robustness_reward:
+        #     reward += self.robustness_score * self.reward_weights[4]
+
+        # # imaged goal locating at the extension of the target-object line
+        # # line_vector = achieved_goal[..., :2] - desired_goal[..., :2]
+        # # direction_vector = line_vector / np.linalg.norm(line_vector)
+        # # delta = 0.1
+        # # middle_goal = achieved_goal[..., :2] + direction_vector * delta
+        # # ee_middle_goal_distance = distance(ee_position_2d, middle_goal)
+        
+        # if is_inside_gripper is False:
+        #     weight_ee_object_distance = self.reward_weights[5]
+        #     weight_yaw_ee_object = self.reward_weights[0]
+        #     reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance
+        # else:
+        #     weight_ee_object_distance = self.reward_weights[5]
+        #     weight_yaw_ee_object = self.reward_weights[0]
+        #     weight_object_target_distance = self.reward_weights[3]
+        #     weight_yaw_ee_target = self.reward_weights[1]
+        #     reward += - weight_yaw_ee_object * yaw_difference_ee_object - weight_ee_object_distance * ee_object_distance\
+        #               - weight_object_target_distance * object_target_distance - weight_yaw_ee_target * yaw_difference_ee_target
+        
+        # if self.is_success(achieved_goal, desired_goal):
+        #     reward += self.reward_weights[2]
                                 
-        return reward
+        # return reward
     

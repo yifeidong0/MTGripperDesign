@@ -18,6 +18,7 @@ import imitation.policies.base as base_policies
 from imitation.util import util
 from imitation.util.util import make_vec_env
 from imitation.algorithms import bc
+from imitation.algorithms.dagger import SimpleDAggerTrainer
 from imitation.data import rollout
 
 
@@ -110,6 +111,9 @@ if __name__ == "__main__":
         },
     )
     
+    print(f'Observation space: {env.observation_space}')
+    print(f'Action space: {env.action_space}')
+
     expert = KeyboardTeleopPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -117,20 +121,29 @@ if __name__ == "__main__":
     )
     
     try:
-        rollouts = rollout.rollout(
+        
+        rollouts_data_file = "data/expert_rollouts.pkl"
+        if os.path.exists(rollouts_data_file):
+            with open(rollouts_data_file, "rb") as f:
+                rollouts = pickle.load(f)
+            print(f"Loaded expert rollouts from {rollouts_data_file}")
+        else:
+            rollouts = []
+
+        rollouts.extend(
+            rollout.rollout(
             expert,
             env,
-            rollout.make_sample_until(min_episodes=5),
+            rollout.make_sample_until(min_episodes=3),
             unwrap=False,
             rng=rng,
+            )
         )
+        with open(rollouts_data_file, "wb") as f:
+            pickle.dump(rollouts, f)
+        print(f"Collected {len(rollouts)} expert rollouts.")
         
         transitions = rollout.flatten_trajectories(rollouts)
-
-        # transitions_file = "expert_transitions.pkl"
-        # with open(transitions_file, "wb") as f:
-        #     pickle.dump(transitions, f)
-        # print(f"Expert transitions saved to {transitions_file}")
         
         bc_trainer = bc.BC(
             observation_space=env.observation_space,
@@ -139,9 +152,11 @@ if __name__ == "__main__":
             rng=rng,
         )
         
-        bc_trainer.train(n_epochs=1)
-        reward_after_training, _ = evaluate_policy(bc_trainer.policy, env, 10)
+        bc_trainer.train(n_epochs=5)
+        reward_after_training, _ = evaluate_policy(bc_trainer.policy, env, 3)
         print(f"Reward after training: {reward_after_training}")
+
+        bc_trainer.policy.save("data/panda_bc_policy.pth")
         
     except KeyboardInterrupt:
         print("\nStopping teleoperation...")

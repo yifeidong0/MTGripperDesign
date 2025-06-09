@@ -36,3 +36,4 @@ test.*
 
 captured_chessboard_images
 .micromamba/
+data/
