@@ -110,12 +110,13 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 100
+    n_train_epochs = 50
     eval_every_n_epochs = 10
     n_eval_episodes = 1
     movement_scale = 0.002
     n_demo_episodes = 1
-    wandb_mode = "online" # "online", "disabled"
+    render_mode = "rgb_array"  # "human" (w. GUI), "rgb_array" for interactive policy
+    wandb_mode = "disabled" # "online", "disabled"
     
     # Initialize wandb
     wandb.init(
@@ -137,7 +138,7 @@ if __name__ == "__main__":
         max_episode_steps=1000,
         rng=rng,
         env_make_kwargs={
-            "render_mode": "human",  # Render mode for interactive policy
+            "render_mode": render_mode, # "human",  # Render mode for interactive policy
         },
     )
     
@@ -163,15 +164,16 @@ if __name__ == "__main__":
             rollouts = []
             print("No existing rollouts found. Starting fresh collection...")
 
-        rollouts.extend(
-            rollout.rollout(
-            expert,
-            env,
-            rollout.make_sample_until(min_episodes=n_demo_episodes),
-            unwrap=False,
-            rng=rng,
+        if render_mode == "human":
+            rollouts.extend(
+                rollout.rollout(
+                expert,
+                env,
+                rollout.make_sample_until(min_episodes=n_demo_episodes),
+                unwrap=False,
+                rng=rng,
+                )
             )
-        )
         with open(rollouts_data_file, "wb") as f:
             pickle.dump(rollouts, f)
         print(f"Collected {len(rollouts)} expert rollouts.")
@@ -201,6 +203,7 @@ if __name__ == "__main__":
         for epoch in range(n_train_epochs):
             # Train for one epoch
             bc_trainer.train(n_epochs=1)
+            print(f"Epoch {epoch + 1}/{n_train_epochs} completed.")
 
             if epoch % eval_every_n_epochs == 0:
                 # Evaluate training loss on the full training set
