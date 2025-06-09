@@ -7,7 +7,7 @@ import os
 import sys
 import threading
 import wandb
-
+import torch as th
 # Add this line to import custom environments
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import envs  # This registers the custom environments
@@ -22,6 +22,16 @@ from imitation.algorithms import bc
 from imitation.data import rollout
 from imitation.data.types import Transitions
 from imitation.algorithms.bc import BC
+from imitation.data import types
+
+# TODO: 1. finetune the BC policy with PPO
+# 2. Reward function might need to be reshaped. Sometimes high reward is given when goal is not reached - object is pushed past the goal.
+# 3. Randomize the initial state of the environment. Tool, object and goal position, object shape, etc.
+# 4. Randomize tool design after each episode. Goal is to have a generalized policy over the design space.
+
+# Implementation: 1. Panda model compatibility: Research 3 and old version.
+# 2. How to log training return in wandb from imitation library? - bc_trainer.train(n_epochs=1)
+
 
 class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
     """Keyboard teleoperation policy for xarm continuous control with synchronous input."""
@@ -99,14 +109,14 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 100
-    n_eval_episodes = 5
+    n_train_epochs = 10
+    n_eval_episodes = 1
     movement_scale = 0.002
-    n_demo_episodes = 2
-    use_saved_demo = 0
+    n_demo_episodes = 1
+    use_saved_demo = 1
     transitions_file = "results/il/expert_transitions.pkl"
     rollouts_file = "results/il/rollouts.pkl"
-    wandb_mode = "disabled" # "offline", "disabled"
+    wandb_mode = "online" # "online", "disabled"
     
     # Initialize wandb
     wandb.init(
@@ -141,9 +151,11 @@ if __name__ == "__main__":
     
     try:
         if use_saved_demo:
-            print("Using saved demonstrations...")
             with open(transitions_file, "rb") as f:
                 transitions = pickle.load(f)
+            with open(rollouts_file, "rb") as f:
+                rollouts = pickle.load(f)
+            print(f"Loaded {len(rollouts)} rollouts from {rollouts_file}")
         else:
             print("Collecting demonstrations...")
             print(f"Please complete {n_demo_episodes} episodes. Press ESC to quit at any time.")
@@ -186,17 +198,39 @@ if __name__ == "__main__":
             demonstrations=transitions,
             rng=rng,
         )
-        bc_trainer.train(n_epochs=n_train_epochs)
 
-        print("!!! Evaluating policy...")
-        reward_eval, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes)
-        print(f"Reward after evaluation: {reward_eval}")
+        # Training loop with wandb logging
+        returns = []
+        device = bc_trainer.policy.device
+        
+        # Convert observations and actions to tensors
+        obs_dict = types.maybe_unwrap_dictobs(transitions.obs)
+        obs_tensor = types.map_maybe_dict(lambda x: th.tensor(x, device=device), obs_dict)
+        acts_tensor = th.tensor(transitions.acts, device=device)
+        
+        for epoch in range(n_train_epochs):
+            # Train for one epoch
+            bc_trainer.train(n_epochs=1)
+            
+            # Evaluate training loss on the full training set
+            with th.no_grad():
+                metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
+                train_loss = float(metrics.loss)
+                
+            # Evaluate policy
+            mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
+            returns.append(mean_return)
+            
+            # Log to wandb
+            wandb.log({
+                "epoch": epoch,
+                "mean_return": mean_return,
+                "train_loss": train_loss,
+            })
+            print(f"Epoch {epoch}: Mean Return = {mean_return:.2f}, Loss = {train_loss:.4f}")
 
-        # Log final metrics
-        wandb.log({
-            "n_train_epochs": n_train_epochs,
-            "reward_eval": reward_eval,
-        })
+        print("!!! Training completed!")
+        print(f"Final mean return: {np.mean(returns[-5:]):.2f}")  # Average of last 5 epochs
         
     except KeyboardInterrupt:
         print("\nStopping teleoperation...")
@@ -204,7 +238,6 @@ if __name__ == "__main__":
         expert.stop()
         env.close()
         wandb.finish()  # Close wandb run
-
 
 
 
