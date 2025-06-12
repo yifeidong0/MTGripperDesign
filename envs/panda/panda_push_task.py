@@ -16,12 +16,14 @@ class UPush(Task):
     def __init__(
         self,
         sim,
+        robot,
         reward_type,
         using_robustness_reward=True,
         reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
         distance_threshold=0.05,
     ) -> None:
         super().__init__(sim)
+        self.robot = robot
         self.reward_type = reward_type
         self.distance_threshold = distance_threshold
         self.object_size = 0.08 # if too smaller than the geometry of tool, the object geometry variation will not be demonstrated
@@ -119,16 +121,39 @@ class UPush(Task):
             )
 
     def get_obs(self) -> np.ndarray:
-        object_rotation = np.array(self.sim.get_base_rotation("object"))[2:]
-        task_int = np.array([self.task_int,])
-        object_rad = np.array([self.all_object_rad[self.task_object_name]])
-        
-        # observation = np.concatenate([object_rotation, task_int, object_rad, self.random_target])
-        current_observation = np.concatenate((object_rotation, task_int, object_rad))
+        # === Get object info ===
+        object_position = np.array(self.sim.get_base_position("object"))[:2]  # (x, y)
+        object_rotation = np.array(self.sim.get_base_rotation("object"))[2:]  # yaw and/or partial rotation
+
+        # === Get goal info ===
+        goal_position = np.array(self.goal)[:2]  # (x, y)
+
+        # === Get task info ===
+        task_int = np.array([self.task_int])
+        # object_rad = np.array([self.all_object_rad[self.task_object_name]])
+
+        # === Get EE info from robot ===
+        ee_obs = self.robot.get_obs()
+        ee_position = ee_obs[0:2]  # x, y
+        ee_yaw = np.array([ee_obs[2]])
+
+        # === Compose current observation ===
+        current_observation = np.concatenate([
+            ee_position,
+            ee_yaw,
+            object_position,       # only x, y for object
+            object_rotation,           # yaw
+            goal_position,             # x, y
+            task_int,
+            # object_rad
+        ]) # 9D
+
+        # === Temporal stacking ===
         if self.last_observation is None:
             observation = np.concatenate((current_observation, current_observation))
         else:
             observation = np.concatenate((current_observation, self.last_observation))
+
         self.last_observation = current_observation.copy()
         return observation
 

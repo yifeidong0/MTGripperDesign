@@ -130,14 +130,14 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 if __name__ == "__main__":
     n_train_epochs = 50
-    eval_every_n_epochs = 10
-    n_eval_episodes = 1
-    movement_scale = 0.004
-    n_demo_episodes = 0
-    dagger_steps = 8000
+    eval_every_n_epochs = 1
+    n_eval_episodes = 10
+    movement_scale = 0.005
+    n_demo_episodes = 5
+    dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
-    algo = "dagger"  # Algorithm to use, e.g., "bc", "dagger", etc.
+    algo = "bc"  # Algorithm to use, e.g., "bc", "dagger", etc.
     
     # Initialize wandb
     wandb.init(
@@ -181,14 +181,13 @@ if __name__ == "__main__":
     )
     
     try:
-        
         rollouts_data_file = "data/expert_rollouts.pkl"
         os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
         
         if os.path.exists(rollouts_data_file):
             with open(rollouts_data_file, "rb") as f:
                 rollouts = pickle.load(f)
-            print(f"Loaded expert rollouts from {rollouts_data_file}")
+            print(f"Loaded expert rollouts from {rollouts_data_file} with {len(rollouts)} rollouts.")
         else:
             rollouts = []
             print("No existing rollouts found. Starting fresh collection...")
@@ -245,20 +244,18 @@ if __name__ == "__main__":
                     with th.no_grad():
                         metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
                         train_loss = float(metrics.loss)
-                        
-                    # Evaluate policy
-                    mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
-                    returns.append(mean_return)
                     
                     # Log to wandb
                     wandb.log({
                         "epoch": epoch,
-                        "mean_return": mean_return,
                         "train_loss": train_loss,
                     })
-                    print(f"Epoch {epoch}: Mean Return = {mean_return:.2f}, Loss = {train_loss:.4f}")
-            print(f"Final mean return: {np.mean(returns[-5:]):.2f}")  # Average of last 5 epochs
-            time.sleep(2)
+                    print(f"Epoch {epoch}: Loss = {train_loss:.4f}")
+                        
+            # Evaluate policy
+            mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
+
+            print(f"Evaluation mean return: {mean_return:.2f}")
             bc_trainer.policy.save("data/panda_bc_policy.pth")
 
         elif algo == "dagger":
