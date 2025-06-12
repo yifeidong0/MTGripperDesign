@@ -24,7 +24,8 @@ from imitation.data import rollout
 from imitation.data.types import Transitions
 from imitation.algorithms.bc import BC
 from imitation.data import types
-
+import tempfile
+        
 # TODO: 1. finetune the BC policy with PPO
 # 2. Reward function might need to be reshaped. Sometimes high reward is given when goal is not reached - object is pushed past the goal.
 # 3. Randomize the initial state of the environment. Tool, object and goal position, object shape, etc.
@@ -32,6 +33,24 @@ from imitation.data import types
 
 # Implementation: 1. Panda model compatibility: Research 3 and old version.
 # 2. How to log training return in wandb from imitation library? - bc_trainer.train(n_epochs=1)
+from imitation.data.types import maybe_unwrap_dictobs, Trajectory
+
+def flatten_demos(trajs):
+    flat = []
+    for traj in trajs:
+        obs_dict = maybe_unwrap_dictobs(traj.obs)
+        keys = sorted(obs_dict.keys())
+        obs_flat = np.concatenate([obs_dict[k] for k in keys], axis=1)
+
+        flat.append(
+            Trajectory(
+                obs=obs_flat,
+                acts=traj.acts,
+                infos=None,
+                terminal=True,
+            )
+        )
+    return flat
 
 
 class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
@@ -113,10 +132,12 @@ if __name__ == "__main__":
     n_train_epochs = 50
     eval_every_n_epochs = 10
     n_eval_episodes = 1
-    movement_scale = 0.002
-    n_demo_episodes = 1
-    render_mode = "rgb_array"  # "human" (w. GUI), "rgb_array" for interactive policy
+    movement_scale = 0.004
+    n_demo_episodes = 0
+    dagger_steps = 8000
+    render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
+    algo = "dagger"  # Algorithm to use, e.g., "bc", "dagger", etc.
     
     # Initialize wandb
     wandb.init(
@@ -132,16 +153,24 @@ if __name__ == "__main__":
     )
     
     rng = np.random.default_rng(0)
-    env = make_vec_env(
-        'PandaUPushEnv-v0',
-        n_envs=1,
-        max_episode_steps=1000,
-        rng=rng,
-        env_make_kwargs={
-            "render_mode": render_mode, # "human",  # Render mode for interactive policy
-        },
-    )
-    
+    if algo == "bc":
+        env = make_vec_env(
+            'PandaUPushEnv-v0',
+            n_envs=1,
+            max_episode_steps=1000,
+            rng=rng,
+            env_make_kwargs={
+                "render_mode": render_mode, # "human",  # Render mode for interactive policy
+            },
+        )
+    elif algo == "dagger":
+        from gymnasium.wrappers.flatten_observation import FlattenObservation
+        from stable_baselines3.common.vec_env import DummyVecEnv
+        def make_env():
+            e = gym.make("PandaUPushEnv-v0", render_mode=render_mode, max_episode_steps=1000)
+            return FlattenObservation(e)
+        env = DummyVecEnv([make_env])
+
     print(f'Observation space: {env.observation_space}')
     print(f'Action space: {env.action_space}')
 
@@ -164,7 +193,7 @@ if __name__ == "__main__":
             rollouts = []
             print("No existing rollouts found. Starting fresh collection...")
 
-        if render_mode == "human":
+        if render_mode == "human" and n_demo_episodes > 0:
             rollouts.extend(
                 rollout.rollout(
                 expert,
@@ -174,6 +203,11 @@ if __name__ == "__main__":
                 rng=rng,
                 )
             )
+
+        # Remove the last rollout in rollouts
+        # if rollouts:
+        #     rollouts.pop()
+
         with open(rollouts_data_file, "wb") as f:
             pickle.dump(rollouts, f)
         print(f"Collected {len(rollouts)} expert rollouts.")
@@ -187,7 +221,7 @@ if __name__ == "__main__":
         bc_trainer = bc.BC(
             observation_space=env.observation_space,
             action_space=env.action_space,
-            demonstrations=transitions,
+            demonstrations=transitions if algo == "bc" else None,
             rng=rng,
         )
 
@@ -200,32 +234,54 @@ if __name__ == "__main__":
         obs_tensor = types.map_maybe_dict(lambda x: th.tensor(x, device=device), obs_dict)
         acts_tensor = th.tensor(transitions.acts, device=device)
         
-        for epoch in range(n_train_epochs):
-            # Train for one epoch
-            bc_trainer.train(n_epochs=1)
-            print(f"Epoch {epoch + 1}/{n_train_epochs} completed.")
+        if algo == "bc":
+            for epoch in range(n_train_epochs):
+                # Train for one epoch
+                bc_trainer.train(n_epochs=1)
+                print(f"Epoch {epoch + 1}/{n_train_epochs} completed.")
 
-            if epoch % eval_every_n_epochs == 0:
-                # Evaluate training loss on the full training set
-                with th.no_grad():
-                    metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
-                    train_loss = float(metrics.loss)
+                if epoch % eval_every_n_epochs == 0:
+                    # Evaluate training loss on the full training set
+                    with th.no_grad():
+                        metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
+                        train_loss = float(metrics.loss)
+                        
+                    # Evaluate policy
+                    mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
+                    returns.append(mean_return)
                     
-                # Evaluate policy
-                mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
-                returns.append(mean_return)
-                
-                # Log to wandb
-                wandb.log({
-                    "epoch": epoch,
-                    "mean_return": mean_return,
-                    "train_loss": train_loss,
-                })
-                print(f"Epoch {epoch}: Mean Return = {mean_return:.2f}, Loss = {train_loss:.4f}")
+                    # Log to wandb
+                    wandb.log({
+                        "epoch": epoch,
+                        "mean_return": mean_return,
+                        "train_loss": train_loss,
+                    })
+                    print(f"Epoch {epoch}: Mean Return = {mean_return:.2f}, Loss = {train_loss:.4f}")
+            print(f"Final mean return: {np.mean(returns[-5:]):.2f}")  # Average of last 5 epochs
+            time.sleep(2)
+            bc_trainer.policy.save("data/panda_bc_policy.pth")
+
+        elif algo == "dagger":
+            # TODO: Import policy from path - data/panda_bc_policy.pth
+
+            flat_rollouts = flatten_demos(rollouts)
+            with tempfile.TemporaryDirectory(prefix="dagger_") as scratch_dir:
+                dagger_trainer = SimpleDAggerTrainer(
+                    venv=env,
+                    scratch_dir=scratch_dir,
+                    expert_policy=expert,
+                    bc_trainer=bc_trainer,
+                    expert_trajs=flat_rollouts,
+                    rng=rng,
+                )
+                # run dataset aggregation + BC rounds
+                dagger_trainer.train(dagger_steps)
+            final_policy = dagger_trainer.policy
+            mean_return, _ = evaluate_policy(final_policy, env, n_eval_episodes*5)
+            print(f"Final mean return after DAgger: {mean_return:.2f}")
+            final_policy.save("data/panda_dagger_policy.pth")
 
         print("!!! Training completed!")
-        print(f"Final mean return: {np.mean(returns[-5:]):.2f}")  # Average of last 5 epochs
-        bc_trainer.policy.save("data/panda_bc_policy.pth")
         
     except KeyboardInterrupt:
         print("\nStopping teleoperation...")
