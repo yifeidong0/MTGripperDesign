@@ -89,7 +89,7 @@ class PandaUPushEnv(RobotTaskEnv):
         if self.perturb:
             p.applyExternalForce(self.sim._bodies_idx["object"], -1, [random.normalvariate(0, self.perturb_sigma), random.normalvariate(0, self.perturb_sigma), 0], [0, 0, 0], p.LINK_FRAME)
         self.sim.step()
-        observation = self._get_obs()
+        observation = self._get_obs() # 15D+2D+2D
         terminated = bool(self.task.is_success(observation["achieved_goal"], self.task.get_goal()))
         # terminated = self.task.is_success_flag
         info = {"is_success": terminated}

@@ -121,44 +121,22 @@ class UPush(Task):
             )
 
     def get_obs(self) -> np.ndarray:
-        # === Get object info ===
-        object_position = np.array(self.sim.get_base_position("object"))[:2]  # (x, y)
-        object_rotation = np.array(self.sim.get_base_rotation("object"))[2:]  # yaw and/or partial rotation
-
-        # === Get goal info ===
-        goal_position = np.array(self.goal)[:2]  # (x, y)
-
-        # === Get task info ===
-        task_int = np.array([self.task_int])
+        object_position = np.array(self.sim.get_base_position("object"))[:2]
+        object_rotation = np.array(self.sim.get_base_rotation("object"))[2:]
+        task_int = np.array([self.task_int,])
         # object_rad = np.array([self.all_object_rad[self.task_object_name]])
-
-        # === Get EE info from robot ===
-        ee_obs = self.robot.get_obs()
-        ee_position = ee_obs[0:2]  # x, y
-        ee_yaw = np.array([ee_obs[2]])
-
-        # === Compose current observation ===
-        current_observation = np.concatenate([
-            ee_position,
-            ee_yaw,
-            object_position,       # only x, y for object
-            object_rotation,           # yaw
-            goal_position,             # x, y
-            task_int,
-            # object_rad
-        ]) # 9D
-
-        # === Temporal stacking ===
+        
+        current_observation = np.concatenate((object_rotation, task_int)) # 2D
         if self.last_observation is None:
-            observation = np.concatenate((current_observation, current_observation))
+            observation = np.concatenate((current_observation, object_position, object_rotation)) # 2D + 3D
         else:
             observation = np.concatenate((current_observation, self.last_observation))
 
-        self.last_observation = current_observation.copy()
+        self.last_observation = np.concatenate((object_position, object_rotation)).copy() # 3D
         return observation
 
     def get_achieved_goal(self) -> np.ndarray:
-        object_position = np.array(self.sim.get_base_position("object"))
+        object_position = np.array(self.sim.get_base_position("object"))[:2]
         return object_position
 
     def reset(self) -> None:
@@ -171,7 +149,7 @@ class UPush(Task):
         # Reset the object and goal position
         self.init_object_position = self._sample_object()
         self.goal = self._sample_goal()
-        self.sim.set_base_pose("target", self.goal, np.array([0.0, 0.0, 0.0, 1.0]))
+        self.sim.set_base_pose("target", np.concatenate((self.goal, [0.0,])), np.array([0.0, 0.0, 0.0, 1.0]))
         self.sim.set_base_pose("object", self.init_object_position, np.array([0.0, 0.0, 0.0, 1.0]))
         
         # # only for debugging
@@ -182,13 +160,13 @@ class UPush(Task):
 
     def _sample_goal(self) -> np.ndarray:
         """Randomize goal."""
-        self.goal_range_low = np.array([0.35, -0.3, 0])
-        self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.08, 0])
+        self.goal_range_low = np.array([0.35, -0.3])
+        self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.08])
         while True:
-            goal = np.array([0.0, 0.0, 0.0])  # z offset for the cube center
+            goal = np.array([0.0, 0.0])  # z offset for the cube center
             noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
             goal += noise
-            if distance(goal, self.init_object_position) > 0.1:
+            if distance(goal, self.init_object_position[:2]) > 0.1:
                 break
         return goal
 
@@ -299,16 +277,16 @@ class UPush(Task):
   
     def compute_reward(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, observation: np.ndarray,) -> np.ndarray:
         if observation.ndim == 1:
-            achieved_goal = np.expand_dims(achieved_goal, axis=0)  
-            desired_goal = np.expand_dims(desired_goal, axis=0)
-            observation = np.expand_dims(observation, axis=0) 
+            achieved_goal = np.expand_dims(achieved_goal, axis=0) # 2D  
+            desired_goal = np.expand_dims(desired_goal, axis=0) # 2D
+            observation = np.expand_dims(observation, axis=0) # (7+3)D + (2+3)D
             
         ee_position_2d = observation[..., :2]
         ee_yaw = observation[..., 2].reshape(-1, 1)
         object_position = achieved_goal[..., :2]
-        object_rotation = observation[..., 7].reshape(-1, 1)
+        object_rotation = observation[..., 10].reshape(-1, 1)
         desired_position = desired_goal[..., :2]
-        desired_rotation = desired_goal[..., 2].reshape(-1, 1)  # If rotation is part of the goal
+        # desired_rotation = desired_goal[..., 2].reshape(-1, 1)  # If rotation is part of the goal
         ee_object_distance = distance(ee_position_2d, object_position)
         object_target_distance = distance(object_position, desired_position)
         ee_object_yaw = np.arctan2(
@@ -316,7 +294,7 @@ class UPush(Task):
             object_position[..., 0] - ee_position_2d[..., 0],
         )
         yaw_difference_ee_object = abs(pi_2_pi(ee_yaw - np.pi / 2 - ee_object_yaw))
-        object_rotation_error = abs(pi_2_pi(object_rotation - desired_rotation))
+        # object_rotation_error = abs(pi_2_pi(object_rotation - desired_rotation))
 
         r_approach_dist = np.exp(-10 * ee_object_distance**2)
         r_approach_yaw = np.exp(-30 * yaw_difference_ee_object**2)

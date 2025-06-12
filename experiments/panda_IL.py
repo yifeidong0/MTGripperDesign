@@ -129,11 +129,11 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 50
+    n_train_epochs = 20
     eval_every_n_epochs = 1
     n_eval_episodes = 10
     movement_scale = 0.005
-    n_demo_episodes = 5
+    n_demo_episodes = 0
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"

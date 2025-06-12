@@ -166,10 +166,10 @@ class PandaCustom(PyBulletRobot):
         self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
         current_observation = np.concatenate((ee_position_2d, [ee_yaw,], self.design_params))
         if self.last_observation is None:
-            observation = np.concatenate((current_observation, current_observation))
+            observation = np.concatenate((current_observation, current_observation[:3])) # 7D + 3D
         else:
             observation = np.concatenate((current_observation, self.last_observation))
-        self.last_observation = current_observation.copy()
+        self.last_observation = current_observation.copy()[:3] # 3D
         return observation
 
     def reset(self) -> None:
