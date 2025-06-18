@@ -25,7 +25,13 @@ from imitation.data.types import Transitions
 from imitation.algorithms.bc import BC
 from imitation.data import types
 import tempfile
-        
+
+from imitation.policies.base import FeedForward32Policy
+from stable_baselines3.common.torch_layers import MlpExtractor
+from stable_baselines3.common.policies import ActorCriticPolicy
+import torch.nn as nn
+from imitation.data.types import maybe_unwrap_dictobs, Trajectory
+
 # TODO: 1. finetune the BC policy with PPO
 # 2. Reward function might need to be reshaped. Sometimes high reward is given when goal is not reached - object is pushed past the goal.
 # 3. Randomize the initial state of the environment. Tool, object and goal position, object shape, etc.
@@ -33,7 +39,22 @@ import tempfile
 
 # Implementation: 1. Panda model compatibility: Research 3 and old version.
 # 2. How to log training return in wandb from imitation library? - bc_trainer.train(n_epochs=1)
-from imitation.data.types import maybe_unwrap_dictobs, Trajectory
+
+
+from stable_baselines3.common.torch_layers import CombinedExtractor, FlattenExtractor
+
+class DeepPolicy(ActorCriticPolicy):
+    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
+        if isinstance(observation_space, gym.spaces.Dict):
+            kwargs["features_extractor_class"] = CombinedExtractor
+        else:
+            kwargs["features_extractor_class"] = FlattenExtractor
+
+        kwargs["net_arch"] = [dict(pi=[256, 256, 256, 256], vf=[256, 256, 256, 256])]
+        kwargs["activation_fn"] = nn.ReLU
+        super().__init__(observation_space, action_space, lr_schedule, **kwargs)
+
+
 
 def flatten_demos(trajs):
     flat = []
@@ -129,7 +150,7 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 20
+    n_train_epochs = 200
     eval_every_n_epochs = 1
     n_eval_episodes = 10
     movement_scale = 0.005
@@ -222,6 +243,12 @@ if __name__ == "__main__":
             action_space=env.action_space,
             demonstrations=transitions if algo == "bc" else None,
             rng=rng,
+            batch_size=256,
+            policy=DeepPolicy(
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                lr_schedule=lambda _: 1e-4,
+            ),
         )
 
         # Training loop with wandb logging
