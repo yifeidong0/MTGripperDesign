@@ -82,6 +82,7 @@ class PandaUPushEnv(RobotTaskEnv):
         self.canvas_min_y = -0.4
         self.canvas_max_y = 0.4
         self.is_safe = True
+        self.last_action = None
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    
         self.step_count += 1

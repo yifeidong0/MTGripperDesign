@@ -14,6 +14,7 @@ import envs  # This registers the custom environments
 import pickle
 import gymnasium as gym
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.vec_env import VecNormalize
 import imitation.policies.base as base_policies
 from imitation.util import util
 from imitation.util.util import make_vec_env
@@ -110,6 +111,7 @@ if __name__ == "__main__":
             "render_mode": "human",  # Render mode for interactive policy
         },
     )
+    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.0)
     
     print(f'Observation space: {env.observation_space}')
     print(f'Action space: {env.action_space}')
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     expert = KeyboardTeleopPolicy(
         observation_space=env.observation_space,
         action_space=env.action_space,
-        movement_scale=0.002
+        movement_scale=0.6
     )
     
     try:
@@ -134,7 +136,7 @@ if __name__ == "__main__":
             rollout.rollout(
             expert,
             env,
-            rollout.make_sample_until(min_episodes=3),
+            rollout.make_sample_until(min_episodes=20),
             unwrap=False,
             rng=rng,
             )
@@ -142,9 +144,8 @@ if __name__ == "__main__":
         with open(rollouts_data_file, "wb") as f:
             pickle.dump(rollouts, f)
         print(f"Collected {len(rollouts)} expert rollouts.")
-        
         transitions = rollout.flatten_trajectories(rollouts)
-        
+
         bc_trainer = bc.BC(
             observation_space=env.observation_space,
             action_space=env.action_space,

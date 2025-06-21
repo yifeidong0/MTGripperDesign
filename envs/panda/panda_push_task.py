@@ -19,7 +19,7 @@ class UPush(Task):
         reward_type,
         using_robustness_reward=True,
         reward_weights=[1.0, 0.01, 1.0, 1.0, 100.0, 0.0, 0.0, 0.0],
-        distance_threshold=0.05,
+        distance_threshold=0.04,
     ) -> None:
         super().__init__(sim)
         self.reward_type = reward_type
@@ -174,7 +174,7 @@ class UPush(Task):
         object_position = np.array([0.0, 0.0, self.object_size / 2])
         
         # Define boundary bias (higher probability at edges)
-        boundary_bias = 0.9  # 70% chance of being near a boundary
+        boundary_bias = 0.9 
         
         if np.random.random() < boundary_bias:
             # Sample near boundaries
@@ -294,7 +294,7 @@ class UPush(Task):
         object_rotation_error = abs(pi_2_pi(object_rotation - desired_rotation))
 
         r_approach_dist = np.exp(-10 * ee_object_distance**2)
-        r_approach_yaw = np.exp(-30 * yaw_difference_ee_object**2)
+        r_approach_yaw = np.exp(-10 * yaw_difference_ee_object**2)
         distance_threshold = 0.15
         yaw_threshold = 0.5
         # alignment = (
@@ -305,14 +305,15 @@ class UPush(Task):
         # r_push = alignment * np.exp(-30 * object_target_distance**2)
         r_push = 0.0
         if ee_object_distance < distance_threshold and yaw_difference_ee_object < yaw_threshold:
-            r_push = np.exp(-10 * object_target_distance**2)
+            r_push = np.exp(-30 * object_target_distance**2)
         d = distance(achieved_goal, desired_goal)
         # r_bonus = 1 / (1 + np.exp((d - self.distance_threshold)))
         r_bonus = 0.0
         if d < self.distance_threshold:
             r_bonus = 5.0
             self.is_success_flag = True
-        r_step = -1
+            # print("Success! Distance to goal:", d)
+        r_step = -1.0  # Penalty for each step taken
 
         canvas_min_x, canvas_max_x = 0.20, 0.75
         canvas_min_y, canvas_max_y = -0.4, 0.4
@@ -323,14 +324,14 @@ class UPush(Task):
         r_penalty = -np.where(np.logical_or(out_of_bounds_ee, out_of_bounds_obj), 1.0, 0.0)
         weights = {
             "approach_dist": 1.0,
-            "approach_yaw": 0.0,
+            "approach_yaw": 0.5,
             "push": 1.0,
             "bonus": 1.0,
             "penalty": 0.0,
-            "step": 1.0,
+            "step": 1,
         }
         total_weight = sum(weights.values())
-        norm_weights = {k: v / total_weight for k, v in weights.items()}
+        norm_weights = {k: 0.01 * v / total_weight for k, v in weights.items()}
         total_reward = (
                 norm_weights["approach_dist"] * r_approach_dist +
                 norm_weights["approach_yaw"] * r_approach_yaw +

@@ -90,10 +90,10 @@ class PandaCustom(PyBulletRobot):
         self.ee_init_pos_2d = np.zeros(2)
         self.attached_tool = False
         self.last_observation = None
+        self.last_action = None
+        self.current_action = None
 
     def set_action(self, action: np.ndarray) -> None:
-        action = action.copy()  # ensure action don't change
-        action = np.clip(action, self.action_space.low, self.action_space.high)
         if self.control_type == "ee":
             ee_displacement = np.array([action[0], action[1], 0])
             ee_orientation_change = action[2]
@@ -164,7 +164,7 @@ class PandaCustom(PyBulletRobot):
         arm_joint_angles = self.get_arm_joint_angles()
         # fingers opening
         self.design_params = np.array([self.v_angle, self.finger_length, self.finger_angle, self.distal_phalanx_length])
-        current_observation = np.concatenate((ee_position_2d, [ee_yaw,], self.design_params))
+        current_observation = np.concatenate((ee_position_2d, [ee_yaw,], self.design_params, ))
         if self.last_observation is None:
             observation = np.concatenate((current_observation, current_observation))
         else:
