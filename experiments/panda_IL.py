@@ -150,15 +150,16 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    n_train_epochs = 200
-    eval_every_n_epochs = 1
-    n_eval_episodes = 10
-    movement_scale = 0.005
+    mode = "test"  # "train" or "test"
+    n_train_epochs = 500 # for BC
+    eval_every_n_epochs = 1 # for BC
+    n_eval_episodes = 20
+    movement_scale = 0.007
     n_demo_episodes = 0
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
-    algo = "bc"  # Algorithm to use, e.g., "bc", "dagger", etc.
+    algo = "dagger"  # Algorithm to use, e.g., "bc", "dagger", etc.
     
     # Initialize wandb
     wandb.init(
@@ -192,124 +193,141 @@ if __name__ == "__main__":
             return FlattenObservation(e)
         env = DummyVecEnv([make_env])
 
-    print(f'Observation space: {env.observation_space}')
-    print(f'Action space: {env.action_space}')
+    if mode == "train":
+        print(f'Observation space: {env.observation_space}')
+        print(f'Action space: {env.action_space}')
 
-    expert = KeyboardTeleopPolicy(
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        movement_scale=movement_scale
-    )
-    
-    try:
-        rollouts_data_file = "data/expert_rollouts.pkl"
-        os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
-        
-        if os.path.exists(rollouts_data_file):
-            with open(rollouts_data_file, "rb") as f:
-                rollouts = pickle.load(f)
-            print(f"Loaded expert rollouts from {rollouts_data_file} with {len(rollouts)} rollouts.")
-        else:
-            rollouts = []
-            print("No existing rollouts found. Starting fresh collection...")
-
-        if render_mode == "human" and n_demo_episodes > 0:
-            rollouts.extend(
-                rollout.rollout(
-                expert,
-                env,
-                rollout.make_sample_until(min_episodes=n_demo_episodes),
-                unwrap=False,
-                rng=rng,
-                )
-            )
-
-        # Remove the last rollout in rollouts
-        # if rollouts:
-        #     rollouts.pop()
-
-        with open(rollouts_data_file, "wb") as f:
-            pickle.dump(rollouts, f)
-        print(f"Collected {len(rollouts)} expert rollouts.")
-        
-        transitions = rollout.flatten_trajectories(rollouts)
-        
-        # Log number of transitions collected
-        wandb.log({"n_transitions": len(transitions)})
-        
-        print("!!! Starting training...")
-        bc_trainer = bc.BC(
+        expert = KeyboardTeleopPolicy(
             observation_space=env.observation_space,
             action_space=env.action_space,
-            demonstrations=transitions if algo == "bc" else None,
-            rng=rng,
-            batch_size=256,
-            policy=DeepPolicy(
+            movement_scale=movement_scale
+        )
+        
+        try:
+            rollouts_data_file = "data/expert_rollouts.pkl"
+            os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
+            
+            if os.path.exists(rollouts_data_file):
+                with open(rollouts_data_file, "rb") as f:
+                    rollouts = pickle.load(f)
+                print(f"Loaded expert rollouts from {rollouts_data_file} with {len(rollouts)} rollouts.")
+            else:
+                rollouts = []
+                print("No existing rollouts found. Starting fresh collection...")
+
+            if render_mode == "human" and n_demo_episodes > 0:
+                rollouts.extend(
+                    rollout.rollout(
+                    expert,
+                    env,
+                    rollout.make_sample_until(min_episodes=n_demo_episodes),
+                    unwrap=False,
+                    rng=rng,
+                    )
+                )
+
+            # Remove the last rollout in rollouts
+            # if rollouts:
+            #     rollouts.pop()
+
+            with open(rollouts_data_file, "wb") as f:
+                pickle.dump(rollouts, f)
+            print(f"Collected {len(rollouts)} expert rollouts.")
+            
+            transitions = rollout.flatten_trajectories(rollouts)
+            
+            # Log number of transitions collected
+            wandb.log({"n_transitions": len(transitions)})
+            
+            print("!!! Starting training...")
+            bc_trainer = bc.BC(
                 observation_space=env.observation_space,
                 action_space=env.action_space,
-                lr_schedule=lambda _: 1e-4,
-            ),
-        )
+                demonstrations=transitions if algo == "bc" else None,
+                rng=rng,
+                batch_size=256,
+                policy=DeepPolicy(
+                    observation_space=env.observation_space,
+                    action_space=env.action_space,
+                    lr_schedule=lambda _: 1e-4,
+                ),
+            )
 
-        # Training loop with wandb logging
-        returns = []
-        device = bc_trainer.policy.device
-        
-        # Convert observations and actions to tensors
-        obs_dict = types.maybe_unwrap_dictobs(transitions.obs)
-        obs_tensor = types.map_maybe_dict(lambda x: th.tensor(x, device=device), obs_dict)
-        acts_tensor = th.tensor(transitions.acts, device=device)
-        
-        if algo == "bc":
-            for epoch in range(n_train_epochs):
-                # Train for one epoch
-                bc_trainer.train(n_epochs=1)
-                print(f"Epoch {epoch + 1}/{n_train_epochs} completed.")
+            # Training loop with wandb logging
+            returns = []
+            device = bc_trainer.policy.device
+            
+            # Convert observations and actions to tensors
+            obs_dict = types.maybe_unwrap_dictobs(transitions.obs)
+            obs_tensor = types.map_maybe_dict(lambda x: th.tensor(x, device=device), obs_dict)
+            acts_tensor = th.tensor(transitions.acts, device=device)
+            
+            if algo == "bc":
+                for epoch in range(n_train_epochs):
+                    # Train for one epoch
+                    bc_trainer.train(n_epochs=1)
+                    print(f"Epoch {epoch + 1}/{n_train_epochs} completed.")
 
-                if epoch % eval_every_n_epochs == 0:
-                    # Evaluate training loss on the full training set
-                    with th.no_grad():
-                        metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
-                        train_loss = float(metrics.loss)
-                    
-                    # Log to wandb
-                    wandb.log({
-                        "epoch": epoch,
-                        "train_loss": train_loss,
-                    })
-                    print(f"Epoch {epoch}: Loss = {train_loss:.4f}")
+                    if epoch % eval_every_n_epochs == 0:
+                        # Evaluate training loss on the full training set
+                        with th.no_grad():
+                            metrics = bc_trainer.loss_calculator(bc_trainer.policy, obs_tensor, acts_tensor)
+                            train_loss = float(metrics.loss)
                         
-            # Evaluate policy
-            mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
+                        # Log to wandb
+                        wandb.log({
+                            "epoch": epoch,
+                            "train_loss": train_loss,
+                        })
+                        print(f"Epoch {epoch}: Loss = {train_loss:.4f}")
+                            
+                # Evaluate policy
+                mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
 
-            print(f"Evaluation mean return: {mean_return:.2f}")
-            bc_trainer.policy.save("data/panda_bc_policy.pth")
+                print(f"Evaluation mean return: {mean_return:.2f}")
+                bc_trainer.policy.save("data/panda_bc_policy.pth")
 
-        elif algo == "dagger":
-            # TODO: Import policy from path - data/panda_bc_policy.pth
+            elif algo == "dagger":
+                # TODO: Import policy from path - data/panda_bc_policy.pth
 
-            flat_rollouts = flatten_demos(rollouts)
-            with tempfile.TemporaryDirectory(prefix="dagger_") as scratch_dir:
-                dagger_trainer = SimpleDAggerTrainer(
-                    venv=env,
-                    scratch_dir=scratch_dir,
-                    expert_policy=expert,
-                    bc_trainer=bc_trainer,
-                    expert_trajs=flat_rollouts,
-                    rng=rng,
-                )
-                # run dataset aggregation + BC rounds
-                dagger_trainer.train(dagger_steps)
-            final_policy = dagger_trainer.policy
-            mean_return, _ = evaluate_policy(final_policy, env, n_eval_episodes*5)
-            print(f"Final mean return after DAgger: {mean_return:.2f}")
-            final_policy.save("data/panda_dagger_policy.pth")
+                flat_rollouts = flatten_demos(rollouts)
+                with tempfile.TemporaryDirectory(prefix="dagger_") as scratch_dir:
+                    dagger_trainer = SimpleDAggerTrainer(
+                        venv=env,
+                        scratch_dir=scratch_dir,
+                        expert_policy=expert,
+                        bc_trainer=bc_trainer,
+                        expert_trajs=flat_rollouts,
+                        rng=rng,
+                    )
+                    # run dataset aggregation + BC rounds
+                    dagger_trainer.train(dagger_steps)
+                final_policy = dagger_trainer.policy
+                mean_return, _ = evaluate_policy(final_policy, env, n_eval_episodes)
+                print(f"Final mean return after DAgger: {mean_return:.2f}")
+                final_policy.save("data/panda_dagger_policy.pth")
 
-        print("!!! Training completed!")
-        
-    except KeyboardInterrupt:
-        print("\nStopping teleoperation...")
-    finally:
-        expert.stop()
-        env.close()
-        wandb.finish()  # Close wandb run
+            print("!!! Training completed!")
+            
+        except KeyboardInterrupt:
+            print("\nStopping teleoperation...")
+        finally:
+            expert.stop()
+            env.close()
+            wandb.finish()  # Close wandb run
+
+    else:  # test mode
+        # select correct saved policy
+        if algo == 'bc':
+            policy_path = "data/panda_bc_policy.pth"
+        else:
+            policy_path = "data/panda_dagger_policy.pth"
+        assert os.path.exists(policy_path), f"Policy file not found: {policy_path}"
+
+        # load and evaluate
+        policy: ActorCriticPolicy = ActorCriticPolicy.load(policy_path)
+        mean_return, std_return = evaluate_policy(policy, env, n_eval_episodes=n_eval_episodes)
+        print(f"Test mode ({algo}): mean_return={mean_return:.2f} ± {std_return:.2f} over {n_eval_episodes} episodes")
+
+    env.close()
+    wandb.finish()
