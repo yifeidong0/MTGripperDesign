@@ -36,7 +36,7 @@ def train(env_id: str, model_path: str, env_path: str) -> None:
     finally:
         model.save(model_path)
         env.save(env_path)
-    del model, env  # Clean up to free memory
+        del model, env  # Clean up to free memory
 
 def fine_tune(env_id: str, model_path: str, env_path: str, n_timesteps: int = int(1e6)) -> None:
     env = make_vec_env(env_id, env_kwargs={
@@ -47,9 +47,14 @@ def fine_tune(env_id: str, model_path: str, env_path: str, n_timesteps: int = in
     env.norm_reward = True  # Enable reward normalization for fine-tuning
     model = PPO.load(model_path, env=env)
     model.policy.train()  # Set the policy to training mode
-    model.learn(total_timesteps=n_timesteps, log_interval=10, progress_bar=True)
-    model.save(model_path)
-    del model, env  # Clean up to free memory
+    try:
+        model.learn(total_timesteps=n_timesteps, log_interval=10, progress_bar=True)
+    except KeyboardInterrupt:
+        print("Fine-tuning interrupted")
+    finally:
+        model.save(model_path)
+        env.save(env_path)
+        del model, env  # Clean up to free memory
 
 def evaluate(env_id: str, model_path: str, env_path: str, n_episodes: int = 10) -> None:
     env = make_vec_env(env_id, env_kwargs={
@@ -69,8 +74,8 @@ if __name__ == "__main__":
     model_path = f"data/models/{env_id}"
     env_path = model_path + "_env.pkl"
     # train(env_id, model_path, env_path)
-    fine_tune(env_id, model_path, env_path, n_timesteps=int(5e5))
-    # evaluate(env_id, model_path, env_path, n_episodes=10)
+    # fine_tune(env_id, model_path, env_path, n_timesteps=int(5e5))
+    evaluate(env_id, model_path, env_path, n_episodes=10)
     
 
     # model = PPOReg("MultiInputPolicy", env, verbose=1,
