@@ -1,36 +1,40 @@
 import collections
-from typing import Dict, Union
-import time
-import numpy as np
-from pynput.keyboard import Listener, KeyCode
 import os
+import pickle
 import sys
+import tempfile
 import threading
-import wandb
+import time
+from typing import Dict, Union
+
+import gymnasium as gym
+from gymnasium.wrappers.flatten_observation import FlattenObservation
+from gymnasium.wrappers.rescale_action import RescaleAction
+import numpy as np
 import torch as th
-# Add this line to import custom environments
+import torch.nn as nn
+import wandb
+from pynput.keyboard import KeyCode, Listener
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3.common.torch_layers import MlpExtractor
+from stable_baselines3.common.torch_layers import CombinedExtractor, FlattenExtractor
+from stable_baselines3.common.vec_env import DummyVecEnv
+
+# Add path to import custom environments
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import envs  # This registers the custom environments
 
-import pickle
-import gymnasium as gym
-from stable_baselines3.common.evaluation import evaluate_policy
+# Imitation learning imports
+from imitation.algorithms import bc
+from imitation.algorithms.bc import BC
+from imitation.algorithms.dagger import SimpleDAggerTrainer
+from imitation.data import rollout, types
+from imitation.data.types import Trajectory, Transitions, maybe_unwrap_dictobs
+from imitation.policies.base import FeedForward32Policy
 import imitation.policies.base as base_policies
 from imitation.util import util
 from imitation.util.util import make_vec_env
-from imitation.algorithms import bc
-from imitation.algorithms.dagger import SimpleDAggerTrainer
-from imitation.data import rollout
-from imitation.data.types import Transitions
-from imitation.algorithms.bc import BC
-from imitation.data import types
-import tempfile
-
-from imitation.policies.base import FeedForward32Policy
-from stable_baselines3.common.torch_layers import MlpExtractor
-from stable_baselines3.common.policies import ActorCriticPolicy
-import torch.nn as nn
-from imitation.data.types import maybe_unwrap_dictobs, Trajectory
 
 # TODO: 1. finetune the BC policy with PPO
 # 2. Reward function might need to be reshaped. Sometimes high reward is given when goal is not reached - object is pushed past the goal.
@@ -40,11 +44,8 @@ from imitation.data.types import maybe_unwrap_dictobs, Trajectory
 # Implementation: 1. Panda model compatibility: Research 3 and old version.
 # 2. How to log training return in wandb from imitation library? - bc_trainer.train(n_epochs=1)
 
-
-from stable_baselines3.common.torch_layers import CombinedExtractor, FlattenExtractor
-
 class DeepPolicy(ActorCriticPolicy):
-    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
+    def __init__(self, observation_space, action_space, lr_schedule, use_sde=False, **kwargs):
         if isinstance(observation_space, gym.spaces.Dict):
             kwargs["features_extractor_class"] = CombinedExtractor
         else:
@@ -54,8 +55,31 @@ class DeepPolicy(ActorCriticPolicy):
         kwargs["activation_fn"] = nn.ReLU
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
-
-
+class PandaEnvWrapper(gym.Wrapper):
+    """Wrapper for Panda environments to flatten observations and rescale actions."""
+    
+    def __init__(self, env: gym.Env, min_action: float = -1.0, max_action: float = 1.0):
+        wrapped_env = FlattenObservation(env)
+        wrapped_env = RescaleAction(wrapped_env, min_action=min_action, max_action=max_action)
+        super().__init__(wrapped_env)
+        with open("data/obs_statistics.pkl", "rb") as f:
+            obs_info = pickle.load(f)
+            self.obs_mean = obs_info["mean"]
+            self.obs_std = obs_info["std"]
+    
+    def normalize_obs(self, obs, epsilon=1e-8):
+        """Normalize observations using precomputed mean and std."""
+        obs = (obs - self.obs_mean) / (self.obs_std + epsilon)
+        return obs
+    
+    def reset(self, *, seed = None, options = None):
+        obs, info = self.env.reset(seed=seed, options=options)
+        return self.normalize_obs(obs), info
+    
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        return self.normalize_obs(observation), reward, terminated, truncated, info
+        
 def flatten_demos(trajs):
     flat = []
     for traj in trajs:
@@ -159,7 +183,7 @@ if __name__ == "__main__":
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
-    algo = "dagger"  # Algorithm to use, e.g., "bc", "dagger", etc.
+    algo = "bc"  # Algorithm to use, e.g., "bc", "dagger", etc.
     
     # Initialize wandb
     wandb.init(
@@ -175,23 +199,21 @@ if __name__ == "__main__":
     )
     
     rng = np.random.default_rng(0)
-    if algo == "bc":
-        env = make_vec_env(
-            'PandaUPushEnv-v0',
-            n_envs=1,
-            max_episode_steps=1000,
-            rng=rng,
-            env_make_kwargs={
-                "render_mode": render_mode, # "human",  # Render mode for interactive policy
-            },
-        )
-    elif algo == "dagger":
-        from gymnasium.wrappers.flatten_observation import FlattenObservation
-        from stable_baselines3.common.vec_env import DummyVecEnv
-        def make_env():
-            e = gym.make("PandaUPushEnv-v0", render_mode=render_mode, max_episode_steps=1000)
-            return FlattenObservation(e)
-        env = DummyVecEnv([make_env])
+    # if algo == "bc":
+    #     env = make_vec_env(
+    #         'PandaUPushEnv-v0',
+    #         n_envs=1,
+    #         max_episode_steps=1000,
+    #         rng=rng,
+    #         env_make_kwargs={
+    #             "render_mode": render_mode, # "human",  # Render mode for interactive policy
+    #         },
+    #     )
+    # elif algo == "dagger":
+    def make_env():
+        e = gym.make("PandaUPushEnv-v0", render_mode=render_mode, max_episode_steps=1000)
+        return PandaEnvWrapper(e)
+    env = DummyVecEnv([make_env])
 
     if mode == "train":
         print(f'Observation space: {env.observation_space}')
