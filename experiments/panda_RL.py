@@ -20,7 +20,7 @@ if __name__ == "__main__":
     mode = "test"  # or "test"
     env_id = "PandaUPushEnv-v0"
     render_mode = "human" if mode == "test" else "rgb_array"
-    # render_mode = "rgb_array"
+    render_mode = "human"
     env = gym.make(env_id, render_mode=render_mode, max_episode_steps=1000)
     env = PandaEnvWrapper(env)
     
@@ -48,10 +48,10 @@ if __name__ == "__main__":
         else:
             model.policy.load_state_dict(saved_variables['state_dict'])
         
-        # model.policy.eval()  # Set the policy to evaluation mode
-        # n_episodes = 10
-        # reward, _ = evaluate_policy(model.policy, env, n_eval_episodes=n_episodes, deterministic=True)
-        # print(f"Before fine-tuning, average reward over {n_episodes} episodes: {reward}")
+        model.policy.eval()  # Set the policy to evaluation mode
+        n_episodes = 10
+        mean_reward, std_reward = evaluate_policy(model.policy, env, n_eval_episodes=n_episodes, deterministic=True)
+        print(f"Before fine-tuning, average reward over {n_episodes} episodes: {mean_reward}")
         
         try:
             model.learn(total_timesteps=int(1e6), log_interval=5, progress_bar=True)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     else:
         model = PPOReg.load(f"data/models/{env_id}_final_model.zip", env=env, policy=DeepPolicy)
         model.policy.eval()  # Set the policy to evaluation mode
-        n_episodes = 1
+        n_episodes = 10
         mean_reward, std_reward = evaluate_policy(model.policy, env, n_eval_episodes=n_episodes, deterministic=True)
         env.close()
         print(f"After fine-tuning, average reward over {n_episodes} episodes: {mean_reward}")
