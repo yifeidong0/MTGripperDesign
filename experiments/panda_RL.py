@@ -17,14 +17,14 @@ from panda_IL import PandaEnvWrapper, DeepPolicy
 
 
 if __name__ == "__main__":
-    mode = "test"  # or "test"
+    mode = "test_before_finetune"  # "train" or "test_before_finetune" or "test_after_finetune"
+    n_eval_episodes = 10
+    render_mode = "rgb_array"
     env_id = "PandaUPushEnv-v0"
-    render_mode = "human" if mode == "test" else "rgb_array"
-    render_mode = "human"
     env = gym.make(env_id, render_mode=render_mode, max_episode_steps=1000)
     env = PandaEnvWrapper(env)
     
-    if mode == "train":
+    if mode != "test_after_finetune":
         model = PPOReg(policy=DeepPolicy,
                     env=env,
                     verbose=1,
@@ -48,23 +48,23 @@ if __name__ == "__main__":
         else:
             model.policy.load_state_dict(saved_variables['state_dict'])
         
-        model.policy.eval()  # Set the policy to evaluation mode
-        n_episodes = 10
-        mean_reward, std_reward = evaluate_policy(model.policy, env, n_eval_episodes=n_episodes, deterministic=True)
-        print(f"Before fine-tuning, average reward over {n_episodes} episodes: {mean_reward}")
-        
-        try:
-            model.learn(total_timesteps=int(1e6), log_interval=5, progress_bar=True)
-        except KeyboardInterrupt:
-            print("Training interrupted")
-        finally:
-            model.save(f"data/models/{env_id}_final_model.zip")
+        if mode == "test_before_finetune":
+            model.policy.eval()  # Set the policy to evaluation mode
+            mean_reward, std_reward = evaluate_policy(model.policy, env, n_eval_episodes=n_eval_episodes, deterministic=True)
+            print(f"Before fine-tuning, over {n_eval_episodes}, average reward: {mean_reward}, std: {std_reward}")
+        else:
+            try:
+                model.learn(total_timesteps=int(1e6), log_interval=5, progress_bar=True)
+            except KeyboardInterrupt:
+                print("Training interrupted")
+            finally:
+                model.save(f"data/models/{env_id}_final_model.zip")
         env.close()
         
     else:
         model = PPOReg.load(f"data/models/{env_id}_final_model.zip", env=env, policy=DeepPolicy)
         model.policy.eval()  # Set the policy to evaluation mode
-        n_episodes = 10
-        mean_reward, std_reward = evaluate_policy(model.policy, env, n_eval_episodes=n_episodes, deterministic=True)
+        mean_reward, std_reward = evaluate_policy(model.policy, env, n_eval_episodes=n_eval_episodes, deterministic=True)
+        print(f"After fine-tuning, over {n_eval_episodes}, average reward: {mean_reward}, std: {std_reward}")
         env.close()
-        print(f"After fine-tuning, average reward over {n_episodes} episodes: {mean_reward}")
+
