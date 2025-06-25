@@ -150,16 +150,16 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    mode = "test"  # "train" or "test"
-    n_train_epochs = 500 # for BC
-    eval_every_n_epochs = 1 # for BC
-    n_eval_episodes = 20
+    mode = "train"  # "train" or "test"
+    n_train_epochs = 1 # for BC
+    eval_every_n_epochs = 10 # for BC
+    n_eval_episodes = 1
     movement_scale = 0.007
-    n_demo_episodes = 0
+    n_demo_episodes = 5
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
-    algo = "dagger"  # Algorithm to use, e.g., "bc", "dagger", etc.
+    algo = "bc"  # Algorithm to use, e.g., "bc", "dagger", etc.
     
     # Initialize wandb
     wandb.init(
@@ -204,7 +204,8 @@ if __name__ == "__main__":
         )
         
         try:
-            rollouts_data_file = "data/expert_rollouts.pkl"
+            # rollouts_data_file = "data/expert_rollouts.pkl"
+            rollouts_data_file = "data/expert_rollouts_rand_morph.pkl"
             os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
             
             if os.path.exists(rollouts_data_file):
@@ -285,7 +286,7 @@ if __name__ == "__main__":
                 mean_return, _ = evaluate_policy(bc_trainer.policy, env, n_eval_episodes) # evaluation return (not train or validation loss)
 
                 print(f"Evaluation mean return: {mean_return:.2f}")
-                bc_trainer.policy.save("data/panda_bc_policy.pth")
+                bc_trainer.policy.save("data/panda_bc_policy_rand_morph.pth")
 
             elif algo == "dagger":
                 # TODO: Import policy from path - data/panda_bc_policy.pth
@@ -319,7 +320,7 @@ if __name__ == "__main__":
     else:  # test mode
         # select correct saved policy
         if algo == 'bc':
-            policy_path = "data/panda_bc_policy.pth"
+            policy_path = "data/panda_bc_policy_rand_morph.pth"
         else:
             policy_path = "data/panda_dagger_policy.pth"
         assert os.path.exists(policy_path), f"Policy file not found: {policy_path}"

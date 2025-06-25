@@ -117,8 +117,8 @@ class PandaUPushEnv(RobotTaskEnv):
         self.is_safe = True
 
         # Reset task and design parameters
-        # self.task.task_object_name = random.choice(self.task.task_object_names)
-        self.task.task_object_name = 'circle'
+        self.task.task_object_name = random.choice(self.task.task_object_names)
+        # self.task.task_object_name = 'circle'
         self.task.task_int = self.task.task_ints[self.task.task_object_name]
         self.robot.v_angle = random.uniform(np.pi/6, np.pi*5/6)
         self.robot.finger_length = random.uniform(0.05, 0.12)
@@ -148,10 +148,10 @@ class PandaUPushEnv(RobotTaskEnv):
         # self.robot.finger_angle = -0.3490
         # self.robot.distal_phalanx_length = 0.071111
 
-        self.robot.v_angle = 1.6871516102611852 # iter43,0.88
-        self.robot.finger_length = 0.12
-        self.robot.finger_angle = -0.11635528346628865
-        self.robot.distal_phalanx_length = 0.08
+        # self.robot.v_angle = 1.6871516102611852 # iter43,0.88
+        # self.robot.finger_length = 0.12
+        # self.robot.finger_angle = -0.11635528346628865
+        # self.robot.distal_phalanx_length = 0.08
 
         return super().reset(seed=seed, options=options)
 
