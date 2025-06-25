@@ -175,11 +175,10 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 if __name__ == "__main__":
     mode = "train"  # "train" or "test"
-    n_train_epochs = 1 # for BC
+    n_train_epochs = 300 # for BC
     eval_every_n_epochs = 10 # for BC
-    n_eval_episodes = 1
+    n_eval_episodes = 100
     movement_scale = 0.007
-    n_demo_episodes = 5
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
@@ -194,22 +193,10 @@ if __name__ == "__main__":
             "movement_scale": movement_scale,
             "n_train_epochs": n_train_epochs,
             "n_eval_episodes": n_eval_episodes,
-            "n_demo_episodes": n_demo_episodes,
         }
     )
     
     rng = np.random.default_rng(0)
-    # if algo == "bc":
-    #     env = make_vec_env(
-    #         'PandaUPushEnv-v0',
-    #         n_envs=1,
-    #         max_episode_steps=1000,
-    #         rng=rng,
-    #         env_make_kwargs={
-    #             "render_mode": render_mode, # "human",  # Render mode for interactive policy
-    #         },
-    #     )
-    # elif algo == "dagger":
     def make_env():
         e = gym.make("PandaUPushEnv-v0", render_mode=render_mode, max_episode_steps=1000)
         return PandaEnvWrapper(e)
@@ -227,7 +214,7 @@ if __name__ == "__main__":
         
         try:
             # rollouts_data_file = "data/expert_rollouts.pkl"
-            rollouts_data_file = "data/expert_rollouts_rand_morph.pkl"
+            rollouts_data_file = "data/expert_rollouts_rand_morph_normalized.pkl"
             os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
             
             if os.path.exists(rollouts_data_file):
@@ -237,25 +224,6 @@ if __name__ == "__main__":
             else:
                 rollouts = []
                 print("No existing rollouts found. Starting fresh collection...")
-
-            if render_mode == "human" and n_demo_episodes > 0:
-                rollouts.extend(
-                    rollout.rollout(
-                    expert,
-                    env,
-                    rollout.make_sample_until(min_episodes=n_demo_episodes),
-                    unwrap=False,
-                    rng=rng,
-                    )
-                )
-
-            # Remove the last rollout in rollouts
-            # if rollouts:
-            #     rollouts.pop()
-
-            with open(rollouts_data_file, "wb") as f:
-                pickle.dump(rollouts, f)
-            print(f"Collected {len(rollouts)} expert rollouts.")
             
             transitions = rollout.flatten_trajectories(rollouts)
             

@@ -31,16 +31,6 @@ from stable_baselines3.common.torch_layers import MlpExtractor
 from stable_baselines3.common.policies import ActorCriticPolicy
 import torch.nn as nn
 from imitation.data.types import maybe_unwrap_dictobs, Trajectory
-
-# TODO: 1. finetune the BC policy with PPO
-# 2. Reward function might need to be reshaped. Sometimes high reward is given when goal is not reached - object is pushed past the goal.
-# 3. Randomize the initial state of the environment. Tool, object and goal position, object shape, etc.
-# 4. Randomize tool design after each episode. Goal is to have a generalized policy over the design space.
-
-# Implementation: 1. Panda model compatibility: Research 3 and old version.
-# 2. How to log training return in wandb from imitation library? - bc_trainer.train(n_epochs=1)
-
-
 from stable_baselines3.common.torch_layers import CombinedExtractor, FlattenExtractor
 
 class DeepPolicy(ActorCriticPolicy):
@@ -119,7 +109,7 @@ if __name__ == "__main__":
         print(f'Observation space: {env.observation_space}')
         print(f'Action space: {env.action_space}')
         
-        rollouts_data_file = "data/expert_rollouts.pkl"
+        rollouts_data_file = "data/expert_rollouts_rand_morph.pkl"
         os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
         
         if os.path.exists(rollouts_data_file):
@@ -129,8 +119,16 @@ if __name__ == "__main__":
         else:
             rollouts = []
             print("No existing rollouts found. Starting fresh collection...")
+
+        # Remove the last rollout in rollouts
+        # if rollouts:
+        #     rollouts.pop()
+
+        # with open(rollouts_data_file, "wb") as f:
+        #     pickle.dump(rollouts, f)
+        # print(f"Collected {len(rollouts)} expert rollouts.")
         
-        # ## process rollouts
+        # process rollouts
         action_low, action_high = env.action_space.low, env.action_space.high
         print(f"Action space low: {action_low}, high: {action_high}")
         action_low_toset = -1
@@ -158,7 +156,8 @@ if __name__ == "__main__":
         for i in range(len(rollouts)):
             rollouts[i] = dataclasses.replace(rollouts[i], obs=(rollouts[i].obs - mean_obs) / (std_obs + 1e-8))
         
-        with open(rollouts_data_file, "wb") as f:
+        rollouts_data_file_norm = "data/expert_rollouts_rand_morph_normalized.pkl"
+        with open(rollouts_data_file_norm, "wb") as f:
             pickle.dump(rollouts, f)           
           
     env.close()
