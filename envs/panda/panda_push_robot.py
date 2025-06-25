@@ -36,7 +36,7 @@ class PandaCustom(PyBulletRobot):
         self.base_position = base_position if base_position is not None else np.zeros(3)
         self.control_type = control_type
         # action space (dx, dy, dyaw)
-        action_space = spaces.Box(low=np.array([-0.02, -0.02, -0.05,]), high=np.array([0.02, 0.02, 0.05,]), dtype=np.float32)
+        action_space = spaces.Box(low=np.array([-0.01, -0.01, -0.05,]), high=np.array([0.01, 0.01, 0.05,]), dtype=np.float32)
         # action_space = spaces.Box(low=np.array([-0.01, -0.01,]), high=np.array([0.01, 0.01,]), dtype=np.float32)
 
         self.v_angle = 0.5

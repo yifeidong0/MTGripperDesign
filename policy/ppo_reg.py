@@ -6,6 +6,7 @@ from torch.nn import functional as F
 from stable_baselines3.ppo import PPO
 from stable_baselines3.common.utils import explained_variance
 from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3.common.distributions import kl_divergence
 
 class PPOReg(PPO):
     
@@ -21,8 +22,10 @@ class PPOReg(PPO):
             th.ones(3, device=self.frozen_policy.device) * log_std_init, requires_grad=False
         )
         self.frozen_policy.set_training_mode(False)
-        self.reg_coef = reg_coef
-    
+        for param in self.frozen_policy.parameters():
+            param.requires_grad = False
+        self.reg_coef = reg_coef    
+        
     def train(self) -> None:
         """
         Update policy using the currently gathered rollout buffer.
@@ -99,14 +102,32 @@ class PPOReg(PPO):
 
                 entropy_losses.append(entropy_loss.item())
                 
-                # Penalizing the KL distance between the frozen and current policy
-                # KL(frozen || current) = E[log(frozen) - log(current)] under frozen distribution
-                with th.no_grad():
-                    frozen_log_prob = self.frozen_policy.evaluate_actions(rollout_data.observations, actions)[1]
-                # KL divergence: KL(p||q) = sum(p * log(p/q)) = sum(p * (log_p - log_q))
-                reg_loss = th.mean(th.exp(frozen_log_prob) * (frozen_log_prob - log_prob))
+                # # Penalizing the KL distance between the frozen and current policy
+                # # KL(frozen || current) = E[log(frozen) - log(current)] under frozen distribution
+                # with th.no_grad():
+                #     frozen_log_prob = self.frozen_policy.evaluate_actions(rollout_data.observations, actions)[1]
+                # # KL divergence: KL(p||q) = sum(p * log(p/q)) = sum(p * (log_p - log_q))
+                # reg_loss = th.mean(th.exp(frozen_log_prob) * (frozen_log_prob - log_prob))
 
+                # loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss + self.reg_coef * reg_loss
+                # # Penalizing the KL distance between the frozen and current policy
+                # # KL(frozen || current) = E[log(frozen) - log(current)] under frozen distribution
+                # with th.no_grad():
+                #     frozen_log_prob = self.frozen_policy.evaluate_actions(rollout_data.observations, actions)[1]
+                # # KL divergence: KL(p||q) = sum(p * log(p/q)) = sum(p * (log_p - log_q))
+                # reg_loss = th.mean(th.exp(frozen_log_prob) * (frozen_log_prob - log_prob)) #log_prob = distribution.log_prob(actions)
+                
+                with th.no_grad():
+                    frozen_dist = self.frozen_policy.get_distribution(rollout_data.observations)
+
+                reg_loss = th.mean(
+                    kl_divergence(
+                    frozen_dist,
+                    self.policy.get_distribution(rollout_data.observations)
+                    )
+                )
                 loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss + self.reg_coef * reg_loss
+
 
                 # Calculate approximate form of reverse KL Divergence for early stopping
                 # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417

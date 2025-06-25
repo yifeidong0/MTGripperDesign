@@ -315,7 +315,7 @@ class UPush(Task):
         if d < self.distance_threshold:
             r_bonus = 5.0
             self.is_success_flag = True
-        r_step = -1
+        r_step = -2
 
         canvas_min_x, canvas_max_x = 0.20, 0.75
         canvas_min_y, canvas_max_y = -0.4, 0.4
