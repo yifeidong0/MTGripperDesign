@@ -91,8 +91,8 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
             'k': np.array([-self.movement_scale, 0.0, 0.0]),  # Backward X
             'j': np.array([0.0, self.movement_scale, 0.0]),  # Left Y
             'l': np.array([0.0, -self.movement_scale, 0.0]),   # Right Y
-            'q': np.array([0.0, 0.0, self.movement_scale]),   # Rotate Z
-            'e': np.array([0.0, 0.0, -self.movement_scale]),  # Rotate -Z
+            'q': np.array([0.0, 0.0, 5*self.movement_scale]),   # Rotate Z
+            'e': np.array([0.0, 0.0, -5*self.movement_scale]),  # Rotate -Z
             ' ': np.array([0.0, 0.0, 0.0])  # Space for no movement/stay
         }
         
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     eval_every_n_epochs = 1 # for BC
     n_eval_episodes = 20
     movement_scale = 0.007
-    n_demo_episodes = 1
+    n_demo_episodes = 2
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     
@@ -170,7 +170,7 @@ if __name__ == "__main__":
         )
         
         try:
-            rollouts_data_file = "data/expert_rollouts_rand_morph.pkl"
+            rollouts_data_file = "data/expert_rollouts_rand_hard.pkl"
             os.makedirs(os.path.dirname(rollouts_data_file), exist_ok=True)
             
             if os.path.exists(rollouts_data_file):

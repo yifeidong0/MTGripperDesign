@@ -77,10 +77,14 @@ class PandaUPushEnv(RobotTaskEnv):
         self.obs_type = obs_type
         self.reward_weights = reward_weights
         self.step_count = 0
-        self.canvas_min_x = 0.20
-        self.canvas_max_x = 0.75
-        self.canvas_min_y = -0.4
-        self.canvas_max_y = 0.4
+        # self.canvas_min_x = 0.20
+        # self.canvas_max_x = 0.75
+        # self.canvas_min_y = -0.4
+        # self.canvas_max_y = 0.4
+        self.canvas_min_x = 0.10
+        self.canvas_max_x = 0.85
+        self.canvas_min_y = -0.5
+        self.canvas_max_y = 0.5
         self.is_safe = True
     
     def step(self, action: np.ndarray) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:    

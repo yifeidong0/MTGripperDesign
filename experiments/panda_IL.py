@@ -174,11 +174,11 @@ class KeyboardTeleopPolicy(base_policies.NonTrainablePolicy):
 
 
 if __name__ == "__main__":
-    mode = "train"  # "train" or "test"
+    mode = "test"  # "train" or "test"
     n_train_epochs = 300 # for BC
     eval_every_n_epochs = 10 # for BC
-    n_eval_episodes = 100
-    movement_scale = 0.007
+    n_eval_episodes = 20
+    movement_scale = 0.005
     dagger_steps = 2000
     render_mode = "human"  # "human" (w. Bullet GUI), "rgb_array" (w.o. GUI)
     wandb_mode = "disabled" # "online", "disabled"
@@ -198,7 +198,7 @@ if __name__ == "__main__":
     
     rng = np.random.default_rng(0)
     def make_env():
-        e = gym.make("PandaUPushEnv-v0", render_mode=render_mode, max_episode_steps=1000)
+        e = gym.make("PandaUPushEnv-v0", render_mode=render_mode, max_episode_steps=1200)
         return PandaEnvWrapper(e)
     env = DummyVecEnv([make_env])
 
@@ -296,7 +296,7 @@ if __name__ == "__main__":
                 final_policy = dagger_trainer.policy
                 mean_return, _ = evaluate_policy(final_policy, env, n_eval_episodes)
                 print(f"Final mean return after DAgger: {mean_return:.2f}")
-                final_policy.save("data/panda_dagger_policy.pth")
+                final_policy.save("data/panda_dagger_policy_rand_morph.pth")
 
             print("!!! Training completed!")
             

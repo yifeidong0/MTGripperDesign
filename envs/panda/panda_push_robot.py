@@ -189,16 +189,21 @@ class PandaCustom(PyBulletRobot):
         #     self._attach_tool_to_ee()
         #     self.attached_tool = True
 
-    def _set_random_ee_pose(self) -> None:
+    def _set_random_ee_pose(self, margin=0.2) -> None:
         """Set the robot to a random end-effector initial pose after reset."""
         self.set_joint_neutral() # set neutral first to avoid singularities
         init_ee_position = np.array([0.0, 0.0, self.z_offset])
-        init_ee_position[0] = np.random.uniform(0.3, 0.6) 
-        init_ee_position[1] = np.random.uniform(0.2, 0.3)
+        # init_ee_position[0] = np.random.uniform(0.3, 0.6) 
+        # init_ee_position[1] = np.random.uniform(0.2, 0.3)
+        init_ee_position[0] = np.random.uniform(0.2+margin, 0.75-margin)
+        init_ee_position[1] = np.random.uniform(-0.4+margin, 0.4-margin)
+
         self.ee_init_pos_2d = init_ee_position[:2]
         self.ee_target_position[:2] = self.ee_init_pos_2d
         self.ee_target_yaw = 0
-        init_ee_euler = [-np.pi, 0, 0]
+        # init_ee_euler = [-np.pi, 0, 0]
+        init_ee_euler = [-np.pi, 0, np.random.uniform(-np.pi, np.pi)]  # random yaw
+        
         init_ee_quaternion = np.array(list(p.getQuaternionFromEuler(init_ee_euler)))
         init_arm_angles = self.inverse_kinematics(
             link=self.ee_link, position=init_ee_position, orientation=init_ee_quaternion

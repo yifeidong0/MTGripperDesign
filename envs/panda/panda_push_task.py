@@ -158,10 +158,13 @@ class UPush(Task):
         # self.random_target[1] = np.random.uniform(0.2, 0.4)
         # self.is_success_flag = False
 
-    def _sample_goal(self) -> np.ndarray:
+    def _sample_goal(self, margin=0.2) -> np.ndarray:
         """Randomize goal."""
-        self.goal_range_low = np.array([0.35, -0.3])
-        self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.08])
+        # self.goal_range_low = np.array([0.35, -0.3])
+        # self.goal_range_high = np.array([0.55, self.init_object_position[1] - 0.08])
+        self.goal_range_low = np.array([0.2+margin, -0.4+margin])
+        self.goal_range_high = np.array([0.75-margin, 0.4-margin])
+
         while True:
             goal = np.array([0.0, 0.0])  # z offset for the cube center
             noise = np.random.uniform(self.goal_range_low, self.goal_range_high)
@@ -170,34 +173,41 @@ class UPush(Task):
                 break
         return goal
 
-    def _sample_object(self) -> np.ndarray:
+    def _sample_object(self, margin=0.2) -> np.ndarray:
         """Randomize start position of object with higher probability at boundaries."""
-        self.obj_range_low = np.array([0.35, -0.1, 0])
-        self.obj_range_high = np.array([0.55, self.ee_init_pos_2d[1] - 0.05, 0])
-        object_position = np.array([0.0, 0.0, self.object_size / 2])
-        
-        # Define boundary bias (higher probability at edges)
-        boundary_bias = 0.9  # 70% chance of being near a boundary
-        
-        if np.random.random() < boundary_bias:
-            # Sample near boundaries
-            axis = 0 # choose x axis
-            edge = np.random.randint(0, 2)  # Choose low or high boundary
+        # self.obj_range_low = np.array([0.35, -0.1, 0])
+        # self.obj_range_high = np.array([0.55, self.ee_init_pos_2d[1] - 0.05, 0])
+        self.obj_range_low = np.array([0.2+margin, -0.4+margin, 0])
+        self.obj_range_high = np.array([0.75-margin, 0.4-margin, 0])
+    
+        while True:
+            object_position = np.array([0.0, 0.0, self.object_size / 2])
             
-            # Create the noise vector
-            noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
+            # Define boundary bias (higher probability at edges)
+            boundary_bias = 0.9  # 70% chance of being near a boundary
             
-            # Set the chosen axis to be near its boundary
-            boundary_margin = 0.05  # Distance from exact boundary
-            if edge == 0:  # Low boundary
-                noise[axis] = self.obj_range_low[axis] + np.random.uniform(0, boundary_margin)
-            else:  # High boundary
-                noise[axis] = self.obj_range_high[axis] - np.random.uniform(0, boundary_margin)
-        else:
-            # Sample uniformly from the entire range
-            noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
-            
-        object_position += noise
+            if np.random.random() < boundary_bias:
+                # Sample near boundaries
+                axis = 0 # choose x axis
+                edge = np.random.randint(0, 2)  # Choose low or high boundary
+                
+                # Create the noise vector
+                noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
+                
+                # Set the chosen axis to be near its boundary
+                boundary_margin = 0.05  # Distance from exact boundary
+                if edge == 0:  # Low boundary
+                    noise[axis] = self.obj_range_low[axis] + np.random.uniform(0, boundary_margin)
+                else:  # High boundary
+                    noise[axis] = self.obj_range_high[axis] - np.random.uniform(0, boundary_margin)
+            else:
+                # Sample uniformly from the entire range
+                noise = np.random.uniform(self.obj_range_low, self.obj_range_high)
+                
+            object_position += noise
+            if distance(object_position[:2], self.robot.ee_init_pos_2d) > margin:
+                break
+
         return object_position
 
     def is_success(self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: Dict[str, Any] = {}) -> np.ndarray:
