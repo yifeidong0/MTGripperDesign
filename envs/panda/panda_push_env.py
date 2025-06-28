@@ -153,6 +153,11 @@ class PandaUPushEnv(RobotTaskEnv):
         # self.robot.finger_angle = -0.11635528346628865
         # self.robot.distal_phalanx_length = 0.08
 
+        # 2.15257274412634,0.05,0.34906585039886573,0.035555555555555556
+        # self.robot.v_angle = 2.15
+        # self.robot.finger_length = 0.05
+        # self.robot.finger_angle = 0.35
+        # self.robot.distal_phalanx_length = 0.035
         return super().reset(seed=seed, options=options)
 
     def reset_task_and_design(
