@@ -58,11 +58,11 @@ class DeepPolicy(ActorCriticPolicy):
 class PandaEnvWrapper(gym.Wrapper):
     """Wrapper for Panda environments to flatten observations and rescale actions."""
     
-    def __init__(self, env: gym.Env, min_action: float = -1.0, max_action: float = 1.0):
+    def __init__(self, env: gym.Env, min_action: float = -1.0, max_action: float = 1.0, stat_file: str = "data/obs_statistics.pkl"):
         wrapped_env = FlattenObservation(env)
         wrapped_env = RescaleAction(wrapped_env, min_action=min_action, max_action=max_action)
         super().__init__(wrapped_env)
-        with open("data/obs_statistics.pkl", "rb") as f:
+        with open(stat_file, "rb") as f:
             obs_info = pickle.load(f)
             self.obs_mean = obs_info["mean"]
             self.obs_std = obs_info["std"]
