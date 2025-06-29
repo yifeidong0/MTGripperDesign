@@ -11,17 +11,19 @@ import numpy as np
 import argparse
 import gymnasium as gym
 from stable_baselines3 import PPO
+from stable_baselines3.common.utils import set_random_seed
 from policy.ppo_reg import PPOReg
 from panda_IL import PandaEnvWrapper, DeepPolicy
-
 
 def main(args):
     algo_name = args.algo  
     train_mode = args.train_mode  
     seed = args.seed 
+    set_random_seed(seed, using_cuda=False)  # leave the CUDA randomness for performance
     render_mode = "rgb_array"  # "human" or "rgb_array"
+    training_steps = int(1.5e6)  # Total training steps
     env_id = "PandaUPushEnv-v0"
-    env = gym.make(env_id, render_mode=render_mode, max_episode_steps=1000)
+    env = gym.make(env_id, render_mode=render_mode, max_episode_steps=1000, run_id=f"{algo_name}_{train_mode}_{seed}")
     env = PandaEnvWrapper(env, stat_file="data/obs_statistics.pkl")
 
     if algo_name == "PPO":
@@ -37,11 +39,12 @@ def main(args):
         model = PPOReg(policy=DeepPolicy,
                         env=env,
                         verbose=1,
-                        tensorboard_log=f"data/runs/{algo_name}/{train_mode}/{seed}",
+                        tensorboard_log=f"data/runs/panda",
                         max_grad_norm=0.01,
                         clip_range=0.01,
                         seed=seed,
                         )
+        
     else:
         raise ValueError(f"Unsupported algorithm: {algo_name}")
     
@@ -59,12 +62,12 @@ def main(args):
         exit(0)
         
     try:
-        model.learn(total_timesteps=int(1e6), log_interval=5, progress_bar=True)
+        model.learn(total_timesteps=training_steps, log_interval=5, progress_bar=True, tb_log_name=f"{algo_name}_{train_mode}_{seed}")
     except KeyboardInterrupt:
         print("Training interrupted")
     finally:
         model.save(f"data/models/{env_id}_{algo_name}_{train_mode}_{seed}.zip")
-    env.close()
+        env.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Panda RL Training Script")

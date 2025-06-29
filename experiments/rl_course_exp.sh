@@ -2,7 +2,7 @@
 
 # Define values
 algos=("PPO" "PPOReg")
-modes=("from_scratch" "finetune")
+modes=("finetune" "from_scratch")
 seeds=(123 456)
 
 # Optional: limit number of parallel jobs

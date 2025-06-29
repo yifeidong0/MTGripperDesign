@@ -5,6 +5,7 @@
 
 from typing import Any, Dict, Optional, Tuple
 import time
+import os
 
 import numpy as np
 import random
@@ -58,7 +59,6 @@ class PandaUPushEnv(RobotTaskEnv):
     ) -> None:
         sim = PyBullet(render_mode=render_mode, renderer=renderer, n_substeps=50)
         robot = PandaCustom(sim, block_gripper=True, base_position=np.array([0.0, 0.0, 0.0]), control_type=control_type, run_id=run_id)
-        print("reward_weights", reward_weights)
         task = UPush(sim, robot, reward_type=reward_type, using_robustness_reward=using_robustness_reward, reward_weights=reward_weights)
         task.ee_init_pos_2d = robot.ee_init_pos_2d
         super().__init__(
@@ -72,6 +72,7 @@ class PandaUPushEnv(RobotTaskEnv):
             render_pitch=render_pitch,
             render_roll=render_roll,
         )
+        self.run_id = run_id
         self.perturb = perturb
         self.perturb_sigma = perturb_sigma
         self.obs_type = obs_type
@@ -212,3 +213,8 @@ class PandaUPushEnv(RobotTaskEnv):
         #     print(f"time_ended") if time_ended else None
 
         return truncated
+
+    def close(self):
+        super().close()
+        print("Closing PandaUPushEnv")
+        os.system(f"rm -rf asset/{self.run_id}")
