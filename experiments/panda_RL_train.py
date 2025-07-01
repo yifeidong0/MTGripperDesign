@@ -23,14 +23,14 @@ def main(args):
     render_mode = "rgb_array"  # "human" or "rgb_array"
     training_steps = int(1.5e6)  # Total training steps
     env_id = "PandaUPushEnv-v0"
-    env = gym.make(env_id, render_mode=render_mode, max_episode_steps=1000, run_id=f"{algo_name}_{train_mode}_{seed}")
+    env = gym.make(env_id, render_mode=render_mode, run_id=f"{algo_name}_{train_mode}_{seed}")
     env = PandaEnvWrapper(env, stat_file="data/obs_statistics.pkl")
 
     if algo_name == "PPO":
         model = PPO(policy=DeepPolicy,
                     env=env,
                     verbose=1,
-                    tensorboard_log=f"data/runs/{algo_name}/{train_mode}/{seed}",
+                    tensorboard_log=f"data/runs/panda",
                     max_grad_norm=0.01,
                     clip_range=0.01,
                     seed=seed,

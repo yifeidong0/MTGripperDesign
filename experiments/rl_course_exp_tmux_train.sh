@@ -23,3 +23,6 @@ for algo in $algos; do
 done
 
 echo "All tmux windows created. Attach with: tmux attach -t $SESSION_NAME"
+
+
+
